@@ -1,6 +1,93 @@
 @import 'tailwindcss';
 
+@theme {
+  --font-sans: Inter, 'Segoe UI', Roboto, sans-serif;
+
+  --color-accent-50: #fff7ed;
+  --color-accent-100: #ffedd5;
+  --color-accent-200: #fed7aa;
+  --color-accent-300: #fdba74;
+  --color-accent-400: #fb923c;
+  --color-accent-500: #f97316;
+  --color-accent-600: #ea580c;
+  --color-accent-700: #c2410c;
+  --color-accent-800: #9a3412;
+  --color-accent-900: #7c2d12;
+
+  --color-rail: #111111;
+  --color-rail-hover: #1f1f1f;
+}
+
 body {
   margin: 0;
-  font-family: Inter, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
+}
+
+@keyframes splash-mark-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splash-word-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes splash-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes splash-fade-in-simple {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-splash-mark {
+  animation: splash-mark-in 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-splash-word {
+  animation: splash-word-in 400ms ease-out 350ms both;
+}
+
+.animate-splash-exit {
+  animation: splash-fade-out 400ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-splash-mark,
+  .animate-splash-word {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .animate-splash-exit {
+    animation: splash-fade-out 200ms ease-in both;
+  }
 }

@@ -1,0 +1,11 @@
+export type AuditAction =
+  | 'account_created'
+  | 'login'
+  | 'logout'
+  | 'password_changed'
+  | 'email_change_requested'
+  | 'profile_updated'
+  | 'notification_preferences_updated'
+  | 'data_exported'
+  | 'account_deletion_initiated'
+  | 'account_deleted'

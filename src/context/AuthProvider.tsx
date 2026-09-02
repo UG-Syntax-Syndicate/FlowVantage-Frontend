@@ -14,11 +14,14 @@ import {
 import { AuthContext } from './AuthContext'
 import type { UserProfile } from '../types/user'
 
+const VERIFICATION_POLL_MS = 5000
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [authResolved, setAuthResolved] = useState(false)
   const [backendSessionToken, setBackendSessionToken] = useState<string | null>(readBackendSessionToken)
+  const [emailVerified, setEmailVerified] = useState(false)
 
   useEffect(() => {
     getRedirectResult(auth).then(async (result) => {
@@ -36,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user)
       setAuthResolved(true)
+      setEmailVerified(user?.emailVerified ?? false)
       if (!user) {
         setUserProfile(null)
         clearBackendSessionToken()
@@ -45,6 +49,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return unsubscribe
   }, [])
+
+  // Polls Firebase for a fresh emailVerified flag while the signed-in user is
+  // unverified. `user.reload()` mutates the existing User instance in place
+  // and does not re-fire onAuthStateChanged, so this tracks a plain boolean
+  // instead of relying on the currentUser object reference to change.
+  useEffect(() => {
+    if (!currentUser || emailVerified) return
+
+    let cancelled = false
+
+    const checkVerified = async () => {
+      try {
+        await auth.currentUser?.reload()
+      } catch {
+        return
+      }
+      if (cancelled) return
+      if (auth.currentUser?.emailVerified) {
+        setEmailVerified(true)
+      }
+    }
+
+    const interval = window.setInterval(checkVerified, VERIFICATION_POLL_MS)
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') checkVerified()
+    }
+    document.addEventListener('visibilitychange', handleFocus)
+    window.addEventListener('focus', checkVerified)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleFocus)
+      window.removeEventListener('focus', checkVerified)
+    }
+  }, [currentUser, emailVerified])
 
   useEffect(() => {
     if (!currentUser) return
@@ -109,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loading = !authResolved
 
   return (
-    <AuthContext.Provider value={{ currentUser, userProfile, loading, backendSessionToken }}>
+    <AuthContext.Provider value={{ currentUser, userProfile, loading, backendSessionToken, emailVerified }}>
       {children}
     </AuthContext.Provider>
   )

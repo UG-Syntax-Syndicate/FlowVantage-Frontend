@@ -50,7 +50,7 @@ export function MobileNavDrawer({ open, onClose }: MobileNavDrawerProps) {
         }`}
       >
         <div className="flex items-center justify-between px-4 py-4">
-          <img src="/flow-Vantage-logo.jpeg" alt="Flow Vantage" className="h-8 w-auto rounded-md" />
+          <img src="/flow-vantage-logo2.png" alt="Flow Vantage" className="h-8 w-8" />
           <button
             type="button"
             onClick={onClose}

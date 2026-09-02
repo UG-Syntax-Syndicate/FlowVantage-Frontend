@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { applyActionCode, confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth'
+import { MailCheck } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { getAuthErrorMessage } from '../../lib/authErrors'
 import { showToast } from '../../lib/toast'
@@ -106,7 +107,7 @@ export function AuthActionPage() {
             </Link>
             <Link
               to="/login"
-              className="flex-1 rounded-xl bg-accent-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-accent-600"
+              className="flex-1 rounded-xl bg-rail px-4 py-3 text-center text-sm font-semibold text-white hover:bg-rail-hover"
             >
               Back to sign in
             </Link>
@@ -150,7 +151,7 @@ export function AuthActionPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-xl bg-accent-500 px-4 py-3 font-semibold text-white transition hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? 'Saving…' : 'Save new password'}
             </button>
@@ -164,7 +165,7 @@ export function AuthActionPage() {
           <Alert variant="success">Your password has been reset. You can now sign in.</Alert>
           <Link
             to="/login"
-            className="block w-full rounded-xl bg-accent-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-accent-600"
+            className="block w-full rounded-xl bg-rail px-4 py-3 text-center text-sm font-semibold text-white hover:bg-rail-hover"
           >
             Back to sign in
           </Link>
@@ -172,14 +173,17 @@ export function AuthActionPage() {
       )}
 
       {status === 'email-verified' && (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-slate-900">Email verified</h2>
-          <Alert variant="success">Your email address has been verified. Thanks!</Alert>
+        <div className="space-y-4 text-center">
+          <div className="flex justify-center text-slate-900">
+            <MailCheck size={40} strokeWidth={1.5} />
+          </div>
+          <h2 className="text-2xl font-semibold text-slate-900">Email Verified</h2>
+          <p className="text-sm text-slate-500">Your email address was successfully verified</p>
           <Link
-            to="/dashboard"
-            className="block w-full rounded-xl bg-accent-500 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-accent-600"
+            to="/login"
+            className="block w-full rounded-xl bg-rail px-4 py-3 text-center text-sm font-semibold text-white hover:bg-rail-hover"
           >
-            Continue to dashboard
+            Sign in
           </Link>
         </div>
       )}

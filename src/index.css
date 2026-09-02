@@ -67,6 +67,21 @@ body {
   }
 }
 
+@keyframes ring-deplete {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+}
+
+.animate-ring-deplete {
+  animation-name: ring-deplete;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
 .animate-splash-mark {
   animation: splash-mark-in 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
@@ -89,5 +104,10 @@ body {
 
   .animate-splash-exit {
     animation: splash-fade-out 200ms ease-in both;
+  }
+
+  .animate-ring-deplete {
+    animation: none;
+    stroke-dashoffset: 0;
   }
 }

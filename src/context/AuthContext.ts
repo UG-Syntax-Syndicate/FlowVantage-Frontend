@@ -7,6 +7,7 @@ export interface AuthContextValue {
   userProfile: UserProfile | null
   loading: boolean
   backendSessionToken: string | null
+  emailVerified: boolean
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined)

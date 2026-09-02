@@ -17,7 +17,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         <Menu size={20} strokeWidth={1.9} />
       </button>
 
-      <img src="/flow-Vantage-logo.jpeg" alt="Flow Vantage" className="h-8 w-auto rounded-md" />
+      <img src="/flow-vantage-logo2.png" alt="Flow Vantage" className="h-8 w-8" />
 
       <div className="ml-4 hidden flex-1 items-center lg:flex">
         <div className="flex w-full max-w-sm items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-400">

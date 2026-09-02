@@ -77,7 +77,7 @@ export function ForgotPasswordPage() {
               autoComplete="email"
               {...register('email')}
               className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
-              placeholder="you@company.com"
+              placeholder="Example@email.com"
             />
             {errors.email && <p className="text-sm text-rose-600">{errors.email.message}</p>}
           </div>
@@ -87,7 +87,7 @@ export function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-xl bg-accent-500 px-4 py-3 font-semibold text-white transition hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? 'Sending…' : 'Send reset link'}
           </button>

@@ -1,9 +1,10 @@
 interface OAuthButtonProps {
   onClick: () => void
   disabled?: boolean
+  label?: string
 }
 
-export function MicrosoftButton({ onClick, disabled }: OAuthButtonProps) {
+export function MicrosoftButton({ onClick, disabled, label = 'Continue with Microsoft' }: OAuthButtonProps) {
   return (
     <button
       type="button"
@@ -17,7 +18,7 @@ export function MicrosoftButton({ onClick, disabled }: OAuthButtonProps) {
         <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
         <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
       </svg>
-      Continue with Microsoft
+      {label}
     </button>
   )
 }

@@ -1,9 +1,10 @@
 interface OAuthButtonProps {
   onClick: () => void
   disabled?: boolean
+  label?: string
 }
 
-export function GoogleButton({ onClick, disabled }: OAuthButtonProps) {
+export function GoogleButton({ onClick, disabled, label = 'Continue with Google' }: OAuthButtonProps) {
   return (
     <button
       type="button"
@@ -29,7 +30,7 @@ export function GoogleButton({ onClick, disabled }: OAuthButtonProps) {
           d="M12 4.75c1.76 0 3.35.61 4.6 1.8l3.45-3.45C17.94 1.19 15.24 0 12 0 7.31 0 3.27 2.7 1.3 6.59l4.02 3.09C6.26 6.86 8.89 4.75 12 4.75z"
         />
       </svg>
-      Continue with Google
+      {label}
     </button>
   )
 }

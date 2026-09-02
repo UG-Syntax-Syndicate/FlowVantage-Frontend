@@ -74,7 +74,7 @@ export function LoginPage() {
   return (
     <AuthLayout>
       <div className="space-y-1.5">
-        <h2 className="text-3xl font-semibold text-slate-900">Sign in to Flow Vantage</h2>
+        <h2 className="text-3xl font-semibold text-slate-900">Welcome to Flow Vantage</h2>
         <p className="text-sm text-slate-500">
           Manage your projects from one secure, centralized workspace.
         </p>
@@ -84,18 +84,7 @@ export function LoginPage() {
         <Alert variant="info">You were signed out after a period of inactivity.</Alert>
       )}
 
-      <div className="mt-6 space-y-3">
-        <GoogleButton onClick={() => handleOAuth('google')} disabled={oauthLoading !== null} />
-        <MicrosoftButton onClick={() => handleOAuth('microsoft')} disabled={oauthLoading !== null} />
-      </div>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-200" />
-        <span className="text-xs uppercase tracking-wide text-slate-400">or</span>
-        <div className="h-px flex-1 bg-slate-200" />
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium text-slate-700">
             Email
@@ -106,29 +95,29 @@ export function LoginPage() {
             autoComplete="email"
             {...register('email')}
             className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
-            placeholder="you@company.com"
+            placeholder="Example@email.com"
           />
           {errors.email && <p className="text-sm text-rose-600">{errors.email.message}</p>}
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-medium text-slate-700">
-              Password
-            </label>
-            <Link to="/forgot-password" className="text-sm font-medium text-accent-600 hover:text-accent-700">
-              Forgot password?
-            </Link>
-          </div>
+          <label htmlFor="password" className="text-sm font-medium text-slate-700">
+            Password
+          </label>
           <input
             id="password"
             type="password"
             autoComplete="current-password"
             {...register('password')}
             className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
-            placeholder="••••••••"
+            placeholder="at least 8 characters"
           />
           {errors.password && <p className="text-sm text-rose-600">{errors.password.message}</p>}
+          <div className="text-right">
+            <Link to="/forgot-password" className="text-sm font-medium text-accent-600 hover:text-accent-700">
+              Forgot Password?
+            </Link>
+          </div>
         </div>
 
         {formError && <Alert variant="error">{formError}</Alert>}
@@ -136,14 +125,33 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-accent-500 px-4 py-3 font-semibold text-white transition hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
 
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-slate-200" />
+        <span className="text-xs uppercase tracking-wide text-slate-400">or</span>
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
+
+      <div className="space-y-3">
+        <GoogleButton
+          onClick={() => handleOAuth('google')}
+          disabled={oauthLoading !== null}
+          label="Sign in with Google"
+        />
+        <MicrosoftButton
+          onClick={() => handleOAuth('microsoft')}
+          disabled={oauthLoading !== null}
+          label="Sign in with Microsoft"
+        />
+      </div>
+
       <p className="mt-6 text-center text-sm text-slate-500">
-        Don&apos;t have an account?{' '}
+        Don&apos;t you have an account?{' '}
         <Link to="/signup" className="font-medium text-accent-600 hover:text-accent-700">
           Sign up
         </Link>

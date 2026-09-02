@@ -10,6 +10,7 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../lib/constants'
 import { logAuditEvent } from '../../lib/auditLog'
 import { getAuthErrorMessage } from '../../lib/authErrors'
 import { signInWithGoogle, signInWithMicrosoft } from '../../lib/oauth'
+import { setPendingAuthRedirect } from '../../lib/pendingAuthRedirect'
 import { showToast } from '../../lib/toast'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { GoogleButton } from '../../components/auth/GoogleButton'
@@ -44,6 +45,7 @@ export function SignupPage() {
   const onSubmit = async (values: FormValues) => {
     setFormError('')
     try {
+      setPendingAuthRedirect('/verify-email-pending')
       const credential = await createUserWithEmailAndPassword(auth, values.email, values.password)
       await updateProfile(credential.user, { displayName: values.name })
       await setDoc(doc(db, 'users', credential.user.uid), {
@@ -91,24 +93,13 @@ export function SignupPage() {
   return (
     <AuthLayout>
       <div className="space-y-1.5">
-        <h2 className="text-3xl font-semibold text-slate-900">Create your account</h2>
+        <h2 className="text-3xl font-semibold text-slate-900">Create an account</h2>
         <p className="text-sm text-slate-500">
-          Bring your projects, contacts, and communication into one workspace.
+          Manage your projects from one secure, centralized workspace.
         </p>
       </div>
 
-      <div className="mt-6 space-y-3">
-        <GoogleButton onClick={() => handleOAuth('google')} disabled={oauthLoading !== null} />
-        <MicrosoftButton onClick={() => handleOAuth('microsoft')} disabled={oauthLoading !== null} />
-      </div>
-
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-200" />
-        <span className="text-xs uppercase tracking-wide text-slate-400">or</span>
-        <div className="h-px flex-1 bg-slate-200" />
-      </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
         <div className="space-y-2">
           <label htmlFor="name" className="text-sm font-medium text-slate-700">
             Full name
@@ -134,7 +125,7 @@ export function SignupPage() {
             autoComplete="email"
             {...register('email')}
             className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
-            placeholder="you@company.com"
+            placeholder="Example@email.com"
           />
           {errors.email && <p className="text-sm text-rose-600">{errors.email.message}</p>}
         </div>
@@ -149,7 +140,7 @@ export function SignupPage() {
             autoComplete="new-password"
             {...register('password')}
             className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
-            placeholder="••••••••"
+            placeholder="at least 8 characters"
           />
           {errors.password && <p className="text-sm text-rose-600">{errors.password.message}</p>}
         </div>
@@ -164,7 +155,7 @@ export function SignupPage() {
             autoComplete="new-password"
             {...register('confirmPassword')}
             className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
-            placeholder="••••••••"
+            placeholder="at least 8 characters"
           />
           {errors.confirmPassword && (
             <p className="text-sm text-rose-600">{errors.confirmPassword.message}</p>
@@ -176,16 +167,35 @@ export function SignupPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-accent-500 px-4 py-3 font-semibold text-white transition hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? 'Creating account…' : 'Create account'}
         </button>
       </form>
 
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-slate-200" />
+        <span className="text-xs uppercase tracking-wide text-slate-400">or</span>
+        <div className="h-px flex-1 bg-slate-200" />
+      </div>
+
+      <div className="space-y-3">
+        <GoogleButton
+          onClick={() => handleOAuth('google')}
+          disabled={oauthLoading !== null}
+          label="Sign up with Google"
+        />
+        <MicrosoftButton
+          onClick={() => handleOAuth('microsoft')}
+          disabled={oauthLoading !== null}
+          label="Sign up with Microsoft"
+        />
+      </div>
+
       <p className="mt-6 text-center text-sm text-slate-500">
         Already have an account?{' '}
         <Link to="/login" className="font-medium text-accent-600 hover:text-accent-700">
-          Sign in
+          Sign In
         </Link>
       </p>
     </AuthLayout>

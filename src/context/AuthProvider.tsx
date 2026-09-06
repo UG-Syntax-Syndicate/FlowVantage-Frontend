@@ -5,7 +5,7 @@ import { doc, onSnapshot, updateDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 import { ensureUserProfileDoc } from '../lib/oauth'
 import { logAuditEvent } from '../lib/auditLog'
-import { exchangeFirebaseSession } from '../lib/backendApi'
+import { exchangeFirebaseSession, logoutBackendSession } from '../lib/backendApi'
 import {
   clearBackendSessionToken,
   readBackendSessionToken,
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [backendSessionToken, setBackendSessionToken] = useState<string | null>(readBackendSessionToken)
   const [emailVerified, setEmailVerified] = useState(false)
   const [twoFactorChallenge, setTwoFactorChallenge] = useState<TwoFactorChallenge | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
 
   useEffect(() => {
     getRedirectResult(auth).then(async (result) => {
@@ -41,7 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCurrentUser(user)
       setAuthResolved(true)
       setEmailVerified(user?.emailVerified ?? false)
-      if (!user) {
+      if (user) {
+        setSessionExpired(false)
+      } else {
         setUserProfile(null)
         clearBackendSessionToken()
         setBackendSessionToken(null)
@@ -170,6 +173,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth)
   }, [])
 
+  /**
+   * Signs out due to inactivity, same security boundary as a normal logout
+   * (clears the backend session, signs out of Firebase), but deliberately
+   * does not navigate or toast — ProtectedRoute shows a blocking "session
+   * expired" screen in place instead, until the user acknowledges it.
+   */
+  const expireSession = useCallback(async () => {
+    const sessionToken = backendSessionToken
+    clearBackendSessionToken()
+    setBackendSessionToken(null)
+
+    if (sessionToken) {
+      void logoutBackendSession(sessionToken).catch((error) => {
+        console.warn('Failed to clear backend session', error)
+      })
+    }
+
+    setSessionExpired(true)
+
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.warn('Failed to sign out after idle timeout', error)
+    }
+  }, [backendSessionToken])
+
+  /**
+   * Called right before navigating to /login from the "session expired"
+   * screen. expireSession() already kicked off signOut() when the timeout
+   * fired, but that's fire-and-forget from the timer's perspective — if the
+   * user clicks through before it's actually finished, currentUser would
+   * still be truthy for a moment and PublicOnlyRoute would bounce /login
+   * straight back to /dashboard. Re-awaiting signOut() here (a harmless
+   * no-op if it already completed) guarantees currentUser is really null
+   * before we clear the flag and let the caller navigate.
+   */
+  const acknowledgeSessionExpired = useCallback(async () => {
+    try {
+      await signOut(auth)
+    } catch (error) {
+      console.warn('Failed to confirm sign-out before re-login', error)
+    }
+    setSessionExpired(false)
+  }, [])
+
   const loading = !authResolved
 
   return (
@@ -183,6 +231,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         twoFactorChallenge,
         resolveTwoFactorChallenge,
         cancelTwoFactorChallenge,
+        sessionExpired,
+        expireSession,
+        acknowledgeSessionExpired,
       }}
     >
       {children}

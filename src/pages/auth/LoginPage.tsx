@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -24,11 +24,9 @@ type FormValues = z.infer<typeof schema>
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams] = useSearchParams()
   const [formError, setFormError] = useState('')
   const [oauthLoading, setOauthLoading] = useState<'google' | 'microsoft' | null>(null)
 
-  const timedOut = searchParams.get('reason') === 'timeout'
   const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/dashboard'
 
   const {
@@ -79,10 +77,6 @@ export function LoginPage() {
           Manage your projects from one secure, centralized workspace.
         </p>
       </div>
-
-      {timedOut && (
-        <Alert variant="info">You were signed out after a period of inactivity.</Alert>
-      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
         <div className="space-y-2">

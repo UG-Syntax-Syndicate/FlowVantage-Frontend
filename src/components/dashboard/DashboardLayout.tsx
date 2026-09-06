@@ -5,6 +5,8 @@ import { useSessionTimeout } from '../../hooks/useSessionTimeout'
 import { Sidebar } from './Sidebar'
 import { EmailVerificationGateModal } from './EmailVerificationGateModal'
 import { TwoFactorChallengeModal } from './TwoFactorChallengeModal'
+import { SessionWarningModal } from './SessionWarningModal'
+import { SessionExpiredScreen } from './SessionExpiredScreen'
 import { SidebarProvider, useSidebar } from '../animate-ui/components/radix/sidebar'
 
 function MobileHeader() {
@@ -27,15 +29,24 @@ function MobileHeader() {
 }
 
 export function DashboardLayout() {
-  useSessionTimeout()
-  const { twoFactorChallenge } = useAuth()
+  const { phase, secondsRemaining, stayActive } = useSessionTimeout()
+  const { twoFactorChallenge, sessionExpired } = useAuth()
+
+  let gateModal: React.ReactNode = <EmailVerificationGateModal />
+  if (sessionExpired) {
+    gateModal = <SessionExpiredScreen />
+  } else if (twoFactorChallenge) {
+    gateModal = <TwoFactorChallengeModal />
+  } else if (phase === 'warning') {
+    gateModal = <SessionWarningModal secondsRemaining={secondsRemaining} onStayActive={stayActive} />
+  }
 
   return (
     <SidebarProvider
       className="h-screen w-full bg-surface"
       style={{ '--sidebar-width': '257px' } as React.CSSProperties}
     >
-      {twoFactorChallenge ? <TwoFactorChallengeModal /> : <EmailVerificationGateModal />}
+      {gateModal}
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileHeader />

@@ -5,8 +5,11 @@ import { AuthLayout } from '../../components/auth/AuthLayout'
 import { TwoFactorSetup } from '../../components/dashboard/account/TwoFactorSetup'
 
 /**
- * Shown once, right after an account is created, offering to turn on
- * two-factor authentication before landing in the app.
+ * Shown once, right before a newly-created account first lands in the app —
+ * after email verification for password signups (see
+ * VerifyEmailPendingPage.tsx), or immediately for OAuth signups (already
+ * verified by the provider, see SignupPage.tsx's handleOAuth) — offering to
+ * turn on two-factor authentication now or skip it for later.
  */
 export function SetupTwoFactorPage() {
   const navigate = useNavigate()

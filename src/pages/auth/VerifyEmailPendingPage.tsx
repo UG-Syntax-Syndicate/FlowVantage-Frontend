@@ -30,7 +30,7 @@ export function VerifyEmailPendingPage() {
   useEffect(() => {
     if (!currentUser || !emailVerified) return
     showToast('success', 'Email verified!')
-    navigate('/dashboard', { replace: true })
+    navigate('/setup-two-factor', { replace: true, state: { next: '/dashboard' } })
   }, [currentUser, emailVerified, navigate])
 
   if (loading) {

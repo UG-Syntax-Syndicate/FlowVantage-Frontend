@@ -64,7 +64,7 @@ export function SignupPage() {
         console.warn('Failed to log account-created audit event', error)
       })
       showToast('success', 'Account created', 'Check your inbox to verify your email.')
-      navigate('/setup-two-factor', { replace: true, state: { next: '/verify-email-pending' } })
+      navigate('/verify-email-pending', { replace: true })
     } catch (error) {
       setFormError(getAuthErrorMessage(error))
     }

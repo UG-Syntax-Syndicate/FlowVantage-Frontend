@@ -22,7 +22,12 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>
 
-export function ChangePasswordSection() {
+interface ChangePasswordSectionProps {
+  /** Renders just the form (no heading/border), for use inside a Dialog. */
+  compact?: boolean
+}
+
+export function ChangePasswordSection({ compact = false }: ChangePasswordSectionProps) {
   const { currentUser } = useAuth()
   const [reauthOpen, setReauthOpen] = useState(false)
   const [pendingValues, setPendingValues] = useState<FormValues | null>(null)
@@ -36,12 +41,18 @@ export function ChangePasswordSection() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
   if (!currentUser?.providerData.some((p) => p.providerId === 'password')) {
+    const noPasswordMessage = (
+      <p className="text-sm text-slate-500">
+        You sign in with a Google or Microsoft account, so there&apos;s no Flow Vantage password to change.
+      </p>
+    )
+    if (compact) {
+      return noPasswordMessage
+    }
     return (
       <section className="space-y-2 border-b border-slate-100 py-8">
         <h2 className="text-base font-semibold text-slate-900">Password</h2>
-        <p className="text-sm text-slate-500">
-          You sign in with a Google or Microsoft account, so there&apos;s no Flow Vantage password to change.
-        </p>
+        {noPasswordMessage}
       </section>
     )
   }
@@ -67,12 +78,14 @@ export function ChangePasswordSection() {
     }
   }
 
-  return (
-    <section className="space-y-4 border-b border-slate-100 py-8">
-      <div>
-        <h2 className="text-base font-semibold text-slate-900">Password</h2>
-        <p className="text-sm text-slate-500">Choose a strong password you don&apos;t use elsewhere.</p>
-      </div>
+  const content = (
+    <>
+      {!compact && (
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Password</h2>
+          <p className="text-sm text-slate-500">Choose a strong password you don&apos;t use elsewhere.</p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-sm space-y-3">
         <div className="space-y-1.5">
@@ -124,6 +137,12 @@ export function ChangePasswordSection() {
         }}
         onSuccess={completePasswordChange}
       />
-    </section>
+    </>
   )
+
+  if (compact) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return <section className="space-y-4 border-b border-slate-100 py-8">{content}</section>
 }

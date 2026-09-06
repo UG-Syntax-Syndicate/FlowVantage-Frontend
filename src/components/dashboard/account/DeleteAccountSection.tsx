@@ -12,7 +12,12 @@ import { Alert } from '../../common/Alert'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { ReauthModal } from './ReauthModal'
 
-export function DeleteAccountSection() {
+interface DeleteAccountSectionProps {
+  /** Renders as a compact label + button row instead of a full stacked section. */
+  compact?: boolean
+}
+
+export function DeleteAccountSection({ compact = false }: DeleteAccountSectionProps) {
   const { currentUser, userProfile } = useAuth()
   const navigate = useNavigate()
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -48,6 +53,59 @@ export function DeleteAccountSection() {
     } finally {
       setDeleting(false)
     }
+  }
+
+  const trigger = (
+    <button
+      type="button"
+      onClick={() => setConfirmOpen(true)}
+      className={
+        compact
+          ? 'shrink-0 rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50'
+          : 'rounded-lg border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50'
+      }
+    >
+      {compact ? 'Delete Account' : 'Delete my account'}
+    </button>
+  )
+
+  if (compact) {
+    return (
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-rose-700">Delete my account</p>
+          <p className="text-sm text-slate-500">Permanently delete your account and all associated data.</p>
+          {error && (
+            <div className="mt-2">
+              <Alert variant="error">{error}</Alert>
+            </div>
+          )}
+        </div>
+        {trigger}
+
+        <ConfirmDialog
+          open={confirmOpen}
+          title="Delete your account?"
+          description="This permanently deletes your profile, photo, and access to Flow Vantage. Type your email to confirm."
+          confirmLabel="Delete account"
+          confirmationPhrase={currentUser?.email ?? undefined}
+          danger
+          loading={deleting}
+          error={error}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={performDeletion}
+        />
+
+        <ReauthModal
+          open={reauthOpen}
+          onCancel={() => setReauthOpen(false)}
+          onSuccess={() => {
+            setReauthOpen(false)
+            performDeletion()
+          }}
+        />
+      </div>
+    )
   }
 
   return (

@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { motion } from 'motion/react'
+import { EASE_PREMIUM } from '../../lib/motion'
 import { AuthHeroPanel } from './AuthHeroPanel'
 
 interface AuthLayoutProps {
@@ -14,7 +16,14 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           <Link to="/" className="mb-6 lg:hidden">
             <img src="/flow-vantage-logo2.png" alt="Flow Vantage" className="h-9 w-9" />
           </Link>
-          <div className="mx-auto flex w-full flex-1 flex-col justify-center">{children}</div>
+          <motion.div
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.45, ease: EASE_PREMIUM }}
+            className="mx-auto flex w-full flex-1 flex-col justify-center"
+          >
+            {children}
+          </motion.div>
           <p className="mt-10 text-center text-xs text-slate-400">© 2026 ALL RIGHTS RESERVED</p>
         </div>
       </div>

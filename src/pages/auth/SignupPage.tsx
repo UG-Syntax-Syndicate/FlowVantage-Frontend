@@ -82,7 +82,7 @@ export function SignupPage() {
         if (!signedIn) return
       }
       showToast('success', 'Account created', 'Welcome to Flow Vantage.')
-      navigate('/dashboard', { replace: true })
+      navigate('/setup-two-factor', { replace: true, state: { next: '/dashboard' } })
     } catch (error) {
       setFormError(getAuthErrorMessage(error))
     } finally {

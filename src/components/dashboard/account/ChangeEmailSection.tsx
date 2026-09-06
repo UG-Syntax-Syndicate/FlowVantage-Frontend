@@ -15,7 +15,12 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-export function ChangeEmailSection() {
+interface ChangeEmailSectionProps {
+  /** Renders just the form (no heading/border), for use inside a Dialog. */
+  compact?: boolean
+}
+
+export function ChangeEmailSection({ compact = false }: ChangeEmailSectionProps) {
   const { currentUser, userProfile } = useAuth()
   const [reauthOpen, setReauthOpen] = useState(false)
   const [pendingEmail, setPendingEmail] = useState('')
@@ -49,14 +54,16 @@ export function ChangeEmailSection() {
     }
   }
 
-  return (
-    <section className="space-y-4 border-b border-slate-100 py-8">
-      <div>
-        <h2 className="text-base font-semibold text-slate-900">Email address</h2>
-        <p className="text-sm text-slate-500">
-          Current email: <span className="font-medium text-slate-700">{userProfile?.email ?? currentUser?.email}</span>
-        </p>
-      </div>
+  const content = (
+    <>
+      {!compact && (
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Email address</h2>
+          <p className="text-sm text-slate-500">
+            Current email: <span className="font-medium text-slate-700">{userProfile?.email ?? currentUser?.email}</span>
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-sm space-y-3">
         <div className="space-y-1.5">
@@ -90,6 +97,12 @@ export function ChangeEmailSection() {
         onCancel={() => setReauthOpen(false)}
         onSuccess={completeEmailChange}
       />
-    </section>
+    </>
   )
+
+  if (compact) {
+    return <div className="space-y-3">{content}</div>
+  }
+
+  return <section className="space-y-4 border-b border-slate-100 py-8">{content}</section>
 }

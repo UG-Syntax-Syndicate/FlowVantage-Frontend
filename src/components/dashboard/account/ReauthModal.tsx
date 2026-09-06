@@ -8,6 +8,9 @@ import { googleProvider, microsoftProvider } from '../../../lib/firebase'
 import { getAuthErrorMessage } from '../../../lib/authErrors'
 import { useAuth } from '../../../hooks/useAuth'
 import { Alert } from '../../common/Alert'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../ui/dialog'
+import { Button } from '../../ui/button'
+import { Input } from '../../ui/input'
 
 interface ReauthModalProps {
   open: boolean
@@ -56,64 +59,45 @@ export function ReauthModal({ open, onCancel, onSuccess }: ReauthModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-        <h3 className="text-lg font-semibold text-slate-900">Confirm it&apos;s you</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          For your security, please confirm your identity to continue.
-        </p>
+    <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Confirm it&apos;s you</DialogTitle>
+          <DialogDescription>For your security, please confirm your identity to continue.</DialogDescription>
+        </DialogHeader>
 
         {isPasswordAccount ? (
-          <div className="mt-4 space-y-3">
-            <input
+          <div className="space-y-3">
+            <Input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Current password"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
             />
             {error && <Alert variant="error">{error}</Alert>}
             <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-              >
+              <Button type="button" variant="ghost" onClick={onCancel}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handlePasswordReauth}
-                disabled={loading || !password}
-                className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              </Button>
+              <Button type="button" onClick={handlePasswordReauth} disabled={loading || !password}>
                 {loading ? 'Verifying…' : 'Confirm'}
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             {error && <Alert variant="error">{error}</Alert>}
             <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-              >
+              <Button type="button" variant="ghost" onClick={onCancel}>
                 Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleProviderReauth}
-                disabled={loading}
-                className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              </Button>
+              <Button type="button" onClick={handleProviderReauth} disabled={loading}>
                 {loading ? 'Verifying…' : `Re-authenticate with ${isMicrosoftAccount ? 'Microsoft' : 'Google'}`}
-              </button>
+              </Button>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

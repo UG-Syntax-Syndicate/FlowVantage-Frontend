@@ -64,7 +64,7 @@ export function SignupPage() {
         console.warn('Failed to log account-created audit event', error)
       })
       showToast('success', 'Account created', 'Check your inbox to verify your email.')
-      navigate('/verify-email-pending', { replace: true })
+      navigate('/setup-two-factor', { replace: true, state: { next: '/verify-email-pending' } })
     } catch (error) {
       setFormError(getAuthErrorMessage(error))
     }
@@ -82,7 +82,7 @@ export function SignupPage() {
         if (!signedIn) return
       }
       showToast('success', 'Account created', 'Welcome to Flow Vantage.')
-      navigate('/dashboard', { replace: true })
+      navigate('/setup-two-factor', { replace: true, state: { next: '/dashboard' } })
     } catch (error) {
       setFormError(getAuthErrorMessage(error))
     } finally {

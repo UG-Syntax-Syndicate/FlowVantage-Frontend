@@ -1,6 +1,8 @@
+import { motion } from 'motion/react'
 import type { EnrichedTask } from '../../hooks/useEnrichedTasks'
 import { TASK_STATUS_META } from '../../types/statusMeta'
 import { formatShortDate } from '../../lib/formatDate'
+import { EASE_PREMIUM, staggerDelay } from '../../lib/motion'
 
 interface GanttViewProps {
   tasks: EnrichedTask[]
@@ -53,7 +55,7 @@ export function GanttView({ tasks }: GanttViewProps) {
             className="pointer-events-none absolute top-0 bottom-0 z-0 w-px bg-primary/70"
             style={{ left: `calc(220px + ${todayOffset}%)` }}
           />
-          {sortedTasks.map((task) => {
+          {sortedTasks.map((task, i) => {
             const left = toOffsetPercent(task.startDate)
             const right = toOffsetPercent(task.dueDate)
             const width = Math.max(right - left, 2)
@@ -63,19 +65,21 @@ export function GanttView({ tasks }: GanttViewProps) {
               <div key={task.id} className="flex border-b border-line/70 last:border-b-0">
                 <div className="w-[220px] shrink-0 truncate px-4 py-3 text-sm text-slate-700">{task.title}</div>
                 <div className="relative flex-1 py-3">
-                  <div
+                  <motion.div
                     title={`${task.title} · ${formatShortDate(task.startDate)} – ${formatShortDate(task.dueDate)}`}
                     className="absolute top-1/2 h-6 -translate-y-1/2 overflow-hidden rounded-full shadow-[0px_4px_10px_rgba(0,0,0,0.12)]"
                     style={{
                       left: `${left}%`,
-                      width: `${width}%`,
                       backgroundColor: task.projectColor,
                     }}
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ width: `${width}%`, opacity: 1 }}
+                    transition={{ duration: 0.5, delay: staggerDelay(i, 0.04), ease: EASE_PREMIUM }}
                   >
                     <span className="absolute inset-0 flex items-center truncate px-2 text-[10px] font-medium whitespace-nowrap text-white/90">
                       {meta.label}
                     </span>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             )

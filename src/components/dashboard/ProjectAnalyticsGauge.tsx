@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 interface ProjectAnalyticsGaugeProps {
   completed: number
   inProgress: number
@@ -19,6 +21,15 @@ export function ProjectAnalyticsGauge({ completed, inProgress, pending, size = 1
   const values = { completed, inProgress, pending }
   const completedPercent = total > 0 ? Math.round((completed / total) * 100) : 0
 
+  // Segments render collapsed to 0 length on first paint, then grow to their
+  // real length once `grown` flips — the existing `transition-all` on each
+  // circle animates that change into a "sweep-in" on mount.
+  const [grown, setGrown] = useState(false)
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setGrown(true))
+    return () => cancelAnimationFrame(frame)
+  }, [])
+
   let cumulative = 0
 
   return (
@@ -28,7 +39,7 @@ export function ProjectAnalyticsGauge({ completed, inProgress, pending, size = 1
           <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
           {total === 0
             ? null
-            : SEGMENTS.map((segment) => {
+            : SEGMENTS.map((segment, i) => {
                 const value = values[segment.key]
                 if (value <= 0) return null
                 const length = (value / total) * circumference
@@ -44,9 +55,10 @@ export function ProjectAnalyticsGauge({ completed, inProgress, pending, size = 1
                     stroke={segment.color}
                     strokeWidth={strokeWidth}
                     strokeLinecap="round"
-                    strokeDasharray={`${Math.max(length - 3, 0)} ${circumference - length + 3}`}
+                    strokeDasharray={grown ? `${Math.max(length - 3, 0)} ${circumference - length + 3}` : `0 ${circumference}`}
                     strokeDashoffset={-offset}
                     className="transition-all duration-700 ease-out"
+                    style={{ transitionDelay: `${i * 150}ms` }}
                   />
                 )
               })}

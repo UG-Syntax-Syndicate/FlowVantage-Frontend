@@ -1,3 +1,4 @@
+import { motion } from 'motion/react'
 import { TASK_STATUS_ORDER, TASK_STATUS_META } from '../../types/statusMeta'
 import type { TaskStatus } from '../../types/project'
 import type { EnrichedTask } from '../../hooks/useEnrichedTasks'
@@ -8,6 +9,9 @@ import { formatShortDate } from '../../lib/formatDate'
 import { isTaskOverdue } from '../../lib/taskStats'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
+import { EASE_PREMIUM, fadeInUp, staggerDelay } from '../../lib/motion'
+
+const MotionTableRow = motion.create(TableRow)
 
 interface ListViewProps {
   tasks: EnrichedTask[]
@@ -30,10 +34,17 @@ export function ListView({ tasks }: ListViewProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tasks.map((task) => {
+          {tasks.map((task, i) => {
             const overdue = isTaskOverdue(task)
             return (
-              <TableRow key={task.id} className="border-t border-line hover:bg-slate-50/60">
+              <MotionTableRow
+                key={task.id}
+                className="border-t border-line hover:bg-slate-50/60"
+                initial="hidden"
+                animate="visible"
+                variants={fadeInUp}
+                transition={{ duration: 0.3, delay: staggerDelay(i), ease: EASE_PREMIUM }}
+              >
                 <TableCell className="max-w-[260px] truncate px-5 py-3.5 font-medium text-slate-900">
                   {task.title}
                 </TableCell>
@@ -76,7 +87,7 @@ export function ListView({ tasks }: ListViewProps) {
                 <TableCell className={`px-5 py-3.5 whitespace-nowrap ${overdue ? 'font-medium text-rose-600' : 'text-slate-500'}`}>
                   {formatShortDate(task.dueDate)}
                 </TableCell>
-              </TableRow>
+              </MotionTableRow>
             )
           })}
           {tasks.length === 0 && (

@@ -10,6 +10,8 @@ import { AllTodosModal } from '../../components/projects/AllTodosModal'
 import { CreateProjectModal } from '../../components/projects/CreateProjectModal'
 import { CreateFolderModal } from '../../components/projects/CreateFolderModal'
 import { useFolders, useProjects } from '../../hooks/useProjectsData'
+import { Reveal } from '../../components/motion/Reveal'
+import { staggerDelay } from '../../lib/motion'
 
 export function ProjectsPage() {
   const { data: projects = [], isLoading } = useProjects()
@@ -60,8 +62,10 @@ export function ProjectsPage() {
               </button>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {folders.map((folder) => (
-                <FolderCard key={folder.id} folder={folder} />
+              {folders.map((folder, i) => (
+                <Reveal key={folder.id} delay={staggerDelay(i, 0.04, 0.3)}>
+                  <FolderCard folder={folder} />
+                </Reveal>
               ))}
             </div>
           </div>
@@ -72,8 +76,10 @@ export function ProjectsPage() {
               <p className="text-sm text-slate-400">Loading projects…</p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {visibleProjects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
+                {visibleProjects.map((project, i) => (
+                  <Reveal key={project.id} delay={staggerDelay(i, 0.04, 0.3)}>
+                    <ProjectCard project={project} />
+                  </Reveal>
                 ))}
                 {visibleProjects.length === 0 && (
                   <p className="col-span-full py-8 text-center text-sm text-slate-400">No projects match.</p>

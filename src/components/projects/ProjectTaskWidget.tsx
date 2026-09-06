@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Plus } from 'lucide-react'
 import { ViewSwitcher, type ProjectViewMode } from './ViewSwitcher'
 import { ListView } from './ListView'
@@ -8,6 +9,7 @@ import { CalendarView } from './CalendarView'
 import { CreateTaskModal } from './CreateTaskModal'
 import type { EnrichedTask } from '../../hooks/useEnrichedTasks'
 import type { Member } from '../../types/project'
+import { EASE_PREMIUM } from '../../lib/motion'
 
 interface ProjectTaskWidgetProps {
   projectId: string
@@ -50,6 +52,21 @@ export function ProjectTaskWidget({ projectId, members, tasks, expandSignal }: P
       />
     )
 
+  const animatedView = (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={viewMode}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.22, ease: EASE_PREMIUM }}
+        className="h-full"
+      >
+        {activeView}
+      </motion.div>
+    </AnimatePresence>
+  )
+
   const addTaskButton = (
     <button
       type="button"
@@ -81,7 +98,7 @@ export function ProjectTaskWidget({ projectId, members, tasks, expandSignal }: P
             </div>
             {addTaskButton}
           </div>
-          <div className="min-h-0 flex-1">{activeView}</div>
+          <div className="min-h-0 flex-1">{animatedView}</div>
         </div>
         {modal}
       </>
@@ -102,7 +119,7 @@ export function ProjectTaskWidget({ projectId, members, tasks, expandSignal }: P
         </div>
         {addTaskButton}
       </div>
-      <div className={`${COMPACT_HEIGHT} overflow-hidden`}>{activeView}</div>
+      <div className={`${COMPACT_HEIGHT} overflow-hidden`}>{animatedView}</div>
       {modal}
     </div>
   )

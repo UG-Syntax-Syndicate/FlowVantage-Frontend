@@ -11,6 +11,7 @@ import { MiniCalendar } from '../../components/dashboard/MiniCalendar'
 import { ProjectCountdownSlider } from '../../components/dashboard/ProjectCountdownSlider'
 import { EmailSlider } from '../../components/dashboard/EmailSlider'
 import { Card } from '../../components/ui/card'
+import { Reveal } from '../../components/motion/Reveal'
 import { TASK_STATUS_META } from '../../types/statusMeta'
 import { computeProjectStats } from '../../lib/taskStats'
 import { formatShortDate } from '../../lib/formatDate'
@@ -105,111 +106,133 @@ export function DashboardHome() {
           </div>
 
           <div className="flex flex-wrap gap-5">
-            <StatCard
-              icon={Layers}
-              label="Total Projects"
-              value={projectStats.total}
-              variant="primary"
-              shadowClass="shadow-[0px_16px_40px_20px_rgba(236,114,29,0.18)]"
-            />
-            <StatCard
-              icon={CheckCircle2}
-              label="Completed Projects"
-              value={projectStats.completed}
-              variant="default"
-              shadowClass="shadow-[0px_10px_32px_4px_rgba(148,163,184,0.35)]"
-            />
-            <StatCard
-              icon={Clock}
-              label="Pending Projects"
-              value={projectStats.pending}
-              variant="default"
-              shadowClass="shadow-[0px_10px_40px_4px_rgba(148,163,184,0.3)]"
-            />
-            <StatCard
-              icon={AlertTriangle}
-              label="Overdue Projects"
-              value={projectStats.overdue}
-              variant="default"
-              shadowClass="shadow-[0px_10px_40px_16px_rgba(152,150,163,0.2)]"
-            />
+            <Reveal delay={0} className="flex flex-1 min-w-[220px]">
+              <StatCard
+                icon={Layers}
+                label="Total Projects"
+                value={projectStats.total}
+                variant="primary"
+                shadowClass="shadow-[0px_16px_40px_20px_rgba(236,114,29,0.18)]"
+              />
+            </Reveal>
+            <Reveal delay={0.05} className="flex flex-1 min-w-[220px]">
+              <StatCard
+                icon={CheckCircle2}
+                label="Completed Projects"
+                value={projectStats.completed}
+                variant="default"
+                shadowClass="shadow-[0px_10px_32px_4px_rgba(148,163,184,0.35)]"
+              />
+            </Reveal>
+            <Reveal delay={0.1} className="flex flex-1 min-w-[220px]">
+              <StatCard
+                icon={Clock}
+                label="Pending Projects"
+                value={projectStats.pending}
+                variant="default"
+                shadowClass="shadow-[0px_10px_40px_4px_rgba(148,163,184,0.3)]"
+              />
+            </Reveal>
+            <Reveal delay={0.15} className="flex flex-1 min-w-[220px]">
+              <StatCard
+                icon={AlertTriangle}
+                label="Overdue Projects"
+                value={projectStats.overdue}
+                variant="default"
+                shadowClass="shadow-[0px_10px_40px_16px_rgba(152,150,163,0.2)]"
+              />
+            </Reveal>
           </div>
 
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-9">
             <div className="flex flex-col gap-6 lg:col-span-5">
-              <Card className="gap-4 overflow-visible rounded-2xl border border-line bg-white p-6 shadow-[0px_10px_40px_10px_rgba(152,150,163,0.16)] ring-0">
-                <div className="flex items-center justify-between">
-                  <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
-                    <TrendingUp size={18} strokeWidth={1.9} className="text-primary" />
-                    Project Deliveries
-                  </h2>
-                  <span className="text-xs text-slate-400">Last 6 weeks</span>
-                </div>
-                <DeliveriesChart data={weekBuckets} />
-              </Card>
+              <Reveal delay={0.2}>
+                <Card className="gap-4 overflow-visible rounded-2xl border border-line bg-white p-6 shadow-[0px_10px_40px_10px_rgba(152,150,163,0.16)] ring-0">
+                  <div className="flex items-center justify-between">
+                    <h2 className="flex items-center gap-2 text-base font-semibold text-slate-900">
+                      <TrendingUp size={18} strokeWidth={1.9} className="text-primary" />
+                      Project Deliveries
+                    </h2>
+                    <span className="text-xs text-slate-400">Last 6 weeks</span>
+                  </div>
+                  <DeliveriesChart data={weekBuckets} />
+                </Card>
+              </Reveal>
 
-              <Card className="gap-4 overflow-visible rounded-2xl border border-line bg-white p-6 shadow-[0px_10px_40px_10px_rgba(152,150,163,0.16)] ring-0">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-base font-semibold text-slate-900">Team Collaboration</h2>
-                  <button
-                    type="button"
-                    onClick={() => showToast('info', 'Adding members isn’t wired up yet')}
-                    className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    <UserPlus size={13} strokeWidth={2} />
-                    Add Member
-                  </button>
-                </div>
+              <Reveal delay={0.25}>
+                <Card className="gap-4 overflow-visible rounded-2xl border border-line bg-white p-6 shadow-[0px_10px_40px_10px_rgba(152,150,163,0.16)] ring-0">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-slate-900">Team Collaboration</h2>
+                    <button
+                      type="button"
+                      onClick={() => showToast('info', 'Adding members isn’t wired up yet')}
+                      className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    >
+                      <UserPlus size={13} strokeWidth={2} />
+                      Add Member
+                    </button>
+                  </div>
 
-                {tasksLoading && <p className="text-sm text-slate-400">Loading…</p>}
+                  {tasksLoading && <p className="text-sm text-slate-400">Loading…</p>}
 
-                <div className="flex max-h-[280px] flex-col gap-3 overflow-y-auto pr-1">
-                  {inProgressTasks.map((task) => {
-                    const meta = TASK_STATUS_META[task.status]
-                    const project = projectById.get(task.projectId)
-                    const assignees = task.assigneeIds
-                      .map((id) => memberById.get(id))
-                      .filter((m): m is NonNullable<typeof m> => Boolean(m))
+                  <div className="flex max-h-[280px] flex-col gap-3 overflow-y-auto pr-1">
+                    {inProgressTasks.map((task) => {
+                      const meta = TASK_STATUS_META[task.status]
+                      const project = projectById.get(task.projectId)
+                      const assignees = task.assigneeIds
+                        .map((id) => memberById.get(id))
+                        .filter((m): m is NonNullable<typeof m> => Boolean(m))
 
-                    return (
-                      <div key={task.id} className="flex items-center justify-between gap-3 rounded-xl border border-line px-4 py-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-slate-900">{task.title}</p>
-                          <p className="truncate text-xs text-slate-400">{project?.name}</p>
+                      return (
+                        <div key={task.id} className="flex items-center justify-between gap-3 rounded-xl border border-line px-4 py-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-900">{task.title}</p>
+                            <p className="truncate text-xs text-slate-400">{project?.name}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-3">
+                            <AvatarStack members={assignees} size={26} />
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${meta.badgeClass}`}>
+                              {meta.label}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-3">
-                          <AvatarStack members={assignees} size={26} />
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${meta.badgeClass}`}>
-                            {meta.label}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                  {!tasksLoading && inProgressTasks.length === 0 && (
-                    <p className="py-6 text-center text-sm text-slate-400">Nothing in progress right now.</p>
-                  )}
-                </div>
-              </Card>
+                      )
+                    })}
+                    {!tasksLoading && inProgressTasks.length === 0 && (
+                      <p className="py-6 text-center text-sm text-slate-400">Nothing in progress right now.</p>
+                    )}
+                  </div>
+                </Card>
+              </Reveal>
             </div>
 
             <div className="flex flex-col gap-6 lg:col-span-4">
-              <MeetingReminderCard meeting={nextMeeting} project={meetingProject} />
+              <Reveal delay={0.2}>
+                <MeetingReminderCard meeting={nextMeeting} project={meetingProject} />
+              </Reveal>
 
-              <Card className="items-center gap-2 overflow-visible rounded-2xl border border-line bg-white p-6 shadow-[0px_10px_40px_10px_rgba(152,150,163,0.16)] ring-0">
-                <h2 className="self-start text-base font-semibold text-slate-900">Project Analytics</h2>
-                <ProjectAnalyticsGauge {...gaugeCounts} />
-              </Card>
+              <Reveal delay={0.25}>
+                <Card className="items-center gap-2 overflow-visible rounded-2xl border border-line bg-white p-6 shadow-[0px_10px_40px_10px_rgba(152,150,163,0.16)] ring-0">
+                  <h2 className="self-start text-base font-semibold text-slate-900">Project Analytics</h2>
+                  <ProjectAnalyticsGauge {...gaugeCounts} />
+                </Card>
+              </Reveal>
             </div>
           </div>
         </div>
 
         <div className="flex flex-col gap-6 lg:col-span-3">
-          <EmailSlider />
+          <Reveal delay={0.1}>
+            <EmailSlider />
+          </Reveal>
 
-          <MiniCalendar tasks={tasks} />
+          <Reveal delay={0.15}>
+            <MiniCalendar tasks={tasks} />
+          </Reveal>
 
-          <ProjectCountdownSlider projects={latestProjectsFirst} />
+          <Reveal delay={0.2}>
+            <ProjectCountdownSlider projects={latestProjectsFirst} />
+          </Reveal>
         </div>
       </div>
     </div>

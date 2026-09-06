@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { DragEvent } from 'react'
+import { motion } from 'motion/react'
 import { TASK_STATUS_ORDER, TASK_STATUS_META } from '../../types/statusMeta'
 import type { TaskStatus } from '../../types/project'
 import type { EnrichedTask } from '../../hooks/useEnrichedTasks'
@@ -7,6 +8,7 @@ import { useUpdateTaskStatus } from '../../hooks/useProjectsData'
 import { AvatarStack } from '../dashboard/AvatarStack'
 import { PriorityBadge } from './StatusBadge'
 import { formatShortDate } from '../../lib/formatDate'
+import { EASE_PREMIUM, fadeInUp, staggerDelay } from '../../lib/motion'
 
 interface BoardViewProps {
   tasks: EnrichedTask[]
@@ -56,25 +58,38 @@ export function BoardView({ tasks }: BoardViewProps) {
             </div>
 
             <div className="flex flex-col gap-2.5 overflow-y-auto">
-              {columnTasks.map((task) => (
+              {columnTasks.map((task, i) => (
                 <div
                   key={task.id}
                   draggable
                   onDragStart={(e) => e.dataTransfer.setData('text/plain', task.id)}
-                  className="cursor-grab rounded-xl border border-line bg-white p-3.5 shadow-[0px_10px_24px_4px_rgba(152,150,163,0.14)] active:cursor-grabbing"
+                  className="cursor-grab active:cursor-grabbing"
                 >
-                  <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.projectColor }} />
-                    <span className="truncate">{task.projectName}</span>
-                  </div>
-                  <p className="text-sm font-medium text-slate-900">{task.title}</p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <PriorityBadge priority={task.priority} />
-                    <span className="text-xs text-slate-400">{formatShortDate(task.dueDate)}</span>
-                  </div>
-                  <div className="mt-3">
-                    <AvatarStack members={task.assignees} size={22} />
-                  </div>
+                  {/* motion.div (not the draggable element itself, since motion's own
+                      onDragStart prop for its pointer-drag gestures would otherwise
+                      shadow the native HTML5 DnD handler above) for the entrance
+                      animation and a smooth FLIP when a card moves between columns. */}
+                  <motion.div
+                    layout
+                    initial="hidden"
+                    animate="visible"
+                    variants={fadeInUp}
+                    transition={{ duration: 0.3, delay: staggerDelay(i), ease: EASE_PREMIUM }}
+                    className="rounded-xl border border-line bg-white p-3.5 shadow-[0px_10px_24px_4px_rgba(152,150,163,0.14)]"
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: task.projectColor }} />
+                      <span className="truncate">{task.projectName}</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900">{task.title}</p>
+                    <div className="mt-3 flex items-center justify-between">
+                      <PriorityBadge priority={task.priority} />
+                      <span className="text-xs text-slate-400">{formatShortDate(task.dueDate)}</span>
+                    </div>
+                    <div className="mt-3">
+                      <AvatarStack members={task.assignees} size={22} />
+                    </div>
+                  </motion.div>
                 </div>
               ))}
               {columnTasks.length === 0 && (

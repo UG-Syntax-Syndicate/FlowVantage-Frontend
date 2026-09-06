@@ -1,3 +1,6 @@
+import { motion } from 'motion/react'
+import { EASE_PREMIUM, staggerDelay } from '../../lib/motion'
+
 interface DeliveriesChartProps {
   data: { label: string; value: number }[]
 }
@@ -46,11 +49,27 @@ export function DeliveriesChart({ data }: DeliveriesChartProps) {
         />
       )}
 
-      <path d={areaPath} fill="url(#deliveriesFill)" />
-      <path d={linePath} fill="none" stroke="#ec721d" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      <motion.path
+        d={areaPath}
+        fill="url(#deliveriesFill)"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.5, ease: EASE_PREMIUM }}
+      />
+      <motion.path
+        d={linePath}
+        fill="none"
+        stroke="#ec721d"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.9, ease: EASE_PREMIUM }}
+      />
 
-      {points.map((p) => (
-        <circle
+      {points.map((p, i) => (
+        <motion.circle
           key={p.label}
           cx={p.x}
           cy={p.y}
@@ -58,6 +77,9 @@ export function DeliveriesChart({ data }: DeliveriesChartProps) {
           fill="white"
           stroke="#ec721d"
           strokeWidth={2}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3, delay: staggerDelay(i, 0.08, 0.9), ease: EASE_PREMIUM }}
         />
       ))}
 

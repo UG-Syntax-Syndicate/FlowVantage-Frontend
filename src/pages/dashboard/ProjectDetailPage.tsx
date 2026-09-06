@@ -264,7 +264,7 @@ export function ProjectDetailPage() {
           </div>
         </div>
 
-        <aside className="hidden w-[300px] shrink-0 flex-col gap-4 lg:flex">
+        <aside className="flex w-full flex-col gap-4 lg:w-[300px] lg:shrink-0">
           <TodosPanel projectId={project.id} onViewAll={handleTodosViewAll} />
           <NotesPanel projectId={project.id} />
           <EmailsPanel projectId={project.id} />

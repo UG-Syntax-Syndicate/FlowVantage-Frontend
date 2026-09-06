@@ -22,18 +22,18 @@ interface ViewSwitcherProps {
 export function ViewSwitcher({ viewMode, onChangeView, isExpanded, onToggleExpand, compact }: ViewSwitcherProps) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <Tabs value={viewMode} onValueChange={(value) => onChangeView(value as ProjectViewMode)}>
+      <Tabs value={viewMode} onValueChange={(value) => onChangeView(value as ProjectViewMode)} className="min-w-0 overflow-x-auto">
         <TabsList className="h-auto gap-1 rounded-xl border border-line bg-white p-1 shadow-sm">
           {VIEW_OPTIONS.map(({ mode, label, icon: Icon }) => (
             <TabsTrigger
               key={mode}
               value={mode}
-              className={`flex items-center gap-1.5 rounded-lg font-medium text-slate-500 shadow-none data-active:bg-primary data-active:text-white data-active:shadow-none hover:text-slate-700 dark:data-active:bg-primary dark:data-active:text-white ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-lg font-medium text-slate-500 shadow-none data-active:bg-primary data-active:text-white data-active:shadow-none hover:text-slate-700 dark:data-active:bg-primary dark:data-active:text-white ${
                 compact ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm'
               }`}
             >
               <Icon size={compact ? 14 : 16} strokeWidth={1.9} />
-              {label}
+              <span className="hidden sm:inline">{label}</span>
             </TabsTrigger>
           ))}
         </TabsList>

@@ -3,6 +3,7 @@ import { Bell, Search } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Avatar } from '../common/Avatar'
 import { getUserAvatarUrl } from '../../lib/avatars'
+import { UserMenu } from './UserMenu'
 
 interface PageHeaderBarProps {
   title: string
@@ -53,19 +54,21 @@ export function PageHeaderBar({
         >
           <Bell size={18} strokeWidth={1.9} />
         </button>
-        <Avatar
-          photoURL={getUserAvatarUrl(userProfile?.photoURL, userProfile?.id ?? currentUser?.uid ?? currentUser?.email ?? 'user')}
-          name={userProfile?.name ?? currentUser?.email}
-          size={36}
-        />
-        {showUserMeta && (
-          <div className="hidden min-w-0 sm:block">
-            <p className="truncate text-sm font-medium text-slate-900">
-              {userProfile?.name ?? currentUser?.displayName ?? 'Account'}
-            </p>
-            <p className="truncate text-xs text-slate-400 capitalize">{userProfile?.role ?? 'Member'}</p>
-          </div>
-        )}
+        <UserMenu side="bottom" align="end" triggerClassName="rounded-full sm:rounded-xl sm:px-1 sm:py-1 sm:hover:bg-slate-100">
+          <Avatar
+            photoURL={getUserAvatarUrl(userProfile?.photoURL, userProfile?.id ?? currentUser?.uid ?? currentUser?.email ?? 'user')}
+            name={userProfile?.name ?? currentUser?.email}
+            size={36}
+          />
+          {showUserMeta && (
+            <div className="hidden min-w-0 sm:block">
+              <p className="truncate text-sm font-medium text-slate-900">
+                {userProfile?.name ?? currentUser?.displayName ?? 'Account'}
+              </p>
+              <p className="truncate text-xs text-slate-400 capitalize">{userProfile?.role ?? 'Member'}</p>
+            </div>
+          )}
+        </UserMenu>
       </div>
     </div>
   )

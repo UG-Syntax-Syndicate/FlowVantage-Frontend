@@ -4,6 +4,8 @@ import { NAV_ITEMS } from './navItems'
 import { useAuth } from '../../hooks/useAuth'
 import { useProjects } from '../../hooks/useProjectsData'
 import { UserMenu } from './UserMenu'
+import { Avatar } from '../common/Avatar'
+import { getUserAvatarUrl } from '../../lib/avatars'
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
@@ -84,15 +86,24 @@ export function Sidebar() {
       </SidebarContent>
 
       <SidebarFooter className="mx-[3px] mb-6 p-0">
-        <div className="flex items-center gap-2.5 rounded-[10px] border border-white/10 bg-white/5 p-2">
-          <UserMenu />
+        <UserMenu
+          side="top"
+          align="start"
+          triggerClassName="w-full rounded-[10px] border border-white/10 bg-white/5 p-2 transition hover:bg-white/10"
+        >
+          <Avatar
+            photoURL={getUserAvatarUrl(userProfile?.photoURL, userProfile?.id ?? currentUser?.uid ?? currentUser?.email ?? 'user')}
+            name={userProfile?.name ?? currentUser?.email}
+            size={36}
+            ringed
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">
               {userProfile?.name ?? currentUser?.displayName ?? 'Account'}
             </p>
             <p className="truncate text-xs text-[#a0a0a3]">Free Account</p>
           </div>
-        </div>
+        </UserMenu>
       </SidebarFooter>
     </SidebarRoot>
   )

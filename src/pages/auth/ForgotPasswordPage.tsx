@@ -31,6 +31,7 @@ export function ForgotPasswordPage() {
     try {
       await sendPasswordResetEmail(auth, values.email, {
         url: `${window.location.origin}/auth/action`,
+        handleCodeInApp: true,
       })
     } catch (error) {
       const code = error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : ''

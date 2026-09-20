@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from '../../lib/firebase'
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../lib/constants'
@@ -68,13 +68,16 @@ export function SignupPage() {
         createdAt: serverTimestamp(),
         notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
       })
-      await sendEmailVerification(credential.user, {
-        url: `${window.location.origin}/auth/action`,
-      })
       await logAuditEvent(credential.user.uid, 'account_created', { provider: 'password' }).catch((error) => {
         console.warn('Failed to log account-created audit event', error)
       })
-      showToast('success', 'Account created', 'Check your inbox to verify your email.')
+      // Deliberately not sending the verification email here: PublicOnlyRoute
+      // reacts to onAuthStateChanged and force-navigates to
+      // /verify-email-pending as soon as createUserWithEmailAndPassword
+      // above resolves - often before this line would even run - so this
+      // component can already be unmounted by the time we get here. See
+      // VerifyEmailPendingPage's mount effect, which sends it instead from a
+      // destination that's guaranteed to still be mounted.
       navigate('/verify-email-pending', { replace: true })
     } catch (error) {
       setFormError(getAuthErrorMessage(error))

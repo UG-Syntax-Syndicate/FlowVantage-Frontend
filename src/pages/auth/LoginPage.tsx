@@ -13,6 +13,7 @@ import { showToast } from '../../lib/toast'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { GoogleButton } from '../../components/auth/GoogleButton'
 import { MicrosoftButton } from '../../components/auth/MicrosoftButton'
+import { PasswordInput } from '../../components/auth/PasswordInput'
 import { Alert } from '../../components/common/Alert'
 
 const schema = z.object({
@@ -101,12 +102,10 @@ export function LoginPage() {
           <label htmlFor="password" className="text-sm font-medium text-slate-700">
             Password
           </label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             {...register('password')}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
             placeholder="at least 8 characters"
           />
           {errors.password && <p className="text-sm text-rose-600">{errors.password.message}</p>}

@@ -170,8 +170,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false
 
+    // Force a fresh token instead of Firebase's cached one: right after
+    // signup this effect can fire before/while the client's follow-up
+    // updateProfile(displayName) call lands, and an unforced token would
+    // deterministically still carry the pre-signup (nameless) claims -
+    // forcing at least gives it a chance of picking up the real name on this
+    // first exchange. The backend falls back gracefully either way and
+    // re-syncs the name from a later token (e.g. the next login).
     currentUser
-      .getIdToken()
+      .getIdToken(true)
       .then((idToken) => exchangeFirebaseSession(idToken))
       .then((result) => {
         if (cancelled || auth.currentUser?.uid !== currentUser.uid) return

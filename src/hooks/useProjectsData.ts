@@ -1,8 +1,11 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../lib/queryClient'
 import * as projectsApi from '../api/projectsApi'
 import { subscribeToProjectsChanged } from '../api/mockRealtimeBus'
+import { useAuth } from './useAuth'
+import { logRecordChange } from '../lib/auditLog'
+import type { RecordChangeAction } from '../types/audit'
 import type {
   ComposeEmailInput,
   CreateFolderInput,
@@ -46,6 +49,28 @@ function useRealtimeInvalidation() {
   }, [queryClient])
 }
 
+/**
+ * Returns a fire-and-forget audit recorder bound to the current user, for the
+ * create/update/delete record-change trail (PRD §8 Auditability). No-ops when
+ * signed out. Toggles (pin/star/read/done) are intentionally not audited —
+ * they're transient view state, not record changes worth tracing.
+ */
+function useAuditRecorder() {
+  const { currentUser } = useAuth()
+  return useCallback(
+    (
+      action: RecordChangeAction,
+      resourceType: string,
+      resourceId?: string,
+      metadata?: Record<string, unknown>,
+    ) => {
+      if (!currentUser) return
+      void logRecordChange(currentUser.uid, action, resourceType, resourceId, metadata)
+    },
+    [currentUser],
+  )
+}
+
 export function useProjects() {
   useRealtimeInvalidation()
   return useQuery({ queryKey: queryKeys.projects, queryFn: projectsApi.fetchProjects })
@@ -74,9 +99,11 @@ export function useNotes() {
 
 export function useCreateNote() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: (input: NoteInput) => projectsApi.createNote(input),
-    onSuccess: () => {
+    onSuccess: (note) => {
+      recordAudit('create', 'note', note.id, { title: note.title })
       queryClient.invalidateQueries({ queryKey: queryKeys.notes })
     },
   })
@@ -84,9 +111,11 @@ export function useCreateNote() {
 
 export function useUpdateNote() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: ({ noteId, input }: { noteId: string; input: NoteInput }) => projectsApi.updateNote(noteId, input),
-    onSuccess: () => {
+    onSuccess: (_data, { noteId }) => {
+      recordAudit('update', 'note', noteId)
       queryClient.invalidateQueries({ queryKey: queryKeys.notes })
     },
   })
@@ -94,9 +123,11 @@ export function useUpdateNote() {
 
 export function useDeleteNote() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: (noteId: string) => projectsApi.deleteNote(noteId),
-    onSuccess: () => {
+    onSuccess: (_data, noteId) => {
+      recordAudit('delete', 'note', noteId)
       queryClient.invalidateQueries({ queryKey: queryKeys.notes })
     },
   })
@@ -183,9 +214,11 @@ export function useMoveEmailsToFolder() {
 
 export function useComposeEmail() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: (input: ComposeEmailInput) => projectsApi.composeEmail(input),
-    onSuccess: () => {
+    onSuccess: (email) => {
+      recordAudit('create', 'email', email.id, { subject: email.subject })
       queryClient.invalidateQueries({ queryKey: queryKeys.emails })
     },
   })
@@ -216,9 +249,13 @@ export function useToggleTodo() {
 
 export function useUpdateTaskStatus() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) =>
       projectsApi.updateTaskStatus(taskId, status),
+    onSuccess: (_data, { taskId, status }) => {
+      recordAudit('update', 'task', taskId, { status })
+    },
     onMutate: async ({ taskId, status }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.tasks })
       const previousTasks = queryClient.getQueryData(queryKeys.tasks)
@@ -240,9 +277,13 @@ export function useUpdateTaskStatus() {
 
 export function useUpdateProjectStatus() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: ({ projectId, status }: { projectId: string; status: ProjectStatus }) =>
       projectsApi.updateProjectStatus(projectId, status),
+    onSuccess: (_data, { projectId, status }) => {
+      recordAudit('update', 'project', projectId, { status })
+    },
     onMutate: async ({ projectId, status }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.projects })
       const previousProjects = queryClient.getQueryData(queryKeys.projects)
@@ -266,9 +307,13 @@ export function useUpdateProjectStatus() {
 
 export function useUpdateProjectImage() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: ({ projectId, image }: { projectId: string; image: string | null }) =>
       projectsApi.updateProjectImage(projectId, image),
+    onSuccess: (_data, { projectId }) => {
+      recordAudit('update', 'project', projectId, { field: 'image' })
+    },
     onMutate: async ({ projectId, image }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.projects })
       const previousProjects = queryClient.getQueryData(queryKeys.projects)
@@ -292,9 +337,11 @@ export function useUpdateProjectImage() {
 
 export function useCreateProject() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: (input: CreateProjectInput) => projectsApi.createProject(input),
-    onSuccess: () => {
+    onSuccess: (project) => {
+      recordAudit('create', 'project', project.id, { name: project.name })
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })
     },
   })
@@ -302,9 +349,11 @@ export function useCreateProject() {
 
 export function useCreateFolder() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: (input: CreateFolderInput) => projectsApi.createFolder(input),
-    onSuccess: () => {
+    onSuccess: (folder) => {
+      recordAudit('create', 'folder', folder.id, { name: folder.name })
       queryClient.invalidateQueries({ queryKey: queryKeys.folders })
     },
   })
@@ -312,10 +361,12 @@ export function useCreateFolder() {
 
 export function useCreateTask() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: ({ projectId, input }: { projectId: string; input: CreateTaskInput }) =>
       projectsApi.createTask({ ...input, projectId, status: 'todo' }),
-    onSuccess: () => {
+    onSuccess: (task) => {
+      recordAudit('create', 'task', task.id, { projectId: task.projectId })
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
     },
   })
@@ -327,9 +378,11 @@ export function useDocuments() {
 
 export function useUploadDocument() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: (input: UploadDocumentInput) => projectsApi.uploadDocument(input),
-    onSuccess: () => {
+    onSuccess: (document) => {
+      recordAudit('create', 'document', document.id, { fileName: document.name })
       queryClient.invalidateQueries({ queryKey: queryKeys.documents })
     },
   })
@@ -337,9 +390,11 @@ export function useUploadDocument() {
 
 export function useDeleteDocument() {
   const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
   return useMutation({
     mutationFn: (documentId: string) => projectsApi.deleteDocument(documentId),
-    onSuccess: () => {
+    onSuccess: (_data, documentId) => {
+      recordAudit('delete', 'document', documentId)
       queryClient.invalidateQueries({ queryKey: queryKeys.documents })
     },
   })

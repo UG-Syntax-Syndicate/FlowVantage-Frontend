@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Lock, Plus } from 'lucide-react'
 import { NAV_ITEMS } from './navItems'
 import { useAuth } from '../../hooks/useAuth'
 import { useProjects } from '../../hooks/useProjectsData'
 import { UserMenu } from './UserMenu'
 import { Avatar } from '../common/Avatar'
 import { getUserAvatarUrl } from '../../lib/avatars'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../animate-ui/components/animate/tooltip'
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
@@ -39,20 +40,38 @@ export function Sidebar() {
       <SidebarContent className="gap-0 px-[14px]">
         <SidebarGroup className="p-0">
           <SidebarMenu className="gap-1.5">
-            {NAV_ITEMS.map((item) => (
-              <SidebarMenuItem key={item.to}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isNavItemActive(pathname, item.to, item.end)}
-                  className="h-auto rounded-[10px] px-3 py-2.5 text-[15px] font-medium text-[#9896a3] hover:bg-rail-hover hover:text-white data-[active=true]:bg-primary data-[active=true]:font-medium data-[active=true]:text-white"
-                >
-                  <Link to={item.to}>
-                    <item.icon size={19} strokeWidth={1.9} />
-                    {item.label}
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {NAV_ITEMS.map((item) =>
+              item.locked ? (
+                <SidebarMenuItem key={item.to}>
+                  <Tooltip side="right">
+                    <TooltipTrigger asChild>
+                      <SidebarMenuButton
+                        aria-disabled="true"
+                        className="h-auto cursor-not-allowed rounded-[10px] px-3 py-2.5 text-[15px] font-medium text-[#9896a3]/50 hover:bg-transparent hover:text-[#9896a3]/50"
+                      >
+                        <item.icon size={19} strokeWidth={1.9} />
+                        {item.label}
+                        <Lock size={14} strokeWidth={2} className="ml-auto shrink-0 opacity-70" />
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent>Coming soon</TooltipContent>
+                  </Tooltip>
+                </SidebarMenuItem>
+              ) : (
+                <SidebarMenuItem key={item.to}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isNavItemActive(pathname, item.to, item.end)}
+                    className="h-auto rounded-[10px] px-3 py-2.5 text-[15px] font-medium text-[#9896a3] hover:bg-rail-hover hover:text-white data-[active=true]:bg-primary data-[active=true]:font-medium data-[active=true]:text-white"
+                  >
+                    <Link to={item.to}>
+                      <item.icon size={19} strokeWidth={1.9} />
+                      {item.label}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ),
+            )}
           </SidebarMenu>
         </SidebarGroup>
 

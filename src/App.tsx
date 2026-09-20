@@ -30,14 +30,14 @@ const ProjectDocumentsPage = lazy(() =>
 )
 const ContactsPage = lazy(() => import('./pages/dashboard/ContactsPage').then((m) => ({ default: m.ContactsPage })))
 const CalendarPage = lazy(() => import('./pages/dashboard/CalendarPage').then((m) => ({ default: m.CalendarPage })))
-const EmailPage = lazy(() => import('./pages/dashboard/EmailPage').then((m) => ({ default: m.EmailPage })))
 const NotesPage = lazy(() => import('./pages/dashboard/NotesPage').then((m) => ({ default: m.NotesPage })))
 const GlobalSearchPage = lazy(() =>
   import('./pages/dashboard/GlobalSearchPage').then((m) => ({ default: m.GlobalSearchPage })),
 )
-const AiAssistantPage = lazy(() =>
-  import('./pages/dashboard/AiAssistantPage').then((m) => ({ default: m.AiAssistantPage })),
-)
+// EmailPage and AiAssistantPage stay in the tree (working, mock-backed UI)
+// but are deliberately unreferenced here - both routes render ComingSoonPage
+// instead, since neither has a real backend yet. See navItems.ts/Sidebar.tsx
+// for the matching locked nav-item treatment.
 const AccountSettingsPage = lazy(() =>
   import('./pages/dashboard/AccountSettingsPage').then((m) => ({ default: m.AccountSettingsPage })),
 )
@@ -47,8 +47,8 @@ const AccountTab = lazy(() =>
 const NotificationsTab = lazy(() =>
   import('./pages/dashboard/account/NotificationsTab').then((m) => ({ default: m.NotificationsTab })),
 )
-const SettingsComingSoon = lazy(() =>
-  import('./pages/dashboard/account/SettingsComingSoon').then((m) => ({ default: m.SettingsComingSoon })),
+const ComingSoonPage = lazy(() =>
+  import('./components/dashboard/ComingSoonPage').then((m) => ({ default: m.ComingSoonPage })),
 )
 
 function RouteFallback() {
@@ -149,7 +149,7 @@ function App() {
             path="email"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <EmailPage />
+                <ComingSoonPage title="Email" description="A unified inbox for project and client email. Coming soon." />
               </Suspense>
             }
           />
@@ -173,7 +173,26 @@ function App() {
             path="ai-assistant"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <AiAssistantPage />
+                <ComingSoonPage
+                  title="AI Assistant"
+                  description="AI-assisted project organization and summaries. Coming soon."
+                />
+              </Suspense>
+            }
+          />
+          <Route
+            path="inventory"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <ComingSoonPage title="Inventory" description="Track equipment and assets. Coming soon." />
+              </Suspense>
+            }
+          />
+          <Route
+            path="reporting"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <ComingSoonPage title="Reporting" description="Cross-project reports and analytics. Coming soon." />
               </Suspense>
             }
           />
@@ -205,7 +224,7 @@ function App() {
               path="integrations"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <SettingsComingSoon
+                  <ComingSoonPage
                     title="Integrations"
                     description="Connect third-party apps and integrations. Coming soon."
                   />
@@ -216,7 +235,7 @@ function App() {
               path="language"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <SettingsComingSoon
+                  <ComingSoonPage
                     title="Language & Region"
                     description="Choose your preferred language, timezone, and date format. Coming soon."
                   />
@@ -227,7 +246,7 @@ function App() {
               path="workspace/general"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <SettingsComingSoon
+                  <ComingSoonPage
                     title="Workspace general settings"
                     description="Manage your workspace name, logo, and defaults. Coming soon."
                   />
@@ -238,7 +257,7 @@ function App() {
               path="workspace/members"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <SettingsComingSoon
+                  <ComingSoonPage
                     title="Members"
                     description="Invite teammates and manage workspace roles. Coming soon."
                   />
@@ -249,7 +268,7 @@ function App() {
               path="workspace/billing"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <SettingsComingSoon title="Billing" description="Manage your plan and payment details. Coming soon." />
+                  <ComingSoonPage title="Billing" description="Manage your plan and payment details. Coming soon." />
                 </Suspense>
               }
             />

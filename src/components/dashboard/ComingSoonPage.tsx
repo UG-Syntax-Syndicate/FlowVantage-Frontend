@@ -1,12 +1,12 @@
 import { Construction } from 'lucide-react'
-import { Card, CardContent } from '../../../components/ui/card'
+import { Card, CardContent } from '../ui/card'
 
-interface SettingsComingSoonProps {
+interface ComingSoonPageProps {
   title: string
   description: string
 }
 
-export function SettingsComingSoon({ title, description }: SettingsComingSoonProps) {
+export function ComingSoonPage({ title, description }: ComingSoonPageProps) {
   return (
     <Card>
       <CardContent className="flex flex-col items-center gap-3 py-16 text-center">

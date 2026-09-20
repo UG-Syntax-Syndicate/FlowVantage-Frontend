@@ -5,6 +5,7 @@ import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage
 import { db, storage } from '../../../lib/firebase'
 import { logAuditEvent } from '../../../lib/auditLog'
 import { getStorageErrorMessage } from '../../../lib/storageErrors'
+import { extensionForImageType, IMAGE_PRESETS, optimizeImage } from '../../../lib/images'
 import { useAuth } from '../../../hooks/useAuth'
 import { Avatar } from '../../common/Avatar'
 import { Button } from '../../ui/button'
@@ -42,9 +43,14 @@ export function AvatarUploader() {
     try {
       const previousPhotoURL = userProfile?.photoURL
 
-      const path = `avatars/${currentUser.uid}/${Date.now()}-${file.name}`
+      // Downscale + re-encode before upload so Storage only ever holds a small
+      // avatar-sized image, never the multi-MB original the user picked.
+      const optimized = await optimizeImage(file, IMAGE_PRESETS.avatar)
+      const extension = extensionForImageType(optimized.type)
+
+      const path = `avatars/${currentUser.uid}/${Date.now()}.${extension}`
       const storageRef = ref(storage, path)
-      await uploadBytes(storageRef, file)
+      await uploadBytes(storageRef, optimized.blob, { contentType: optimized.type })
       const url = await getDownloadURL(storageRef)
 
       await updateProfile(currentUser, { photoURL: url })
@@ -105,7 +111,9 @@ export function AvatarUploader() {
             </Button>
           )}
         </div>
-        <p className="text-xs text-slate-500">We support PNGs, JPEGs and GIFs under 2MB</p>
+        <p className="text-xs text-slate-500">
+          PNG, JPEG, GIF or WEBP under 2MB — we compress it automatically
+        </p>
         {error && <p className="text-xs text-rose-600">{error}</p>}
         <input
           ref={inputRef}

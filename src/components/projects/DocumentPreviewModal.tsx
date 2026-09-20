@@ -1,7 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Download, Trash2, X } from 'lucide-react'
 import type { ProjectDocument } from '../../types/project'
 import { formatDateTime } from '../../lib/formatDate'
-import { formatFileSize, getDocumentIcon, getDocumentIconColor, parseCsvDataUrl } from '../../lib/documents'
+import { formatFileSize, getDocumentIcon, getDocumentIconColor, parseCsvText } from '../../lib/documents'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 
@@ -32,7 +33,7 @@ export function DocumentPreviewModal({ document, onClose, onDelete }: DocumentPr
           </div>
           <div className="flex shrink-0 items-center gap-1 text-slate-400">
             <a
-              href={document.dataUrl}
+              href={document.url}
               download={document.name}
               aria-label="Download document"
               className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-slate-100 hover:text-slate-700"
@@ -68,52 +69,76 @@ export function DocumentPreviewModal({ document, onClose, onDelete }: DocumentPr
 
 function DocumentPreviewBody({ document }: { document: ProjectDocument }) {
   if (document.mimeType.startsWith('image/')) {
-    return <img src={document.dataUrl} alt={document.name} className="mx-auto max-h-[60vh] rounded-lg" />
+    return <img src={document.url} alt={document.name} className="mx-auto max-h-[60vh] rounded-lg" />
   }
 
   if (document.mimeType === 'application/pdf') {
-    return <iframe src={document.dataUrl} title={document.name} className="h-[65vh] w-full rounded-lg border border-line" />
+    return <iframe src={document.url} title={document.name} className="h-[65vh] w-full rounded-lg border border-line" />
   }
 
   if (document.mimeType === 'text/csv') {
-    const rows = parseCsvDataUrl(document.dataUrl)
-    const [header, ...body] = rows
-    return (
-      <div className="overflow-x-auto rounded-lg border border-line">
-        <Table>
-          {header && (
-            <TableHeader className="bg-slate-50 text-xs font-medium text-slate-500">
-              <TableRow className="hover:bg-transparent">
-                {header.map((cell, i) => (
-                  <TableHead key={i} className="px-3 py-2">
-                    {cell}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-          )}
-          <TableBody>
-            {body.map((row, i) => (
-              <TableRow key={i} className="border-t border-line/70">
-                {row.map((cell, j) => (
-                  <TableCell key={j} className="px-3 py-2 text-slate-700">
-                    {cell}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    )
+    return <CsvPreview url={document.url} />
   }
 
   return (
     <div className="flex flex-col items-center gap-2 py-12 text-center text-sm text-slate-400">
-      <p>Preview isn&apos;t available for this file type in the demo.</p>
-      <a href={document.dataUrl} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+      <p>Preview isn&apos;t available for this file type.</p>
+      <a href={document.url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
         Open in a new tab
       </a>
+    </div>
+  )
+}
+
+function CsvPreview({ url }: { url: string }) {
+  const [rows, setRows] = useState<string[][] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(url)
+      .then((response) => response.text())
+      .then((text) => {
+        if (!cancelled) setRows(parseCsvText(text))
+      })
+      .catch(() => {
+        if (!cancelled) setRows([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [url])
+
+  if (!rows) {
+    return <p className="py-10 text-center text-sm text-slate-400">Loading preview…</p>
+  }
+
+  const [header, ...body] = rows
+  return (
+    <div className="overflow-x-auto rounded-lg border border-line">
+      <Table>
+        {header && (
+          <TableHeader className="bg-slate-50 text-xs font-medium text-slate-500">
+            <TableRow className="hover:bg-transparent">
+              {header.map((cell, i) => (
+                <TableHead key={i} className="px-3 py-2">
+                  {cell}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+        )}
+        <TableBody>
+          {body.map((row, i) => (
+            <TableRow key={i} className="border-t border-line/70">
+              {row.map((cell, j) => (
+                <TableCell key={j} className="px-3 py-2 text-slate-700">
+                  {cell}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   )
 }

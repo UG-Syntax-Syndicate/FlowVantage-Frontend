@@ -17,6 +17,9 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Local manual-QA scratch pages (not part of the app, never ship these)
+/image-optimizer-test.html
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

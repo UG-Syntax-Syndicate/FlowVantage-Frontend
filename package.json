@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "emulators": "firebase emulators:start --only auth"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
@@ -36,6 +37,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "firebase-tools": "^14.11.1",
     "oxlint": "^1.75.0",
     "shadcn": "^4.21.0",
     "tailwindcss": "^4.3.3",

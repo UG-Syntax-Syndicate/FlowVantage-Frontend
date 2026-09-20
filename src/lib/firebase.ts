@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, OAuthProvider } from 'firebase/auth'
+import { connectAuthEmulator, getAuth, GoogleAuthProvider, OAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
@@ -17,6 +17,14 @@ export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const db = getFirestore(app)
 export const storage = getStorage(app)
+
+// Local dev only: routes Auth calls to a local emulator (see `npm run
+// emulators`) so test sign-ups never touch the real Firebase project.
+// Firestore/Storage are deliberately NOT emulated - a signup still writes a
+// real users/{uid} doc and audit-log entries there.
+if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
+}
 
 export const googleProvider = new GoogleAuthProvider()
 

@@ -5,7 +5,8 @@ import { auth } from '../lib/firebase'
 import { useAuth } from './useAuth'
 import { logAuditEvent } from '../lib/auditLog'
 import { logoutBackendSession } from '../lib/backendApi'
-import { clearBackendSessionToken } from '../lib/backendSession'
+import { clearAllClientSession } from '../lib/sessionCleanup'
+import { publishAuthEvent } from '../lib/authBroadcast'
 import { showToast } from '../lib/toast'
 
 interface LogoutOptions {
@@ -24,7 +25,7 @@ export function useLogout() {
       // advisory because backend JWTs are stateless, so they must never keep a
       // user signed in or delay the dashboard logout action.
       const sessionToken = backendSessionToken
-      clearBackendSessionToken()
+      clearAllClientSession()
 
       if (currentUser) {
         void logAuditEvent(currentUser.uid, 'logout').catch((error) => {
@@ -36,6 +37,9 @@ export function useLogout() {
           console.warn('Failed to clear backend session', error)
         })
       }
+
+      // Sign the user out of every other open tab too.
+      publishAuthEvent('logout')
 
       try {
         await signOut(auth)

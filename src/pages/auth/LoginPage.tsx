@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '../../lib/firebase'
 import { logAuditEvent } from '../../lib/auditLog'
 import { getAuthErrorMessage } from '../../lib/authErrors'
+import { markActivityNow } from '../../lib/sessionExpiry'
 import { signInWithGoogle, signInWithMicrosoft } from '../../lib/oauth'
 import { showToast } from '../../lib/toast'
 import { AuthLayout } from '../../components/auth/AuthLayout'
@@ -37,6 +38,7 @@ export function LoginPage() {
 
   const onSubmit = async (values: FormValues) => {
     setFormError('')
+    markActivityNow()
     try {
       const credential = await signInWithEmailAndPassword(auth, values.email.trim(), values.password)
       await logAuditEvent(credential.user.uid, 'login', { provider: 'password' }).catch((error) => {
@@ -52,6 +54,7 @@ export function LoginPage() {
   const handleOAuth = async (provider: 'google' | 'microsoft') => {
     setFormError('')
     setOauthLoading(provider)
+    markActivityNow()
     try {
       if (provider === 'google') {
         const signedIn = await signInWithGoogle()

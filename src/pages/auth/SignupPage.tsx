@@ -9,6 +9,7 @@ import { auth, db } from '../../lib/firebase'
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../lib/constants'
 import { logAuditEvent } from '../../lib/auditLog'
 import { getAuthErrorMessage } from '../../lib/authErrors'
+import { markActivityNow } from '../../lib/sessionExpiry'
 import { signInWithGoogle, signInWithMicrosoft } from '../../lib/oauth'
 import { setPendingAuthRedirect } from '../../lib/pendingAuthRedirect'
 import { showToast } from '../../lib/toast'
@@ -44,6 +45,7 @@ export function SignupPage() {
 
   const onSubmit = async (values: FormValues) => {
     setFormError('')
+    markActivityNow()
     try {
       setPendingAuthRedirect('/verify-email-pending')
       const credential = await createUserWithEmailAndPassword(auth, values.email, values.password)
@@ -73,6 +75,7 @@ export function SignupPage() {
   const handleOAuth = async (provider: 'google' | 'microsoft') => {
     setFormError('')
     setOauthLoading(provider)
+    markActivityNow()
     try {
       if (provider === 'google') {
         const signedIn = await signInWithGoogle()

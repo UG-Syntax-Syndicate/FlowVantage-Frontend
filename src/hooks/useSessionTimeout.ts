@@ -50,8 +50,9 @@ export function useSessionTimeout(): SessionTimeoutState {
     lastHeartbeatRef.current = Date.now()
     fetchBackendMe(token).catch(() => {
       // Best-effort only — a missed heartbeat just means the backend's own
-      // inactivity clock (independently 10 minutes) may lapse slightly
-      // ahead of the client's; it doesn't affect the client-side timeout.
+      // sliding-window inactivity clock (SESSION_TIMEOUT_MS, kept in sync
+      // with the backend's config) may lapse slightly ahead of the
+      // client's; it doesn't affect the client-side timeout.
     })
   }, [])
 
@@ -84,7 +85,19 @@ export function useSessionTimeout(): SessionTimeoutState {
 
     tick()
     const interval = window.setInterval(tick, 1000)
-    return () => window.clearInterval(interval)
+
+    // While a tab is hidden the browser throttles setInterval to ~1/minute, so
+    // re-check the moment it becomes visible again (covers "left it overnight,
+    // came back" without waiting up to a minute for the next throttled tick).
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [heartbeat])
 
   const stayActive = useCallback(() => {

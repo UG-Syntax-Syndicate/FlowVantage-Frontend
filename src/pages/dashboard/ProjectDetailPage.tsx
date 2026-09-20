@@ -22,6 +22,7 @@ import { TodosPanel } from '../../components/projects/TodosPanel'
 import { NotesPanel } from '../../components/projects/NotesPanel'
 import { EmailsPanel } from '../../components/projects/EmailsPanel'
 import { DocumentsSection } from '../../components/projects/DocumentsSection'
+import { ImageCropModal } from '../../components/projects/ImageCropModal'
 import { AvatarStack } from '../../components/dashboard/AvatarStack'
 import { ProjectStatusBadge, PriorityBadge } from '../../components/projects/StatusBadge'
 import { formatShortDate, formatDateTime, formatDuration } from '../../lib/formatDate'
@@ -39,6 +40,7 @@ export function ProjectDetailPage() {
   const taskWidgetRef = useRef<HTMLDivElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
   const updateProjectImage = useUpdateProjectImage()
+  const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null)
 
   const project = projects.find((p) => p.id === projectId)
   const folder = folders.find((f) => f.id === project?.folderId)
@@ -73,7 +75,7 @@ export function ProjectDetailPage() {
     taskWidgetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  async function handleCoverChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleCoverChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
@@ -82,8 +84,13 @@ export function ProjectDetailPage() {
       showToast('error', validationError)
       return
     }
+    setPendingCoverFile(file)
+  }
+
+  async function handleCoverCropped(croppedFile: File) {
+    setPendingCoverFile(null)
     try {
-      const image = await convertImageToWebp(file)
+      const image = await convertImageToWebp(croppedFile)
       await updateProjectImage.mutateAsync({ projectId: currentProjectId, image })
       showToast('success', 'Cover image updated')
     } catch {
@@ -132,7 +139,7 @@ export function ProjectDetailPage() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-6">
           <div
-            className="relative h-[220px] overflow-hidden rounded-2xl bg-cover bg-center shadow-[0px_16px_40px_10px_rgba(0,0,0,0.18)]"
+            className="relative aspect-[3/1] min-h-[180px] overflow-hidden rounded-2xl bg-cover bg-center shadow-[0px_16px_40px_10px_rgba(0,0,0,0.18)]"
             style={
               project.image
                 ? { backgroundImage: `url(${project.image})` }
@@ -283,6 +290,14 @@ export function ProjectDetailPage() {
           <EmailsPanel projectId={project.id} />
         </aside>
       </div>
+
+      {pendingCoverFile && (
+        <ImageCropModal
+          file={pendingCoverFile}
+          onCancel={() => setPendingCoverFile(null)}
+          onCropped={handleCoverCropped}
+        />
+      )}
     </div>
   )
 }

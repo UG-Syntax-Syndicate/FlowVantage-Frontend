@@ -13,7 +13,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
       className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-[0px_10px_32px_4px_rgba(152,150,163,0.14)] transition hover:-translate-y-0.5 hover:shadow-[0px_14px_36px_6px_rgba(152,150,163,0.22)]"
     >
       <div
-        className="relative h-28 w-full bg-cover bg-center"
+        className="relative aspect-[3/1] w-full bg-cover bg-center"
         style={project.image ? { backgroundImage: `url(${project.image})` } : { background: project.coverGradient }}
       >
         <div

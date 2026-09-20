@@ -6,6 +6,7 @@ import { NoteFormModal } from '../../components/notes/NoteFormModal'
 import { ViewNoteModal } from '../../components/notes/ViewNoteModal'
 import { useDeleteNote, useNotes, useToggleNotePinned } from '../../hooks/useProjectsData'
 import { showToast } from '../../lib/toast'
+import { CardGridSkeleton } from '../../components/common/skeletons/CardGridSkeleton'
 import type { Note } from '../../types/project'
 
 export function NotesPage() {
@@ -60,7 +61,7 @@ export function NotesPage() {
       </div>
 
       {isLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Loading notes…</p>
+        <CardGridSkeleton count={6} withCover={false} className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3" />
       ) : sortedNotes.length === 0 ? (
         <p className="py-10 text-center text-sm text-slate-400">No notes yet — add your first one.</p>
       ) : (

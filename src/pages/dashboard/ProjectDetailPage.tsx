@@ -27,6 +27,7 @@ import { ProjectStatusBadge, PriorityBadge } from '../../components/projects/Sta
 import { formatShortDate, formatDateTime, formatDuration } from '../../lib/formatDate'
 import { convertImageToWebp, validateImageFile } from '../../lib/images'
 import { showToast } from '../../lib/toast'
+import { Skeleton } from '../../components/ui/skeleton'
 
 export function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -50,7 +51,19 @@ export function ProjectDetailPage() {
   }
 
   if (!project) {
-    return <div className="p-8 text-sm text-slate-400">Loading project…</div>
+    return (
+      <div className="flex flex-col gap-6 p-6 sm:p-8">
+        <Skeleton className="h-5 w-56" />
+        <Skeleton className="h-[220px] w-full rounded-2xl" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="flex flex-col gap-4 lg:col-span-2">
+            <Skeleton className="h-40 w-full rounded-2xl" />
+            <Skeleton className="h-40 w-full rounded-2xl" />
+          </div>
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
+      </div>
+    )
   }
 
   const currentProjectId = project.id

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { CalendarView } from '../../components/projects/CalendarView'
 import { useProjects } from '../../hooks/useProjectsData'
+import { Skeleton } from '../../components/ui/skeleton'
 
 export function CalendarPage() {
   const navigate = useNavigate()
@@ -20,7 +21,7 @@ export function CalendarPage() {
       <PageHeaderBar title="Calendar" subtitle="Project deadlines at a glance." />
       <div className="min-h-[600px] flex-1">
         {isLoading ? (
-          <p className="py-10 text-center text-sm text-slate-400">Loading calendar…</p>
+          <Skeleton className="h-full min-h-[600px] w-full rounded-2xl" />
         ) : (
           <CalendarView events={events} />
         )}

@@ -28,6 +28,7 @@ import { ComposeMailModal } from '../../components/email/ComposeMailModal'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import type { Email, EmailFolder } from '../../types/project'
 import { showToast } from '../../lib/toast'
+import { ListRowsSkeleton } from '../../components/common/skeletons/ListRowsSkeleton'
 
 const FOLDER_NAV: { value: EmailFolder; label: string; icon: typeof Inbox }[] = [
   { value: 'inbox', label: 'Inbox', icon: Inbox },
@@ -260,7 +261,7 @@ export function EmailPage() {
           </div>
 
           <div>
-            {isLoading && <p className="px-4 py-10 text-center text-sm text-slate-400">Loading mail…</p>}
+            {isLoading && <ListRowsSkeleton count={6} withAvatar className="flex flex-col gap-2 p-4" />}
             {!isLoading &&
               filteredEmails.map((email: Email) => (
                 <MailRow

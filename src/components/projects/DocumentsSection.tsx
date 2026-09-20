@@ -13,6 +13,7 @@ import {
 import { formatShortDate } from '../../lib/formatDate'
 import { prepareDocumentUpload } from '../../lib/documentUpload'
 import { showToast } from '../../lib/toast'
+import { ListRowsSkeleton } from '../common/skeletons/ListRowsSkeleton'
 import type { ProjectDocument } from '../../types/project'
 
 interface DocumentsSectionProps {
@@ -99,7 +100,7 @@ export function DocumentsSection({ projectId }: DocumentsSectionProps) {
       </div>
 
       {isLoading ? (
-        <p className="py-4 text-sm text-slate-400">Loading documents…</p>
+        <ListRowsSkeleton count={3} withAvatar className="grid grid-cols-1 gap-3 sm:grid-cols-3" />
       ) : projectDocuments.length === 0 ? (
         <p className="py-4 text-sm text-slate-400">No documents yet — upload the first one.</p>
       ) : (

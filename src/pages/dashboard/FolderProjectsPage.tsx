@@ -4,6 +4,8 @@ import { useFolders, useProjects } from '../../hooks/useProjectsData'
 import { ProjectCard } from '../../components/projects/ProjectCard'
 import { FOLDER_ICONS } from '../../lib/folderIcons'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
+import { CardGridSkeleton } from '../../components/common/skeletons/CardGridSkeleton'
+import { Skeleton } from '../../components/ui/skeleton'
 
 export function FolderProjectsPage() {
   const { folderId } = useParams<{ folderId: string }>()
@@ -18,7 +20,13 @@ export function FolderProjectsPage() {
   }
 
   if (!folder) {
-    return <div className="p-8 text-sm text-slate-400">Loading folder…</div>
+    return (
+      <div className="flex flex-col gap-6 p-6 sm:p-8">
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-9 w-64" />
+        <CardGridSkeleton count={6} />
+      </div>
+    )
   }
 
   const Icon = FOLDER_ICONS[folder.icon]
@@ -47,7 +55,7 @@ export function FolderProjectsPage() {
       />
 
       {projectsLoading ? (
-        <p className="text-sm text-slate-400">Loading projects…</p>
+        <CardGridSkeleton count={6} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {folderProjects.map((project) => (

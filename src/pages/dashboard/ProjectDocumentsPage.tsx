@@ -14,6 +14,7 @@ import {
 import { formatShortDate } from '../../lib/formatDate'
 import { prepareDocumentUpload } from '../../lib/documentUpload'
 import { showToast } from '../../lib/toast'
+import { CardGridSkeleton } from '../../components/common/skeletons/CardGridSkeleton'
 import type { ProjectDocument } from '../../types/project'
 
 export function ProjectDocumentsPage() {
@@ -105,7 +106,7 @@ export function ProjectDocumentsPage() {
       </div>
 
       {documentsLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Loading documents…</p>
+        <CardGridSkeleton count={8} withCover={false} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" />
       ) : projectDocuments.length === 0 ? (
         <p className="py-10 text-center text-sm text-slate-400">No documents yet — upload the first one.</p>
       ) : (

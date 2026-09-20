@@ -16,6 +16,7 @@ import { TASK_STATUS_META } from '../../types/statusMeta'
 import { computeProjectStats } from '../../lib/taskStats'
 import { formatShortDate } from '../../lib/formatDate'
 import { showToast } from '../../lib/toast'
+import { ListRowsSkeleton } from '../../components/common/skeletons/ListRowsSkeleton'
 
 const DAY_MS = 86_400_000
 const WEEK_MS = 7 * DAY_MS
@@ -173,10 +174,9 @@ export function DashboardHome() {
                     </button>
                   </div>
 
-                  {tasksLoading && <p className="text-sm text-slate-400">Loading…</p>}
-
                   <div className="flex max-h-[280px] flex-col gap-3 overflow-y-auto pr-1">
-                    {inProgressTasks.map((task) => {
+                    {tasksLoading && <ListRowsSkeleton count={2} />}
+                    {!tasksLoading && inProgressTasks.map((task) => {
                       const meta = TASK_STATUS_META[task.status]
                       const project = projectById.get(task.projectId)
                       const assignees = task.assigneeIds

@@ -68,7 +68,7 @@ export function DashboardHome() {
     .filter((m) => new Date(m.startTime).getTime() < now)
     .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
   const nextMeeting = upcomingMeetings[0] ?? pastMeetings[0] ?? null
-  const meetingProject = nextMeeting ? (projectById.get(nextMeeting.projectId) ?? null) : null
+  const meetingProject = nextMeeting?.projectId ? (projectById.get(nextMeeting.projectId) ?? null) : null
 
   const latestProjectsFirst = [...projects].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),

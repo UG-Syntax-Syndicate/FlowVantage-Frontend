@@ -32,16 +32,21 @@ export type BackendSessionResult =
   | { status: 'ok'; sessionToken: string; user: BackendSessionUser }
   | { status: 'requiresTwoFactor'; userId: string }
 
-async function postJson<T>(path: string, body: unknown, sessionToken?: string): Promise<T> {
+async function request<T>(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  path: string,
+  body: unknown,
+  sessionToken?: string,
+): Promise<T> {
   const { signal, cancel } = withTimeout(BACKEND_TIMEOUT_MS)
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
-      method: 'POST',
+      method,
       headers: {
-        'Content-Type': 'application/json',
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
       },
-      body: JSON.stringify(body),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
     })
 
@@ -55,6 +60,30 @@ async function postJson<T>(path: string, body: unknown, sessionToken?: string): 
   } finally {
     cancel()
   }
+}
+
+async function postJson<T>(path: string, body: unknown, sessionToken?: string): Promise<T> {
+  return request<T>('POST', path, body, sessionToken)
+}
+
+/** Authenticated GET - sessionToken is required since every non-auth endpoint needs one. */
+export async function getJson<T>(path: string, sessionToken: string): Promise<T> {
+  return request<T>('GET', path, undefined, sessionToken)
+}
+
+/** Authenticated PATCH - sessionToken is required since every non-auth endpoint needs one. */
+export async function patchJson<T>(path: string, body: unknown, sessionToken: string): Promise<T> {
+  return request<T>('PATCH', path, body, sessionToken)
+}
+
+/** Authenticated DELETE - sessionToken is required since every non-auth endpoint needs one. */
+export async function deleteJson<T>(path: string, sessionToken: string): Promise<T> {
+  return request<T>('DELETE', path, undefined, sessionToken)
+}
+
+/** Authenticated POST - sessionToken is required since every non-auth endpoint needs one. */
+export async function postJsonAuthed<T>(path: string, body: unknown, sessionToken: string): Promise<T> {
+  return request<T>('POST', path, body, sessionToken)
 }
 
 function toSessionResult(payload: BackendSessionPayload): BackendSessionResult {

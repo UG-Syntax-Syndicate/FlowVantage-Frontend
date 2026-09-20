@@ -242,4 +242,15 @@ body {
   html {
     @apply font-sans;
   }
+
+  /* Tailwind v4 Preflight dropped the old default pointer cursor on <button>,
+     so every plain <button>/link in the app renders the arrow cursor unless
+     it opts in individually. Restore it globally instead of hunting down
+     every call site; explicit `disabled:cursor-not-allowed` utilities (in the
+     higher-priority utilities layer) still win over this. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  a[href] {
+    cursor: pointer;
+  }
 }

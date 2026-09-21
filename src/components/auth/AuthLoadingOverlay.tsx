@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { AuthHeroPanel } from './AuthHeroPanel'
+import { BrandedLoadingOverlay } from '../common/BrandedLoadingOverlay'
 import { useLoadingTimeout } from '../../hooks/useLoadingTimeout'
 
 export function AuthLoadingOverlay() {
@@ -10,8 +11,8 @@ export function AuthLoadingOverlay() {
       <section className="relative mx-auto grid h-full max-w-6xl overflow-hidden rounded-none border-0 bg-white shadow-none sm:rounded-3xl sm:border sm:border-slate-200 sm:shadow-2xl sm:shadow-slate-200/60 lg:grid-cols-2">
         <AuthHeroPanel mobileVisible />
         <div className="hidden bg-white lg:block" />
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/10 backdrop-blur-sm">
-          {timedOut ? (
+        {timedOut ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/10 backdrop-blur-sm">
             <div className="mx-4 w-full max-w-xs rounded-2xl bg-white p-5 text-center shadow-lg">
               <p className="text-sm font-medium text-slate-900">This is taking longer than expected</p>
               <p className="mt-1 text-sm text-slate-500">Check your connection and try again.</p>
@@ -29,12 +30,10 @@ export function AuthLoadingOverlay() {
                 Back to sign in
               </Link>
             </div>
-          ) : (
-            <div className="rounded-full bg-white/90 p-3 shadow-lg">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-100 border-t-accent-500" />
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <BrandedLoadingOverlay />
+        )}
       </section>
     </main>
   )

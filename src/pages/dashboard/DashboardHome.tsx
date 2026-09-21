@@ -15,6 +15,7 @@ import { ProjectCountdownSlider } from '../../components/dashboard/ProjectCountd
 import { EmailSlider } from '../../components/dashboard/EmailSlider'
 import { Card } from '../../components/ui/card'
 import { Reveal } from '../../components/motion/Reveal'
+import { BrandedLoadingOverlay } from '../../components/common/BrandedLoadingOverlay'
 import { TASK_STATUS_META } from '../../types/statusMeta'
 import { computeProjectStats } from '../../lib/taskStats'
 import { formatShortDate } from '../../lib/formatDate'
@@ -28,7 +29,7 @@ export function DashboardHome() {
   const navigate = useNavigate()
   const { userProfile } = useAuth()
   const { data: tasks = [], isLoading: tasksLoading } = useTasks()
-  const { data: projects = [] } = useProjects()
+  const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const { data: members = [] } = useMembers()
   const { data: meetings = [] } = useMeetings()
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
@@ -80,8 +81,11 @@ export function DashboardHome() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   )
 
+  const initialLoading = projectsLoading || tasksLoading
+
   return (
-    <div className="flex flex-col gap-6 p-6 sm:p-8">
+    <div className="relative flex flex-col gap-6 p-6 sm:p-8">
+      {initialLoading && <BrandedLoadingOverlay message="Loading your projects…" />}
       <PageHeaderBar title={`Hi ${userProfile?.name?.split(' ')[0] ?? 'there'}!`} showUserMeta />
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">

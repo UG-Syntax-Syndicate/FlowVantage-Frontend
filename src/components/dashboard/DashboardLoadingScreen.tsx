@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { BrandedLoadingOverlay } from '../common/BrandedLoadingOverlay'
 import { useLoadingTimeout } from '../../hooks/useLoadingTimeout'
 
 export function DashboardLoadingScreen() {
@@ -7,10 +8,10 @@ export function DashboardLoadingScreen() {
   return (
     <div className="flex h-screen w-full bg-white">
       <div className="hidden w-[64px] shrink-0 bg-rail lg:block" />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="h-16 shrink-0 border-b border-slate-100" />
-        <div className="flex flex-1 items-center justify-center">
-          {timedOut ? (
+        {timedOut ? (
+          <div className="flex flex-1 items-center justify-center">
             <div className="mx-4 w-full max-w-xs rounded-2xl border border-slate-200 p-5 text-center shadow-lg">
               <p className="text-sm font-medium text-slate-900">This is taking longer than expected</p>
               <p className="mt-1 text-sm text-slate-500">Check your connection and try again.</p>
@@ -28,10 +29,10 @@ export function DashboardLoadingScreen() {
                 Back to sign in
               </Link>
             </div>
-          ) : (
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-accent-100 border-t-accent-500" />
-          )}
-        </div>
+          </div>
+        ) : (
+          <BrandedLoadingOverlay />
+        )}
       </div>
     </div>
   )

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { AuthLoadingOverlay } from './components/auth/AuthLoadingOverlay'
+import { BrandedLoadingOverlay } from './components/common/BrandedLoadingOverlay'
 import { PublicOnlyRoute } from './routes/PublicOnlyRoute'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 
@@ -53,8 +54,8 @@ const ComingSoonPage = lazy(() =>
 
 function RouteFallback() {
   return (
-    <div className="flex h-full min-h-[50vh] items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-100 border-t-primary" />
+    <div className="relative h-full min-h-[50vh]">
+      <BrandedLoadingOverlay />
     </div>
   )
 }

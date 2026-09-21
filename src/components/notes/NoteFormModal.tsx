@@ -1,13 +1,14 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { NoteInputSchema, type Note, type NoteInput } from '../../types/project'
-import { useCreateNote, useUpdateNote } from '../../hooks/useProjectsData'
+import { useCreateNote, useProjects, useUpdateNote } from '../../hooks/useProjectsData'
 import { NOTE_COLORS, NOTE_COLOR_ORDER } from '../../lib/noteColors'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Label } from '../ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { showToast } from '../../lib/toast'
 
 interface NoteFormModalProps {
@@ -18,6 +19,7 @@ interface NoteFormModalProps {
 export function NoteFormModal({ note, onClose }: NoteFormModalProps) {
   const createNote = useCreateNote()
   const updateNote = useUpdateNote()
+  const { data: projects = [] } = useProjects()
   const isEditing = Boolean(note)
   const isPending = createNote.isPending || updateNote.isPending
 
@@ -33,10 +35,12 @@ export function NoteFormModal({ note, onClose }: NoteFormModalProps) {
       title: note?.title ?? '',
       body: note?.body ?? '',
       color: note?.color ?? NOTE_COLOR_ORDER[0],
+      projectId: note?.projectId ?? null,
     },
   })
 
   const selectedColor = watch('color')
+  const selectedProjectId = watch('projectId')
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -89,6 +93,28 @@ export function NoteFormModal({ note, onClose }: NoteFormModalProps) {
               ))}
             </div>
           </div>
+
+          {!isEditing && (
+            <div>
+              <Label>Project</Label>
+              <Select
+                value={selectedProjectId ?? 'none'}
+                onValueChange={(value) => setValue('projectId', value === 'none' ? null : value)}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No project</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="mt-1 flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={onClose}>

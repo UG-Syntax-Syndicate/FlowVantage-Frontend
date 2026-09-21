@@ -119,7 +119,9 @@ export const NoteSchema = z.object({
 })
 export type Note = z.infer<typeof NoteSchema>
 
-export const NoteInputSchema = NoteSchema.pick({ title: true, body: true, color: true })
+export const NoteInputSchema = NoteSchema.pick({ title: true, body: true, color: true }).extend({
+  projectId: z.string().nullable().optional(),
+})
 export type NoteInput = z.infer<typeof NoteInputSchema>
 
 export const EmailFolderSchema = z.enum(['inbox', 'pending', 'drafts', 'spam', 'trash'])

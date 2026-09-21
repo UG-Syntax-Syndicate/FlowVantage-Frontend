@@ -485,7 +485,7 @@ export async function fetchNotes(): Promise<Note[]> {
 export async function createNote(input: NoteInput): Promise<Note> {
   const { note } = await postJsonAuthed<{ success: boolean; note: NoteRow }>(
     '/notes',
-    { title: input.title, content: input.body, color: input.color },
+    { title: input.title, content: input.body, color: input.color, projectId: input.projectId },
     authToken(),
   )
   emitProjectsChanged()

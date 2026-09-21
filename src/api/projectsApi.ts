@@ -98,6 +98,8 @@ interface ProjectRow {
   priority: Project['priority']
   tracked_seconds: number
   memberIds: string[]
+  workspace_id: string
+  visibility: Project['visibility']
   created_at: string
 }
 
@@ -117,6 +119,8 @@ function mapProject(row: ProjectRow): Project {
     priority: row.priority,
     trackedSeconds: row.tracked_seconds ?? 0,
     memberIds: row.memberIds || [],
+    workspaceId: row.workspace_id,
+    visibility: row.visibility || 'private',
     startDate: row.start_date || row.created_at,
     dueDate: row.end_date || row.created_at,
     createdAt: row.created_at,
@@ -313,6 +317,9 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
       category: 'General',
       priority: 'medium',
       image: input.image,
+      memberIds: input.memberIds,
+      workspaceId: input.workspaceId,
+      visibility: input.visibility,
       startDate: input.startDate,
       dueDate: input.dueDate,
     },

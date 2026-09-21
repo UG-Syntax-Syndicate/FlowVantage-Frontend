@@ -29,6 +29,9 @@ export const TaskSchema = z.object({
 })
 export type Task = z.infer<typeof TaskSchema>
 
+export const ProjectVisibilitySchema = z.enum(['private', 'workspace'])
+export type ProjectVisibility = z.infer<typeof ProjectVisibilitySchema>
+
 export const ProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -44,6 +47,8 @@ export const ProjectSchema = z.object({
   priority: PrioritySchema,
   trackedSeconds: z.number(),
   memberIds: z.array(z.string()),
+  workspaceId: z.string(),
+  visibility: ProjectVisibilitySchema,
   startDate: z.string(),
   dueDate: z.string(),
   createdAt: z.string(),
@@ -57,6 +62,9 @@ export const CreateProjectInputSchema = ProjectSchema.pick({
   memberIds: true,
   startDate: true,
   dueDate: true,
+}).extend({
+  workspaceId: z.string().optional(),
+  visibility: ProjectVisibilitySchema.optional(),
 })
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>
 

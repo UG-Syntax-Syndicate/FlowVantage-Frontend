@@ -48,6 +48,15 @@ const AccountTab = lazy(() =>
 const NotificationsTab = lazy(() =>
   import('./pages/dashboard/account/NotificationsTab').then((m) => ({ default: m.NotificationsTab })),
 )
+const WorkspaceGeneralTab = lazy(() =>
+  import('./pages/dashboard/account/WorkspaceGeneralTab').then((m) => ({ default: m.WorkspaceGeneralTab })),
+)
+const WorkspaceMembersTab = lazy(() =>
+  import('./pages/dashboard/account/WorkspaceMembersTab').then((m) => ({ default: m.WorkspaceMembersTab })),
+)
+const InviteAcceptPage = lazy(() =>
+  import('./pages/InviteAcceptPage').then((m) => ({ default: m.InviteAcceptPage })),
+)
 const ComingSoonPage = lazy(() =>
   import('./components/dashboard/ComingSoonPage').then((m) => ({ default: m.ComingSoonPage })),
 )
@@ -86,6 +95,14 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/setup-two-factor" element={<SetupTwoFactorPage />} />
+        <Route
+          path="/invite/:token"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <InviteAcceptPage />
+            </Suspense>
+          }
+        />
       </Route>
 
       <Route element={<ProtectedRoute />}>
@@ -247,10 +264,7 @@ function App() {
               path="workspace/general"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <ComingSoonPage
-                    title="Workspace general settings"
-                    description="Manage your workspace name, logo, and defaults. Coming soon."
-                  />
+                  <WorkspaceGeneralTab />
                 </Suspense>
               }
             />
@@ -258,10 +272,7 @@ function App() {
               path="workspace/members"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <ComingSoonPage
-                    title="Members"
-                    description="Invite teammates and manage workspace roles. Coming soon."
-                  />
+                  <WorkspaceMembersTab />
                 </Suspense>
               }
             />

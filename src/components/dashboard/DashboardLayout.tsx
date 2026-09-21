@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSessionTimeout } from '../../hooks/useSessionTimeout'
+import { useRealtimeSync } from '../../hooks/useRealtimeSync'
 import { Sidebar } from './Sidebar'
 import { EmailVerificationGateModal } from './EmailVerificationGateModal'
 import { TwoFactorChallengeModal } from './TwoFactorChallengeModal'
@@ -31,6 +32,7 @@ function MobileHeader() {
 export function DashboardLayout() {
   const { phase, secondsRemaining, stayActive } = useSessionTimeout()
   const { twoFactorChallenge, sessionExpired } = useAuth()
+  useRealtimeSync()
 
   let gateModal: React.ReactNode = <EmailVerificationGateModal />
   if (sessionExpired) {

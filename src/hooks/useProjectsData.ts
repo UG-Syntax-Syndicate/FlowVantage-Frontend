@@ -19,32 +19,16 @@ import type {
 } from '../types/project'
 
 /**
- * Chat messages get their own realtime subscription (rather than sharing
- * useRealtimeInvalidation) because the assistant's reply lands via a second
- * emitProjectsChanged() call a moment after the user's message is sent, and
- * we don't want every unrelated mutation in the app also refetching chat.
+ * Chat (still mock-backed) needs its own subscription because the assistant's
+ * reply lands via a second emitProjectsChanged() call a moment after the
+ * user's message is sent (projectsApi.sendChatMessage), with no other
+ * invalidation path for that delayed second message.
  */
 function useChatRealtimeInvalidation() {
   const queryClient = useQueryClient()
   useEffect(() => {
     return subscribeToProjectsChanged(() => {
       queryClient.invalidateQueries({ queryKey: queryKeys.chatMessages })
-    })
-  }, [queryClient])
-}
-
-/**
- * Bridges the realtime push channel into the React Query cache: any mutation
- * (here or from another tab/component) invalidates these keys, so every
- * consumer of useProjects/useTasks re-renders with fresh data automatically.
- * This is the same shape a Firestore `onSnapshot` bridge will use later.
- */
-function useRealtimeInvalidation() {
-  const queryClient = useQueryClient()
-  useEffect(() => {
-    return subscribeToProjectsChanged(() => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects })
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
     })
   }, [queryClient])
 }
@@ -72,12 +56,10 @@ function useAuditRecorder() {
 }
 
 export function useProjects() {
-  useRealtimeInvalidation()
   return useQuery({ queryKey: queryKeys.projects, queryFn: projectsApi.fetchProjects })
 }
 
 export function useTasks() {
-  useRealtimeInvalidation()
   return useQuery({ queryKey: queryKeys.tasks, queryFn: projectsApi.fetchTasks })
 }
 

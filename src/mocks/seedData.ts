@@ -1,11 +1,11 @@
-import type { ChatMessage, Email } from '../types/project'
+import type { ChatMessage } from '../types/project'
 
 /**
- * Email and AI Assistant are the only features still on mock data - both are
- * locked behind the "coming soon" nav treatment since neither has a real
- * backend endpoint yet (see navItems.ts/Sidebar.tsx). Every other seed array
- * that used to live here (projects, tasks, todos, folders, members, notes,
- * contacts, meetings, documents) has been replaced by real backend calls in
+ * AI Assistant is the only feature still on mock data - it's locked behind
+ * the "coming soon" nav treatment since no real backend endpoint exists yet
+ * (see navItems.ts/Sidebar.tsx). Every other seed array that used to live
+ * here (projects, tasks, todos, folders, members, notes, contacts, meetings,
+ * documents, email) has been replaced by real backend calls in
  * src/api/projectsApi.ts.
  */
 
@@ -16,13 +16,6 @@ function addDays(base: Date, days: number): string {
 }
 
 const today = new Date()
-
-// Was 10 hard-coded demo messages pointing at mock project ids ('p1', 'p2', ...)
-// that no longer exist now that projects are real backend records - Email is
-// still locked behind "coming soon" (see the module comment above), so an
-// empty inbox is the honest state rather than stale, unclickable-through demo
-// content.
-export const MOCK_EMAILS: Email[] = []
 
 export const MOCK_CHAT_MESSAGES: ChatMessage[] = [
   {

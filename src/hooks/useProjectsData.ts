@@ -238,7 +238,12 @@ export function useMeetings() {
 }
 
 export function useEmails() {
-  return useQuery({ queryKey: queryKeys.emails, queryFn: projectsApi.fetchEmails })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.emails,
+    queryFn: projectsApi.fetchEmails,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useToggleEmailStar() {

@@ -2,7 +2,7 @@ import { getJson, patchJson, deleteJson, postJsonAuthed, fetchBackendMe } from '
 import { readBackendSessionToken } from '../lib/backendSession'
 import { pickAvatar } from '../lib/avatars'
 import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE } from '../lib/constants'
-import { MOCK_CHAT_MESSAGES, MOCK_EMAILS } from '../mocks/seedData'
+import { MOCK_CHAT_MESSAGES } from '../mocks/seedData'
 import type {
   BulkImportContactsResult,
   ChatMessage,
@@ -549,13 +549,84 @@ export async function deleteDocument(documentId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Email / AI Assistant - deliberately still mock. Both features are locked
-// behind the "coming soon" nav treatment (no backend endpoint exists for
-// either), but their pages/hooks stay in the tree for a fast follow-up.
+// Email
 // ---------------------------------------------------------------------------
 
-let emails: Email[] = MOCK_EMAILS.map((e) => ({ ...e }))
-let nextEmailId = emails.length + 1
+interface EmailRow {
+  id: string
+  project_id: string | null
+  folder: EmailFolder
+  sender_name: string | null
+  sender_email: string
+  sender_color: string | null
+  subject: string | null
+  body: string | null
+  sent_at: string
+  starred: boolean
+  read: boolean
+}
+
+function excerptFromEmailBody(body: string): string {
+  return body.length > 120 ? `${body.slice(0, 120).trimEnd()}…` : body
+}
+
+function mapEmail(row: EmailRow): Email {
+  const body = row.body || ''
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    folder: row.folder,
+    senderName: row.sender_name || row.sender_email,
+    senderColor: row.sender_color || '#94a3b8',
+    subject: row.subject || '',
+    snippet: excerptFromEmailBody(body),
+    body,
+    receivedAt: row.sent_at,
+    starred: row.starred,
+    read: row.read,
+  }
+}
+
+export async function fetchEmails(): Promise<Email[]> {
+  const { data } = await getJson<ApiEnvelope<EmailRow[]>>('/emails', authToken())
+  return data.map(mapEmail)
+}
+
+export async function toggleEmailStar(emailId: string): Promise<void> {
+  const token = authToken()
+  const { data: current } = await getJson<ApiEnvelope<EmailRow>>(`/emails/${emailId}`, token)
+  await patchJson(`/emails/${emailId}`, { starred: !current.starred }, token)
+  emitProjectsChanged()
+}
+
+export async function markEmailsRead(emailIds: string[]): Promise<void> {
+  const token = authToken()
+  await Promise.all(emailIds.map((id) => patchJson(`/emails/${id}`, { read: true }, token)))
+  emitProjectsChanged()
+}
+
+export async function moveEmailsToFolder(emailIds: string[], folder: EmailFolder): Promise<void> {
+  const token = authToken()
+  await Promise.all(emailIds.map((id) => patchJson(`/emails/${id}`, { folder }, token)))
+  emitProjectsChanged()
+}
+
+export async function composeEmail(input: ComposeEmailInput): Promise<Email> {
+  const { data } = await postJsonAuthed<ApiEnvelope<EmailRow>>(
+    '/emails',
+    { to: input.to, subject: input.subject, snippet: input.snippet },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return mapEmail(data)
+}
+
+// ---------------------------------------------------------------------------
+// AI Assistant - deliberately still mock. Locked behind the "coming soon"
+// nav treatment (no backend endpoint exists yet), but its page/hooks stay in
+// the tree for a fast follow-up.
+// ---------------------------------------------------------------------------
+
 let chatMessages: ChatMessage[] = MOCK_CHAT_MESSAGES.map((m) => ({ ...m }))
 let nextChatMessageId = chatMessages.length + 1
 
@@ -563,48 +634,6 @@ const NETWORK_DELAY_MS = 350
 
 function delay<T>(value: T): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), NETWORK_DELAY_MS))
-}
-
-export async function fetchEmails(): Promise<Email[]> {
-  return delay(emails.map((e) => ({ ...e })))
-}
-
-export async function toggleEmailStar(emailId: string): Promise<void> {
-  emails = emails.map((e) => (e.id === emailId ? { ...e, starred: !e.starred } : e))
-  await delay(undefined)
-  emitProjectsChanged()
-}
-
-export async function markEmailsRead(emailIds: string[]): Promise<void> {
-  emails = emails.map((e) => (emailIds.includes(e.id) ? { ...e, read: true } : e))
-  await delay(undefined)
-  emitProjectsChanged()
-}
-
-export async function moveEmailsToFolder(emailIds: string[], folder: EmailFolder): Promise<void> {
-  emails = emails.map((e) => (emailIds.includes(e.id) ? { ...e, folder } : e))
-  await delay(undefined)
-  emitProjectsChanged()
-}
-
-export async function composeEmail(input: ComposeEmailInput): Promise<Email> {
-  const email: Email = {
-    id: `e${nextEmailId++}`,
-    projectId: null,
-    folder: 'drafts',
-    senderName: 'You',
-    senderColor: '#94a3b8',
-    subject: input.subject,
-    snippet: input.snippet,
-    body: input.snippet,
-    receivedAt: new Date().toISOString(),
-    starred: false,
-    read: true,
-  }
-  emails = [email, ...emails]
-  const result = await delay(email)
-  emitProjectsChanged()
-  return result
 }
 
 export async function fetchChatMessages(): Promise<ChatMessage[]> {

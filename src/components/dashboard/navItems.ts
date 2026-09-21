@@ -25,7 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard/projects', label: 'Projects', icon: FolderKanban },
   { to: '/dashboard/contacts', label: 'Contacts', icon: Users },
   { to: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
-  { to: '/dashboard/email', label: 'Email', icon: Mail, locked: true },
+  { to: '/dashboard/email', label: 'Email', icon: Mail },
   { to: '/dashboard/notes', label: 'Notes', icon: StickyNote },
   { to: '/dashboard/ai-assistant', label: 'AI Assistant', icon: Sparkles, locked: true },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, locked: true },

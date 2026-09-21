@@ -35,10 +35,11 @@ const NotesPage = lazy(() => import('./pages/dashboard/NotesPage').then((m) => (
 const GlobalSearchPage = lazy(() =>
   import('./pages/dashboard/GlobalSearchPage').then((m) => ({ default: m.GlobalSearchPage })),
 )
-// EmailPage and AiAssistantPage stay in the tree (working, mock-backed UI)
-// but are deliberately unreferenced here - both routes render ComingSoonPage
-// instead, since neither has a real backend yet. See navItems.ts/Sidebar.tsx
-// for the matching locked nav-item treatment.
+const EmailPage = lazy(() => import('./pages/dashboard/EmailPage').then((m) => ({ default: m.EmailPage })))
+// AiAssistantPage stays in the tree (working, mock-backed UI) but is
+// deliberately unreferenced here - its route renders ComingSoonPage instead,
+// since it has no real backend yet. See navItems.ts/Sidebar.tsx for the
+// matching locked nav-item treatment.
 const AccountSettingsPage = lazy(() =>
   import('./pages/dashboard/AccountSettingsPage').then((m) => ({ default: m.AccountSettingsPage })),
 )
@@ -167,7 +168,7 @@ function App() {
             path="email"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <ComingSoonPage title="Email" description="A unified inbox for project and client email. Coming soon." />
+                <EmailPage />
               </Suspense>
             }
           />

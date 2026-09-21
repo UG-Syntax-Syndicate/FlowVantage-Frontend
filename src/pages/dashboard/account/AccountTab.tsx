@@ -62,7 +62,7 @@ function ProfileNameForm() {
       )}
 
       <div className="sm:col-span-2">
-        <Button type="submit" size="sm" disabled={!isDirty || isSubmitting}>
+        <Button type="submit" size="sm" loading={isSubmitting} disabled={!isDirty || isSubmitting}>
           {isSubmitting ? 'Saving…' : 'Save changes'}
         </Button>
       </div>

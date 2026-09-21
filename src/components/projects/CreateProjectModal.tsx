@@ -179,7 +179,7 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createProject.isPending}>
+            <Button type="submit" loading={createProject.isPending} disabled={createProject.isPending}>
               {createProject.isPending ? 'Creating…' : 'Create project'}
             </Button>
           </div>

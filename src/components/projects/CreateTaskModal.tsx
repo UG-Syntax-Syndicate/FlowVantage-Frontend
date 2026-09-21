@@ -134,7 +134,7 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createTask.isPending}>
+            <Button type="submit" loading={createTask.isPending} disabled={createTask.isPending}>
               {createTask.isPending ? 'Adding…' : 'Add task'}
             </Button>
           </div>

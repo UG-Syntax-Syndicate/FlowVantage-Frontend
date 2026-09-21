@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { Loader2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,8 +65,9 @@ export function ConfirmDialog({
           <AlertDialogAction
             disabled={!phraseMatches || loading}
             onClick={onConfirm}
-            className={danger ? 'bg-rose-600 text-white hover:bg-rose-500' : ''}
+            className={`inline-flex items-center gap-1.5 ${danger ? 'bg-rose-600 text-white hover:bg-rose-500' : ''}`}
           >
+            {loading && <Loader2 size={14} className="animate-spin" />}
             {loading ? 'Please wait…' : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -3,9 +3,11 @@ import { Copy, RotateCcw, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useChatMessages, useSendChatMessage } from '../../hooks/useProjectsData'
 import { showToast } from '../../lib/toast'
+import { getStoredAiProvider, setStoredAiProvider, type AiProvider } from '../../api/aiApi'
 import { AiComposer } from '../../components/dashboard/ai/AiComposer'
 import { QuickStartGrid } from '../../components/dashboard/ai/QuickStartGrid'
 import { AiMessageContent } from '../../components/dashboard/ai/AiMessageContent'
+import { ProviderSwitcher } from '../../components/dashboard/ai/ProviderSwitcher'
 import {
   MessageScroller,
   MessageScrollerContent,
@@ -41,6 +43,7 @@ export function AiAssistantPage() {
   const [draft, setDraft] = useState('')
   const [awaitingReply, setAwaitingReply] = useState(false)
   const [tab, setTab] = useState<TabId>('chats')
+  const [provider, setProvider] = useState<AiProvider>(getStoredAiProvider)
   const lastMessageRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -51,12 +54,25 @@ export function AiAssistantPage() {
     }
   }, [messages])
 
+  function handleProviderChange(next: AiProvider) {
+    setProvider(next)
+    setStoredAiProvider(next)
+  }
+
   function submit(content: string) {
     const trimmed = content.trim()
     if (!trimmed) return
     setDraft('')
     setAwaitingReply(true)
-    sendMessage.mutate(trimmed)
+    sendMessage.mutate(
+      { content: trimmed, provider },
+      {
+        onError: () => {
+          setAwaitingReply(false)
+          showToast('error', "Venon couldn't reach the AI provider. Please try again.")
+        },
+      },
+    )
   }
 
   function handleRegenerate() {
@@ -69,7 +85,7 @@ export function AiAssistantPage() {
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-b from-orange-100 via-amber-50 to-white">
-      <div className="flex shrink-0 justify-center pt-4">
+      <div className="flex shrink-0 items-center justify-center gap-3 pt-4">
         <div className="flex items-center gap-1 rounded-full bg-white/60 p-1 ring-1 ring-black/5 backdrop-blur-sm">
           {TABS.map((item) => (
             <button
@@ -90,6 +106,7 @@ export function AiAssistantPage() {
             </button>
           ))}
         </div>
+        <ProviderSwitcher value={provider} onChange={handleProviderChange} className="h-8 w-28 bg-white/60 text-xs ring-1 ring-black/5 backdrop-blur-sm" />
       </div>
 
       {hasConversation ? (
@@ -179,7 +196,7 @@ export function AiAssistantPage() {
                 disabled={sendMessage.isPending}
               />
               <p className="mt-3 text-center text-xs text-slate-400">
-                FlowVantage AI can make mistakes. Verify important information.
+                Venon can make mistakes. Verify important information.
               </p>
             </div>
           </div>
@@ -187,15 +204,18 @@ export function AiAssistantPage() {
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-10">
           <div className="w-full max-w-2xl">
-            <h1 className="mb-8 text-center text-4xl font-light tracking-tight text-slate-800">
+            <h1 className="mb-2 text-center text-4xl font-light tracking-tight text-slate-800">
               {timeOfDayGreeting()}, {name}
             </h1>
+            <p className="mb-6 text-center text-sm text-slate-500">
+              I'm Venon, your workspace assistant. Ask me about your contacts, tasks, or projects.
+            </p>
 
             <AiComposer
               value={draft}
               onChange={setDraft}
               onSubmit={() => submit(draft)}
-              placeholder="How can I help you today?"
+              placeholder="Ask Venon anything about your workspace…"
               disabled={sendMessage.isPending}
             />
 

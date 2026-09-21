@@ -2,10 +2,8 @@ import { getJson, patchJson, deleteJson, postJsonAuthed, fetchBackendMe } from '
 import { readBackendSessionToken } from '../lib/backendSession'
 import { pickAvatar } from '../lib/avatars'
 import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE } from '../lib/constants'
-import { MOCK_CHAT_MESSAGES } from '../mocks/seedData'
 import type {
   BulkImportContactsResult,
-  ChatMessage,
   ComposeEmailInput,
   Contact,
   ContactInput,
@@ -625,94 +623,9 @@ export async function composeEmail(input: ComposeEmailInput): Promise<Email> {
 }
 
 // ---------------------------------------------------------------------------
-// AI Assistant - deliberately still mock. Locked behind the "coming soon"
-// nav treatment (no backend endpoint exists yet), but its page/hooks stay in
-// the tree for a fast follow-up.
+// AI Assistant (Venon) - real backend calls now live in src/api/aiApi.ts
+// (fetchChatMessages/sendChatMessage), not here. See that file for why: it
+// needs a longer request timeout than the rest of this API client, plus a
+// provider (OpenAI/Gemini) and workspaceId that this module's other
+// functions don't deal with.
 // ---------------------------------------------------------------------------
-
-let chatMessages: ChatMessage[] = MOCK_CHAT_MESSAGES.map((m) => ({ ...m }))
-let nextChatMessageId = chatMessages.length + 1
-
-const NETWORK_DELAY_MS = 350
-
-function delay<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), NETWORK_DELAY_MS))
-}
-
-export async function fetchChatMessages(): Promise<ChatMessage[]> {
-  return delay(chatMessages.map((m) => ({ ...m })))
-}
-
-const ASSISTANT_REPLY_DELAY_MS = 900
-
-function cannedAssistantReply(userMessage: string): string {
-  const text = userMessage.toLowerCase()
-  if (text.includes('overdue') || text.includes('risk') || text.includes('billing')) {
-    return [
-      '**Billing Migration** is the one to watch.',
-      '',
-      '- "Reconcile historic ledger data" is **overdue**',
-      '- The project deadline is only **5 days** out',
-      '',
-      'Everything else across your projects is on track for now.',
-    ].join('\n')
-  }
-  if (text.includes('progress') || text.includes('summary') || text.includes('status')) {
-    return [
-      '### Project status',
-      '',
-      '1. **Hikoko Design System** — 2 tasks in progress',
-      '2. **Mobile App Revamp** — 2 tasks in progress',
-      '3. **Q3 Marketing Site** — still in planning',
-      '4. **Billing Migration** — 1 overdue task',
-      '',
-      '---',
-      '',
-      'Hikoko Design System and Mobile App Revamp are the most active projects this week.',
-    ].join('\n')
-  }
-  if (text.includes('marketing') || text.includes('draft') || text.includes('note')) {
-    return [
-      "Here's a short draft you can send as-is or adjust:",
-      '',
-      '> Hi team — quick update on Q3 Marketing Site: design review wrapped this week and development kicks off Monday. No blockers so far.',
-      '',
-      'Let me know if you would rather I adjust the tone or add specific numbers before you send it.',
-    ].join('\n')
-  }
-  if (text.includes('meeting') || text.includes('calendar')) {
-    return [
-      'Your next meeting is the **Mobile revamp check-in** with the Field Ops Team.',
-      '',
-      'I can draft an agenda if that would help.',
-    ].join('\n')
-  }
-  return "I don't have live access to your workspace yet in this demo, but based on your recent activity, **Hikoko Design System** and **Mobile App Revamp** are the most active projects this week. Ask me about a specific project and I will do my best with what's here."
-}
-
-export async function sendChatMessage(content: string): Promise<ChatMessage> {
-  const userMessage: ChatMessage = {
-    id: `cm${nextChatMessageId++}`,
-    role: 'user',
-    content,
-    createdAt: new Date().toISOString(),
-  }
-  chatMessages = [...chatMessages, userMessage]
-  const result = await delay(userMessage)
-  emitProjectsChanged()
-
-  // Simulate an async assistant reply arriving a moment later, same as a
-  // real backend would push one over a socket/webhook.
-  setTimeout(() => {
-    const reply: ChatMessage = {
-      id: `cm${nextChatMessageId++}`,
-      role: 'assistant',
-      content: cannedAssistantReply(content),
-      createdAt: new Date().toISOString(),
-    }
-    chatMessages = [...chatMessages, reply]
-    emitProjectsChanged()
-  }, ASSISTANT_REPLY_DELAY_MS)
-
-  return result
-}

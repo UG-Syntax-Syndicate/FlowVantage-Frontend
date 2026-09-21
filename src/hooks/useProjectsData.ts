@@ -1,8 +1,8 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../lib/queryClient'
 import * as projectsApi from '../api/projectsApi'
-import { subscribeToProjectsChanged } from '../api/mockRealtimeBus'
+import * as aiApi from '../api/aiApi'
 import { useAuth } from './useAuth'
 import { useWorkspace } from './useWorkspace'
 import { logRecordChange } from '../lib/auditLog'
@@ -19,21 +19,6 @@ import type {
   TaskStatus,
   UploadDocumentInput,
 } from '../types/project'
-
-/**
- * Chat (still mock-backed) needs its own subscription because the assistant's
- * reply lands via a second emitProjectsChanged() call a moment after the
- * user's message is sent (projectsApi.sendChatMessage), with no other
- * invalidation path for that delayed second message.
- */
-function useChatRealtimeInvalidation() {
-  const queryClient = useQueryClient()
-  useEffect(() => {
-    return subscribeToProjectsChanged(() => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.chatMessages })
-    })
-  }, [queryClient])
-}
 
 /**
  * Returns a fire-and-forget audit recorder bound to the current user, for the
@@ -484,14 +469,19 @@ export function useDeleteDocument() {
 }
 
 export function useChatMessages() {
-  useChatRealtimeInvalidation()
-  return useQuery({ queryKey: queryKeys.chatMessages, queryFn: projectsApi.fetchChatMessages })
+  return useQuery({ queryKey: queryKeys.chatMessages, queryFn: aiApi.fetchChatMessages })
 }
 
 export function useSendChatMessage() {
   const queryClient = useQueryClient()
+  const { activeWorkspaceId } = useWorkspace()
   return useMutation({
-    mutationFn: (content: string) => projectsApi.sendChatMessage(content),
+    mutationFn: ({ content, provider }: { content: string; provider: aiApi.AiProvider }) => {
+      if (!activeWorkspaceId) {
+        throw new Error('No active workspace')
+      }
+      return aiApi.sendChatMessage(content, { provider, workspaceId: activeWorkspaceId })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.chatMessages })
     },

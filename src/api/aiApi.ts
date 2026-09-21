@@ -1,6 +1,7 @@
 import { postJsonAuthedWithTimeout } from '../lib/backendApi'
 import { readBackendSessionToken } from '../lib/backendSession'
 import type { HeaderMappingSuggestion } from '../lib/contactImport'
+import type { ChatMessage } from '../types/project'
 
 // LLM calls routinely take longer than the app's default 5s request
 // timeout (src/lib/backendApi.ts) - give AI endpoints more room.
@@ -59,4 +60,58 @@ export async function suggestCsvHeaderMapping(
     AI_TIMEOUT_MS,
   )
   return data
+}
+
+async function callVenonChat(
+  provider: AiProvider,
+  message: string,
+  workspaceId: string,
+  history: Pick<ChatMessage, 'role' | 'content'>[],
+): Promise<ChatMessage> {
+  const { data } = await postJsonAuthedWithTimeout<ApiEnvelope<ChatMessage>>(
+    '/ai-assistant/chat',
+    { provider, message, workspace_id: workspaceId, history },
+    authToken(),
+    AI_TIMEOUT_MS,
+  )
+  return data
+}
+
+// ---------------------------------------------------------------------------
+// Venon conversation state - v1 is stateless server-side (see chat.service.js
+// on the backend), so the running conversation lives only in this module's
+// memory for the lifetime of the page. It does not survive a reload or
+// follow the user to another device; that's a deliberate v1 scope cut, not
+// an oversight - see the CSV/Venon implementation plan for the tradeoff.
+// ---------------------------------------------------------------------------
+
+let sessionMessages: ChatMessage[] = []
+let nextLocalMessageId = 1
+const MAX_HISTORY_MESSAGES = 10
+
+export async function fetchChatMessages(): Promise<ChatMessage[]> {
+  return sessionMessages.map((message) => ({ ...message }))
+}
+
+export async function sendChatMessage(
+  content: string,
+  { provider, workspaceId }: { provider: AiProvider; workspaceId: string },
+): Promise<ChatMessage> {
+  const userMessage: ChatMessage = {
+    id: `local_${nextLocalMessageId++}`,
+    role: 'user',
+    content,
+    createdAt: new Date().toISOString(),
+  }
+  sessionMessages = [...sessionMessages, userMessage]
+
+  const history = sessionMessages
+    .slice(0, -1)
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map((message) => ({ role: message.role, content: message.content }))
+
+  const reply = await callVenonChat(provider, content, workspaceId, history)
+  sessionMessages = [...sessionMessages, reply]
+
+  return userMessage
 }

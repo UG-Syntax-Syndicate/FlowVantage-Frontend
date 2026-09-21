@@ -36,10 +36,9 @@ const GlobalSearchPage = lazy(() =>
   import('./pages/dashboard/GlobalSearchPage').then((m) => ({ default: m.GlobalSearchPage })),
 )
 const EmailPage = lazy(() => import('./pages/dashboard/EmailPage').then((m) => ({ default: m.EmailPage })))
-// AiAssistantPage stays in the tree (working, mock-backed UI) but is
-// deliberately unreferenced here - its route renders ComingSoonPage instead,
-// since it has no real backend yet. See navItems.ts/Sidebar.tsx for the
-// matching locked nav-item treatment.
+const AiAssistantPage = lazy(() =>
+  import('./pages/dashboard/AiAssistantPage').then((m) => ({ default: m.AiAssistantPage })),
+)
 const AccountSettingsPage = lazy(() =>
   import('./pages/dashboard/AccountSettingsPage').then((m) => ({ default: m.AccountSettingsPage })),
 )
@@ -192,10 +191,7 @@ function App() {
             path="ai-assistant"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <ComingSoonPage
-                  title="AI Assistant"
-                  description="AI-assisted project organization and summaries. Coming soon."
-                />
+                <AiAssistantPage />
               </Suspense>
             }
           />

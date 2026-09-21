@@ -6,8 +6,18 @@ import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { ProviderSwitcher } from '../dashboard/ai/ProviderSwitcher'
 import { showToast } from '../../lib/toast'
-import { parseContactFile, type ParsedContact } from '../../lib/contactImport'
+import {
+  finalizeParsedContacts,
+  isVcfFile,
+  parseContactFile,
+  parseContactsCsv,
+  readCsvHeadersAndRows,
+  type HeaderMappingSuggestion,
+  type ParsedContact,
+} from '../../lib/contactImport'
+import { getStoredAiProvider, setStoredAiProvider, suggestCsvHeaderMapping, type AiProvider } from '../../api/aiApi'
 import { useBulkImportContacts } from '../../hooks/useProjectsData'
 import { useProjects } from '../../hooks/useProjectsData'
 import { useWorkspace } from '../../hooks/useWorkspace'
@@ -31,9 +41,42 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
 
   const [rows, setRows] = useState<Row[]>([])
   const [parsing, setParsing] = useState(false)
+  const [provider, setProvider] = useState<AiProvider>(getStoredAiProvider)
   const [projectId, setProjectId] = useState<string>('none')
   const [visibility, setVisibility] = useState<ContactVisibility>('private')
   const [result, setResult] = useState<{ created: number; duplicates: number; failed: number } | null>(null)
+
+  function handleProviderChange(next: AiProvider) {
+    setProvider(next)
+    setStoredAiProvider(next)
+  }
+
+  /**
+   * For CSV files, asks the backend's AI provider to suggest a header
+   * mapping before parsing, so headers the hardcoded alias list doesn't
+   * recognize (an unusual export, a language it doesn't know) still land in
+   * the right field. Purely additive: any AI failure/timeout just falls
+   * back to the existing alias-based parser, never blocks the import.
+   */
+  async function parseFileWithAiAssist(file: File): Promise<ParsedContact[]> {
+    if (isVcfFile(file)) {
+      return parseContactFile(file)
+    }
+
+    const text = await file.text()
+    const { headers, rows: sampleRows } = readCsvHeadersAndRows(text)
+
+    let aiSuggestions: HeaderMappingSuggestion[] | undefined
+    if (headers.length > 0) {
+      try {
+        aiSuggestions = await suggestCsvHeaderMapping(provider, headers, sampleRows.slice(0, 3))
+      } catch {
+        // AI mapping unavailable - the alias-based parser below still runs.
+      }
+    }
+
+    return finalizeParsedContacts(parseContactsCsv(text, aiSuggestions))
+  }
 
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
@@ -42,7 +85,7 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
 
     setParsing(true)
     try {
-      const parsedPerFile = await Promise.all(files.map((file) => parseContactFile(file)))
+      const parsedPerFile = await Promise.all(files.map((file) => parseFileWithAiAssist(file)))
       const parsed = parsedPerFile.flat()
       if (parsed.length === 0) {
         showToast('error', 'No contacts found in that file')
@@ -80,6 +123,7 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
           phone: row.phone || undefined,
           company: row.company || undefined,
           role: row.role || undefined,
+          notes: row.notes || undefined,
           projectId: projectId === 'none' ? null : projectId,
           visibility,
         })),
@@ -113,6 +157,11 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-xs text-slate-500">AI header mapping</Label>
+              <ProviderSwitcher value={provider} onChange={handleProviderChange} className="h-8 w-32 text-xs" />
+            </div>
+
             {rows.length === 0 ? (
               <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 text-slate-400 hover:border-primary hover:text-primary">
                 {parsing ? (
@@ -153,8 +202,8 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
                         <p className="truncate text-sm font-medium text-slate-800">
                           {[row.firstName, row.lastName].filter(Boolean).join(' ') || '(no name)'}
                         </p>
-                        <p className="truncate text-xs text-slate-400">
-                          {[row.email, row.phone, row.company].filter(Boolean).join(' · ') || '—'}
+                        <p className="truncate text-xs text-slate-400" title={row.notes || undefined}>
+                          {[row.email, row.phone, row.company, row.notes].filter(Boolean).join(' · ') || '—'}
                         </p>
                       </div>
                     </div>

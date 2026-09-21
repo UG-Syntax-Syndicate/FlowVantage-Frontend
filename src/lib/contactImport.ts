@@ -14,6 +14,19 @@ export interface ParsedContact {
   phone: string
   company: string
   role: string
+  notes: string
+}
+
+/**
+ * Fields an AI provider is allowed to map a CSV header to - mirrors the
+ * backend's TARGET_FIELDS (src/modules/ai/services/csvMapping.service.js).
+ */
+export type MappableField = 'firstName' | 'lastName' | 'email' | 'phone' | 'company' | 'role' | 'notes'
+
+export interface HeaderMappingSuggestion {
+  header: string
+  mappedField: MappableField | null
+  confidence?: number
 }
 
 /**
@@ -136,27 +149,10 @@ function splitDisplayName(name: string): { firstName: string; lastName: string }
   return { firstName: trimmed.slice(0, spaceIndex).trim(), lastName: trimmed.slice(spaceIndex + 1).trim() }
 }
 
-/**
- * Parses a CSV export into ParsedContact rows. Column names are matched
- * case-insensitively against every alias this function knows, so an
- * Outlook-style export (separate First/Last Name columns) and a Dutch CRM
- * export (a single combined name column, different header language) both
- * resolve to the same shape.
- */
-export function parseContactsCsv(text: string): ParsedContact[] {
-  const firstLine = text.split(/\r?\n/, 1)[0] ?? ''
-  const delimiter = detectDelimiter(firstLine)
-  const rows = parseDelimitedText(text, delimiter)
-  if (rows.length === 0) return []
-
-  const headers = rows[0]
-  const dataRows = rows.slice(1)
-
-  const firstNameCol = findColumn(headers, ['first name', 'voornaam'])
-  const lastNameCol = findColumn(headers, ['last name', 'achternaam'])
-  const combinedNameCol = findColumn(headers, ['naam', 'name', 'full name', 'display name'])
-  const emailCol = findColumn(headers, ['e-mail address', 'email', 'e-mail', 'e-mailadres', 'emailadres'])
-  const phoneCol = findColumn(headers, [
+const ALIAS_CANDIDATES: Record<Exclude<MappableField, 'firstName' | 'lastName'> | 'combinedName', string[]> = {
+  combinedName: ['naam', 'name', 'full name', 'display name'],
+  email: ['e-mail address', 'email', 'e-mail', 'e-mailadres', 'emailadres'],
+  phone: [
     'mobile phone',
     'business phone',
     'home phone',
@@ -166,9 +162,68 @@ export function parseContactsCsv(text: string): ParsedContact[] {
     'telefoon',
     'mobiel',
     'mobiele',
-  ])
-  const companyCol = findColumn(headers, ['company', 'bedrijf', 'van'])
-  const roleCol = findColumn(headers, ['job title', 'title', 'functie', 'role'])
+  ],
+  company: ['company', 'bedrijf', 'van'],
+  role: ['job title', 'title', 'functie', 'role'],
+  notes: ['notes', 'note', 'opmerkingen', 'comments', 'comment'],
+}
+
+/** Splits a CSV's first line into raw headers and the parsed data rows, without resolving column mapping yet. */
+export function readCsvHeadersAndRows(text: string): { headers: string[]; rows: string[][] } {
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? ''
+  const delimiter = detectDelimiter(firstLine)
+  const parsed = parseDelimitedText(text, delimiter)
+  if (parsed.length === 0) return { headers: [], rows: [] }
+  return { headers: parsed[0], rows: parsed.slice(1) }
+}
+
+/**
+ * Resolves which column index each target field should read from. Prefers
+ * a validated AI-suggested header (exact header match, known field) when
+ * given one; falls back to the hardcoded alias list otherwise - so import
+ * keeps working even when the AI call fails or is skipped entirely.
+ */
+function resolveColumnMapping(headers: string[], aiSuggestions?: HeaderMappingSuggestion[]) {
+  const aiFieldToColumn = new Map<MappableField, number>()
+  if (aiSuggestions) {
+    for (const suggestion of aiSuggestions) {
+      if (!suggestion.mappedField) continue
+      const index = headers.indexOf(suggestion.header)
+      if (index !== -1 && !aiFieldToColumn.has(suggestion.mappedField)) {
+        aiFieldToColumn.set(suggestion.mappedField, index)
+      }
+    }
+  }
+
+  const columnFor = (field: MappableField, fallbackCandidates: string[]): number =>
+    aiFieldToColumn.get(field) ?? findColumn(headers, fallbackCandidates)
+
+  return {
+    firstNameCol: columnFor('firstName', ['first name', 'voornaam']),
+    lastNameCol: columnFor('lastName', ['last name', 'achternaam']),
+    combinedNameCol: findColumn(headers, ALIAS_CANDIDATES.combinedName),
+    emailCol: columnFor('email', ALIAS_CANDIDATES.email),
+    phoneCol: columnFor('phone', ALIAS_CANDIDATES.phone),
+    companyCol: columnFor('company', ALIAS_CANDIDATES.company),
+    roleCol: columnFor('role', ALIAS_CANDIDATES.role),
+    notesCol: columnFor('notes', ALIAS_CANDIDATES.notes),
+  }
+}
+
+/**
+ * Parses a CSV export into ParsedContact rows. Column names are matched
+ * case-insensitively against every alias this function knows (or against an
+ * optional AI-suggested mapping, preferred when present), so an
+ * Outlook-style export (separate First/Last Name columns) and a Dutch CRM
+ * export (a single combined name column, different header language) both
+ * resolve to the same shape.
+ */
+export function parseContactsCsv(text: string, aiSuggestions?: HeaderMappingSuggestion[]): ParsedContact[] {
+  const { headers, rows: dataRows } = readCsvHeadersAndRows(text)
+  if (headers.length === 0) return []
+
+  const { firstNameCol, lastNameCol, combinedNameCol, emailCol, phoneCol, companyCol, roleCol, notesCol } =
+    resolveColumnMapping(headers, aiSuggestions)
 
   return dataRows.map((row) => {
     let firstName = cell(row, firstNameCol)
@@ -187,6 +242,7 @@ export function parseContactsCsv(text: string): ParsedContact[] {
       phone: cell(row, phoneCol),
       company: cell(row, companyCol),
       role: cell(row, roleCol),
+      notes: cell(row, notesCol),
     }
   })
 }
@@ -211,6 +267,7 @@ export function parseContactsVcf(text: string): ParsedContact[] {
     let phone = ''
     let company = ''
     let role = ''
+    let notes = ''
 
     for (const line of lines) {
       const colonIndex = line.indexOf(':')
@@ -234,6 +291,8 @@ export function parseContactsVcf(text: string): ParsedContact[] {
         company = value.split(';')[0]
       } else if (key === 'TITLE' && !role) {
         role = value
+      } else if (key === 'NOTE' && !notes) {
+        notes = value.replace(/\\n/g, '\n')
       }
     }
 
@@ -245,7 +304,7 @@ export function parseContactsVcf(text: string): ParsedContact[] {
       lastName = split.lastName
     }
 
-    return { firstName, lastName, email, phone, company, role }
+    return { firstName, lastName, email, phone, company, role, notes }
   })
 }
 
@@ -265,14 +324,22 @@ function fallbackName(contact: ParsedContact): string {
   return contact.phone
 }
 
-/** Reads and parses a contacts export file, auto-detecting CSV vs vCard from its extension/type. */
-export async function parseContactFile(file: File): Promise<ParsedContact[]> {
-  const text = await file.text()
-  const parsed = isVcfFile(file) ? parseContactsVcf(text) : parseContactsCsv(text)
-
+/** Applies the no-name fallback and drops rows that are still unusable. Shared by parseContactFile and any caller that already has raw text (e.g. an AI-assisted mapping). */
+export function finalizeParsedContacts(parsed: ParsedContact[]): ParsedContact[] {
   return parsed
     .map((contact) =>
       contact.firstName || contact.lastName ? contact : { ...contact, firstName: fallbackName(contact) },
     )
     .filter((contact) => contact.firstName || contact.lastName)
+}
+
+/**
+ * Reads and parses a contacts export file, auto-detecting CSV vs vCard from
+ * its extension/type. `aiSuggestions` (CSV only) is an optional AI-derived
+ * header mapping, preferred over the hardcoded alias list when given.
+ */
+export async function parseContactFile(file: File, aiSuggestions?: HeaderMappingSuggestion[]): Promise<ParsedContact[]> {
+  const text = await file.text()
+  const parsed = isVcfFile(file) ? parseContactsVcf(text) : parseContactsCsv(text, aiSuggestions)
+  return finalizeParsedContacts(parsed)
 }

@@ -63,6 +63,7 @@ interface ContactRow {
   company: string | null
   role: string | null
   niche: string | null
+  notes: string | null
   status: Contact['status']
   stage: Contact['stage']
   workspace_id: string
@@ -83,6 +84,7 @@ function mapContact(row: ContactRow): Contact {
     photoURL: pickAvatar(row.email || row.id),
     status: row.status,
     niche: row.niche || '',
+    notes: row.notes || '',
     stage: row.stage,
     workspaceId: row.workspace_id,
     visibility: row.visibility || 'private',
@@ -100,6 +102,7 @@ function contactInputBody(input: ContactInput) {
     company: input.company,
     role: input.role,
     niche: input.niche,
+    notes: input.notes,
     workspace_id: input.workspaceId,
     visibility: input.visibility,
     project_id: input.projectId,

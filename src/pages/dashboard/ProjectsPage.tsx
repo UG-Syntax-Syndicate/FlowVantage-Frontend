@@ -12,6 +12,7 @@ import { CreateFolderModal } from '../../components/projects/CreateFolderModal'
 import { useFolders, useProjects } from '../../hooks/useProjectsData'
 import { Reveal } from '../../components/motion/Reveal'
 import { staggerDelay } from '../../lib/motion'
+import { CardGridSkeleton } from '../../components/common/skeletons/CardGridSkeleton'
 
 export function ProjectsPage() {
   const { data: projects = [], isLoading } = useProjects()
@@ -73,7 +74,7 @@ export function ProjectsPage() {
           <div>
             <h2 className="mb-3 text-sm font-semibold text-slate-900">Latest Projects</h2>
             {isLoading ? (
-              <p className="text-sm text-slate-400">Loading projects…</p>
+              <CardGridSkeleton count={6} />
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {visibleProjects.map((project, i) => (

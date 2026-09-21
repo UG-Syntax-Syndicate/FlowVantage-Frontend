@@ -11,6 +11,9 @@ import {
   readBackendSessionToken,
   storeBackendSessionToken,
 } from '../lib/backendSession'
+import { clearAllClientSession } from '../lib/sessionCleanup'
+import { isIdleExpired, markActivityNow } from '../lib/sessionExpiry'
+import { publishAuthEvent, subscribeAuthEvent } from '../lib/authBroadcast'
 import { AuthContext, type TwoFactorChallenge } from './AuthContext'
 import type { UserProfile } from '../types/user'
 
@@ -28,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     getRedirectResult(auth).then(async (result) => {
       if (!result) return
+      markActivityNow()
       const providerId =
         result.providerId === 'microsoft.com' ? 'microsoft.com' : 'google.com'
       await ensureUserProfileDoc(result.user, providerId)
@@ -39,20 +43,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      // A persisted Firebase session that has already outlived the inactivity
+      // window must not silently sign the user back in on a fresh tab — treat
+      // it as expired before any protected route can render.
+      if (user && isIdleExpired()) {
+        const staleToken = readBackendSessionToken()
+        clearAllClientSession()
+        setBackendSessionToken(null)
+        setTwoFactorChallenge(null)
+        setSessionExpired(true)
+        setAuthResolved(true)
+        publishAuthEvent('expired')
+        if (staleToken) {
+          void logoutBackendSession(staleToken).catch(() => {})
+        }
+        void signOut(auth).catch(() => {})
+        return
+      }
+
       setCurrentUser(user)
       setAuthResolved(true)
       setEmailVerified(user?.emailVerified ?? false)
       if (user) {
         setSessionExpired(false)
       } else {
+        // Covers any path that lands here with no user — including one
+        // Firebase itself ends outside our own logout/expiry flows — so a
+        // stale lastActivityAt can never survive into the next sign-in.
         setUserProfile(null)
-        clearBackendSessionToken()
+        clearAllClientSession()
         setBackendSessionToken(null)
         setTwoFactorChallenge(null)
       }
     })
 
     return unsubscribe
+  }, [])
+
+  // Cross-tab logout / expiry. Firebase propagates the raw signed-out state
+  // between tabs on its own, but not the reason — this carries it so every tab
+  // clears the backend token and shows the right screen.
+  useEffect(() => {
+    return subscribeAuthEvent((event) => {
+      clearAllClientSession()
+      setBackendSessionToken(null)
+      setTwoFactorChallenge(null)
+      if (event.type === 'expired') {
+        setSessionExpired(true)
+      }
+      void signOut(auth).catch(() => {
+        // Firebase's own persistence listener will still settle other tabs.
+      })
+    })
   }, [])
 
   // Polls Firebase for a fresh emailVerified flag while the signed-in user is
@@ -128,8 +170,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false
 
+    // Force a fresh token instead of Firebase's cached one: right after
+    // signup this effect can fire before/while the client's follow-up
+    // updateProfile(displayName) call lands, and an unforced token would
+    // deterministically still carry the pre-signup (nameless) claims -
+    // forcing at least gives it a chance of picking up the real name on this
+    // first exchange. The backend falls back gracefully either way and
+    // re-syncs the name from a later token (e.g. the next login).
     currentUser
-      .getIdToken()
+      .getIdToken(true)
       .then((idToken) => exchangeFirebaseSession(idToken))
       .then((result) => {
         if (cancelled || auth.currentUser?.uid !== currentUser.uid) return
@@ -161,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [currentUser])
 
   const resolveTwoFactorChallenge = useCallback((sessionToken: string) => {
+    markActivityNow()
     storeBackendSessionToken(sessionToken)
     setBackendSessionToken(sessionToken)
     setTwoFactorChallenge(null)
@@ -170,6 +220,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // There is no valid backend session without completing the challenge, so
     // the only correct way to back out is a full sign-out.
     setTwoFactorChallenge(null)
+    clearAllClientSession()
+    publishAuthEvent('logout')
     await signOut(auth)
   }, [])
 
@@ -180,9 +232,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * expired" screen in place instead, until the user acknowledges it.
    */
   const expireSession = useCallback(async () => {
-    const sessionToken = backendSessionToken
-    clearBackendSessionToken()
+    const sessionToken = backendSessionToken ?? readBackendSessionToken()
+    clearAllClientSession()
     setBackendSessionToken(null)
+    setTwoFactorChallenge(null)
 
     if (sessionToken) {
       void logoutBackendSession(sessionToken).catch((error) => {
@@ -190,6 +243,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
     }
 
+    // Tell other tabs so they show the "session expired" screen too.
+    publishAuthEvent('expired')
     setSessionExpired(true)
 
     try {

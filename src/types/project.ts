@@ -40,7 +40,7 @@ export const ProjectSchema = z.object({
   coverGradient: z.string(),
   tags: z.array(z.string()),
   category: z.string(),
-  folderId: z.string(),
+  folderId: z.string().nullable(),
   priority: PrioritySchema,
   trackedSeconds: z.number(),
   memberIds: z.array(z.string()),
@@ -142,7 +142,8 @@ export const DocumentSchema = z.object({
   projectId: z.string(),
   name: z.string(),
   mimeType: z.string(),
-  dataUrl: z.string(),
+  url: z.string(),
+  storagePath: z.string(),
   size: z.number(),
   uploadedAt: z.string(),
 })
@@ -152,7 +153,8 @@ export const UploadDocumentInputSchema = DocumentSchema.pick({
   projectId: true,
   name: true,
   mimeType: true,
-  dataUrl: true,
+  url: true,
+  storagePath: true,
   size: true,
 })
 export type UploadDocumentInput = z.infer<typeof UploadDocumentInputSchema>
@@ -190,9 +192,9 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>
 
 export const MeetingSchema = z.object({
   id: z.string(),
-  projectId: z.string(),
+  projectId: z.string().nullable(),
   title: z.string(),
-  withCompany: z.string(),
+  location: z.string().nullable(),
   startTime: z.string(),
   endTime: z.string(),
 })

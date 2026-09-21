@@ -7,6 +7,7 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, microsoftProvider } from './firebase'
 import { DEFAULT_NOTIFICATION_PREFERENCES } from './constants'
 import { logAuditEvent } from './auditLog'
+import { markActivityNow } from './sessionExpiry'
 import type { AuthProviderId } from '../types/user'
 
 export async function ensureUserProfileDoc(
@@ -37,6 +38,7 @@ async function signInWithOAuthProvider(
 ): Promise<boolean> {
   try {
     const result = await signInWithPopup(auth, provider)
+    markActivityNow()
     await ensureUserProfileDoc(result.user, providerId)
     await logAuditEvent(result.user.uid, 'login', { provider: providerId }).catch((error) => {
       console.warn('Failed to log login audit event', error)

@@ -4,22 +4,18 @@ import { ChevronRight, FolderOpen, Upload } from 'lucide-react'
 import { useDeleteDocument, useDocuments, useProjects, useUploadDocument } from '../../hooks/useProjectsData'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { DocumentPreviewModal } from '../../components/projects/DocumentPreviewModal'
-import { formatFileSize, getDocumentIcon, getDocumentIconColor } from '../../lib/documents'
+import {
+  DOCUMENT_ACCEPTED_TYPES,
+  formatFileSize,
+  getDocumentIcon,
+  getDocumentIconColor,
+  validateDocumentFile,
+} from '../../lib/documents'
 import { formatShortDate } from '../../lib/formatDate'
+import { prepareDocumentUpload } from '../../lib/documentUpload'
 import { showToast } from '../../lib/toast'
+import { CardGridSkeleton } from '../../components/common/skeletons/CardGridSkeleton'
 import type { ProjectDocument } from '../../types/project'
-
-const ACCEPTED_TYPES =
-  'application/pdf,text/csv,.csv,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*'
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsDataURL(file)
-  })
-}
 
 export function ProjectDocumentsPage() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -43,15 +39,13 @@ export function ProjectDocumentsPage() {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file || !projectId) return
+    const validationError = validateDocumentFile(file)
+    if (validationError) {
+      showToast('error', validationError)
+      return
+    }
     try {
-      const dataUrl = await readFileAsDataUrl(file)
-      await uploadDocument.mutateAsync({
-        projectId,
-        name: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        dataUrl,
-        size: file.size,
-      })
+      await uploadDocument.mutateAsync(await prepareDocumentUpload(file, projectId))
       showToast('success', 'Document uploaded')
     } catch {
       showToast('error', 'Could not upload that file')
@@ -102,11 +96,17 @@ export function ProjectDocumentsPage() {
           <Upload size={15} strokeWidth={2} />
           {uploadDocument.isPending ? 'Uploading…' : 'Upload'}
         </button>
-        <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES} className="hidden" onChange={handleFileChange} />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={DOCUMENT_ACCEPTED_TYPES}
+          className="hidden"
+          onChange={handleFileChange}
+        />
       </div>
 
       {documentsLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Loading documents…</p>
+        <CardGridSkeleton count={8} withCover={false} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" />
       ) : projectDocuments.length === 0 ? (
         <p className="py-10 text-center text-sm text-slate-400">No documents yet — upload the first one.</p>
       ) : (

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "emulators": "firebase emulators:start --only auth"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
@@ -23,10 +24,10 @@
     "radix-ui": "^1.6.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-easy-crop": "^5.5.7",
     "react-hook-form": "^7.54.2",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.1.1",
-    "shadcn": "^4.21.0",
     "sonner": "^2.0.8",
     "tw-animate-css": "^1.4.0",
     "zod": "^3.24.1"
@@ -37,7 +38,9 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "firebase-tools": "^14.11.1",
     "oxlint": "^1.75.0",
+    "shadcn": "^4.21.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"

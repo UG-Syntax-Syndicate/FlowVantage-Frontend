@@ -12,6 +12,7 @@ import {
 } from '../../components/ui/dropdown-menu'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { Checkbox } from '../../components/ui/checkbox'
+import { TableRowsSkeleton } from '../../components/common/skeletons/TableRowsSkeleton'
 import { useContacts } from '../../hooks/useProjectsData'
 import type { Contact } from '../../types/project'
 
@@ -169,18 +170,21 @@ export function ContactsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageItems.map((contact) => (
-                <ContactRow
-                  key={contact.id}
-                  contact={contact}
-                  selected={selectedIds.has(contact.id)}
-                  onToggleSelect={() => toggleSelectOne(contact.id)}
-                  onView={() => setViewingContactId(contact.id)}
-                />
-              ))}
+              {isLoading ? (
+                <TableRowsSkeleton rows={8} columns={8} />
+              ) : (
+                pageItems.map((contact) => (
+                  <ContactRow
+                    key={contact.id}
+                    contact={contact}
+                    selected={selectedIds.has(contact.id)}
+                    onToggleSelect={() => toggleSelectOne(contact.id)}
+                    onView={() => setViewingContactId(contact.id)}
+                  />
+                ))
+              )}
             </TableBody>
           </Table>
-          {isLoading && <p className="py-10 text-center text-sm text-slate-400">Loading contacts…</p>}
           {!isLoading && pageItems.length === 0 && (
             <p className="py-10 text-center text-sm text-slate-400">No contacts match your filters.</p>
           )}

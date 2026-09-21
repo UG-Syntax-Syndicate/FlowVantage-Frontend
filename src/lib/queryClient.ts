@@ -5,7 +5,11 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 30_000,
       retry: 1,
-      refetchOnWindowFocus: false,
+      // The actual sync mechanism for folders/todos/notes/contacts/documents
+      // (no realtime push for those - see useRealtimeSync.ts) and a cheap
+      // resilience net for projects/tasks too, covering any missed-event or
+      // SSE-reconnect gap.
+      refetchOnWindowFocus: true,
     },
   },
 })

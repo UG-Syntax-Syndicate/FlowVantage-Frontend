@@ -27,7 +27,8 @@ export function MeetingReminderCard({ meeting, project }: MeetingReminderCardPro
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">{meeting.title}</p>
             <p className="mt-0.5 truncate text-xs text-white/60">
-              with {meeting.withCompany} · {formatTime(meeting.startTime)}–{formatTime(meeting.endTime)}
+              {meeting.location ? `${meeting.location} · ` : ''}
+              {formatTime(meeting.startTime)}–{formatTime(meeting.endTime)}
             </p>
           </div>
         </div>

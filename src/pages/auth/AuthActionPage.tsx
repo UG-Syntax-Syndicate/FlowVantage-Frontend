@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -24,7 +24,10 @@ type ResetFormValues = z.infer<typeof resetSchema>
 
 type Status = 'checking' | 'ready-to-reset' | 'reset-complete' | 'email-verified' | 'error'
 
+const EMAIL_VERIFIED_REDIRECT_DELAY_MS = 1800
+
 export function AuthActionPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const mode = searchParams.get('mode')
   const oobCode = searchParams.get('oobCode')
@@ -32,6 +35,7 @@ export function AuthActionPage() {
   const [status, setStatus] = useState<Status>('checking')
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
+  const hasRunRef = useRef(false)
 
   const {
     register,
@@ -40,6 +44,14 @@ export function AuthActionPage() {
   } = useForm<ResetFormValues>({ resolver: zodResolver(resetSchema) })
 
   useEffect(() => {
+    // oobCode is single-use - applyActionCode/verifyPasswordResetCode fail
+    // (as a stale-code error) if called on it twice. Guard with a ref rather
+    // than relying on effect deps, since React 18 StrictMode's dev-only
+    // mount->cleanup->mount would otherwise run this a second time with the
+    // exact same code and flip a just-succeeded verification to 'error'.
+    if (hasRunRef.current) return
+    hasRunRef.current = true
+
     async function run() {
       if (!oobCode) {
         setError('This link is missing required information.')
@@ -74,8 +86,14 @@ export function AuthActionPage() {
       showToast('success', 'Password updated. You can now sign in.')
     } else if (status === 'email-verified') {
       showToast('success', 'Email verified!')
+      // Brief delay so the confirmation is actually seen before navigating
+      // away, rather than leaving the user to click "Sign in" manually.
+      const timer = window.setTimeout(() => {
+        navigate('/login', { replace: true })
+      }, EMAIL_VERIFIED_REDIRECT_DELAY_MS)
+      return () => window.clearTimeout(timer)
     }
-  }, [status])
+  }, [status, navigate])
 
   const onSubmitReset = async (values: ResetFormValues) => {
     if (!oobCode) return

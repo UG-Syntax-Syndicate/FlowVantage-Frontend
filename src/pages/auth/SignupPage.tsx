@@ -3,25 +3,32 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from 'firebase/auth'
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from '../../lib/firebase'
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../lib/constants'
 import { logAuditEvent } from '../../lib/auditLog'
 import { getAuthErrorMessage } from '../../lib/authErrors'
+import { markActivityNow } from '../../lib/sessionExpiry'
 import { signInWithGoogle, signInWithMicrosoft } from '../../lib/oauth'
 import { setPendingAuthRedirect } from '../../lib/pendingAuthRedirect'
 import { showToast } from '../../lib/toast'
+import { isPasswordStrong } from '../../lib/passwordStrength'
 import { AuthLayout } from '../../components/auth/AuthLayout'
 import { GoogleButton } from '../../components/auth/GoogleButton'
 import { MicrosoftButton } from '../../components/auth/MicrosoftButton'
+import { PasswordInput } from '../../components/auth/PasswordInput'
+import { PasswordStrengthMeter } from '../../components/auth/PasswordStrengthMeter'
 import { Alert } from '../../components/common/Alert'
 
 const schema = z
   .object({
     name: z.string().min(1, 'Name is required'),
     email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .refine(isPasswordStrong, 'Password does not meet all the requirements below'),
     confirmPassword: z.string().min(1, 'Confirm your password'),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -39,11 +46,15 @@ export function SignupPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
+  const password = watch('password', '')
+
   const onSubmit = async (values: FormValues) => {
     setFormError('')
+    markActivityNow()
     try {
       setPendingAuthRedirect('/verify-email-pending')
       const credential = await createUserWithEmailAndPassword(auth, values.email, values.password)
@@ -57,13 +68,16 @@ export function SignupPage() {
         createdAt: serverTimestamp(),
         notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
       })
-      await sendEmailVerification(credential.user, {
-        url: `${window.location.origin}/auth/action`,
-      })
       await logAuditEvent(credential.user.uid, 'account_created', { provider: 'password' }).catch((error) => {
         console.warn('Failed to log account-created audit event', error)
       })
-      showToast('success', 'Account created', 'Check your inbox to verify your email.')
+      // Deliberately not sending the verification email here: PublicOnlyRoute
+      // reacts to onAuthStateChanged and force-navigates to
+      // /verify-email-pending as soon as createUserWithEmailAndPassword
+      // above resolves - often before this line would even run - so this
+      // component can already be unmounted by the time we get here. See
+      // VerifyEmailPendingPage's mount effect, which sends it instead from a
+      // destination that's guaranteed to still be mounted.
       navigate('/verify-email-pending', { replace: true })
     } catch (error) {
       setFormError(getAuthErrorMessage(error))
@@ -73,6 +87,7 @@ export function SignupPage() {
   const handleOAuth = async (provider: 'google' | 'microsoft') => {
     setFormError('')
     setOauthLoading(provider)
+    markActivityNow()
     try {
       if (provider === 'google') {
         const signedIn = await signInWithGoogle()
@@ -134,27 +149,24 @@ export function SignupPage() {
           <label htmlFor="password" className="text-sm font-medium text-slate-700">
             Password
           </label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             {...register('password')}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
             placeholder="at least 8 characters"
           />
           {errors.password && <p className="text-sm text-rose-600">{errors.password.message}</p>}
+          <PasswordStrengthMeter password={password} />
         </div>
 
         <div className="space-y-2">
           <label htmlFor="confirmPassword" className="text-sm font-medium text-slate-700">
             Confirm password
           </label>
-          <input
+          <PasswordInput
             id="confirmPassword"
-            type="password"
             autoComplete="new-password"
             {...register('confirmPassword')}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
             placeholder="at least 8 characters"
           />
           {errors.confirmPassword && (

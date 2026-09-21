@@ -1,18 +1,8 @@
-import {
-  GRADIENT_PALETTE,
-  MOCK_CHAT_MESSAGES,
-  MOCK_CONTACTS,
-  MOCK_DOCUMENTS,
-  MOCK_EMAILS,
-  MOCK_FOLDERS,
-  MOCK_MEETINGS,
-  MOCK_MEMBERS,
-  MOCK_NOTES,
-  MOCK_PROJECTS,
-  MOCK_TASKS,
-  MOCK_TODOS,
-  PROJECT_COLOR_PALETTE,
-} from '../mocks/seedData'
+import { getJson, patchJson, deleteJson, postJsonAuthed, fetchBackendMe } from '../lib/backendApi'
+import { readBackendSessionToken } from '../lib/backendSession'
+import { pickAvatar } from '../lib/avatars'
+import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE } from '../lib/constants'
+import { MOCK_CHAT_MESSAGES, MOCK_EMAILS } from '../mocks/seedData'
 import type {
   ChatMessage,
   ComposeEmailInput,
@@ -35,121 +25,466 @@ import type {
   UploadDocumentInput,
 } from '../types/project'
 import { emitProjectsChanged } from './mockRealtimeBus'
+import { deleteObject, ref } from 'firebase/storage'
+import { storage } from '../lib/firebase'
 
 /**
- * DEMO DATA LAYER - no network calls.
- *
- * This module is the ONLY place that knows the data is fake. Every function
- * here mirrors the shape a real backend call will have (async, same
- * inputs/outputs) so that when the real Firestore/REST endpoints land, only
- * the function bodies below change - src/hooks/useProjects.ts and every
+ * REAL DATA LAYER (except Email/AI Assistant, deliberately still mock — see
+ * below). Every function mirrors the shape the mock layer used to have
+ * (async, same inputs/outputs), so src/hooks/useProjectsData.ts and every
  * component that consumes it stay untouched.
  */
 
-let projects: Project[] = MOCK_PROJECTS.map((p) => ({ ...p }))
-let tasks: Task[] = MOCK_TASKS.map((t) => ({ ...t }))
-let todos: Todo[] = MOCK_TODOS.map((t) => ({ ...t }))
-let folders: Folder[] = MOCK_FOLDERS.map((f) => ({ ...f }))
-const members: Member[] = MOCK_MEMBERS
-let notes: Note[] = MOCK_NOTES.map((n) => ({ ...n }))
-const meetings: Meeting[] = MOCK_MEETINGS
-let emails: Email[] = MOCK_EMAILS.map((e) => ({ ...e }))
-const contacts: Contact[] = MOCK_CONTACTS
-let documents: ProjectDocument[] = MOCK_DOCUMENTS.map((d) => ({ ...d }))
-let chatMessages: ChatMessage[] = MOCK_CHAT_MESSAGES.map((m) => ({ ...m }))
-let nextEmailId = emails.length + 1
-let nextNoteId = notes.length + 1
-let nextDocumentId = documents.length + 1
-let nextChatMessageId = chatMessages.length + 1
-
-const NETWORK_DELAY_MS = 350
-
-function delay<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), NETWORK_DELAY_MS))
+function authToken(): string {
+  const token = readBackendSessionToken()
+  if (!token) {
+    throw new Error('Not signed in')
+  }
+  return token
 }
 
-let nextProjectId = projects.length + 1
-let nextTaskId = tasks.length + 1
-let nextFolderId = folders.length + 1
-
-export async function fetchMembers(): Promise<Member[]> {
-  return delay(members)
+interface ApiEnvelope<T> {
+  success: boolean
+  data: T
 }
 
-export async function fetchContacts(): Promise<Contact[]> {
-  return delay(contacts.map((c) => ({ ...c })))
+// ---------------------------------------------------------------------------
+// Mapping: backend row shapes (snake_case) -> frontend types (camelCase)
+// ---------------------------------------------------------------------------
+
+interface ContactRow {
+  id: string
+  first_name: string
+  last_name: string | null
+  email: string | null
+  company: string | null
+  role: string | null
+  niche: string | null
+  status: Contact['status']
+  stage: Contact['stage']
+  created_at: string
 }
 
-export async function fetchProjects(): Promise<Project[]> {
-  return delay(projects.map((p) => ({ ...p })))
+function mapContact(row: ContactRow): Contact {
+  const contactName = [row.first_name, row.last_name].filter(Boolean).join(' ')
+  return {
+    id: row.id,
+    company: row.company || '',
+    contactName,
+    role: row.role || '',
+    email: row.email || '',
+    photoURL: pickAvatar(row.email || row.id),
+    status: row.status,
+    niche: row.niche || '',
+    stage: row.stage,
+    createdAt: row.created_at,
+  }
 }
 
-export async function fetchTasks(): Promise<Task[]> {
-  return delay(tasks.map((t) => ({ ...t })))
+interface ProjectRow {
+  id: string
+  name: string
+  description: string | null
+  status: ProjectStatus
+  start_date: string | null
+  end_date: string | null
+  tags: string[]
+  tagline: string | null
+  image: string | null
+  color: string | null
+  cover_gradient: string | null
+  category: string | null
+  folder_id: string | null
+  priority: Project['priority']
+  tracked_seconds: number
+  memberIds: string[]
+  created_at: string
 }
 
-export async function fetchProjectById(id: string): Promise<Project | undefined> {
-  return delay(projects.find((p) => p.id === id))
+function mapProject(row: ProjectRow): Project {
+  return {
+    id: row.id,
+    name: row.name,
+    tagline: row.tagline || '',
+    description: row.description || '',
+    status: row.status,
+    color: row.color || PROJECT_COLOR_PALETTE[0],
+    image: row.image,
+    coverGradient: row.cover_gradient || GRADIENT_PALETTE[0],
+    tags: row.tags || [],
+    category: row.category || 'General',
+    folderId: row.folder_id,
+    priority: row.priority,
+    trackedSeconds: row.tracked_seconds ?? 0,
+    memberIds: row.memberIds || [],
+    startDate: row.start_date || row.created_at,
+    dueDate: row.end_date || row.created_at,
+    createdAt: row.created_at,
+  }
 }
 
-export async function fetchFolders(): Promise<Folder[]> {
-  return delay(folders)
+interface TaskRow {
+  id: string
+  project_id: string
+  title: string
+  status: TaskStatus
+  priority: Task['priority']
+  assignee_id: string | null
+  start_date: string | null
+  due_date: string | null
+  created_at: string
 }
 
-export async function fetchTodos(): Promise<Todo[]> {
-  return delay(todos.map((t) => ({ ...t })))
+function mapTask(row: TaskRow): Task {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    title: row.title,
+    status: row.status,
+    priority: row.priority,
+    assigneeIds: row.assignee_id ? [row.assignee_id] : [],
+    startDate: row.start_date || row.created_at,
+    dueDate: row.due_date || row.created_at,
+    createdAt: row.created_at,
+  }
 }
 
-export async function fetchNotes(): Promise<Note[]> {
-  return delay(notes.map((n) => ({ ...n })))
+interface FolderRow {
+  id: string
+  name: string
+  icon: Folder['icon']
+  color: string | null
+  created_at: string
+}
+
+function mapFolder(row: FolderRow): Folder {
+  return {
+    id: row.id,
+    name: row.name,
+    icon: row.icon,
+    color: row.color || '#94a3b8',
+    createdAt: row.created_at,
+  }
+}
+
+interface TodoRow {
+  id: string
+  project_id: string
+  title: string
+  done: boolean
+  tags: string[]
+  due_date: string | null
+  created_at: string
+}
+
+function mapTodo(row: TodoRow): Todo {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    title: row.title,
+    done: row.done,
+    tags: row.tags || [],
+    dueDate: row.due_date || row.created_at,
+    createdAt: row.created_at,
+  }
+}
+
+interface NoteRow {
+  id: string
+  title: string | null
+  content: string
+  project_id: string | null
+  color: Note['color']
+  pinned: boolean
+  tags: string[]
+  created_at: string
 }
 
 function excerptFromBody(body: string): string {
   return body.length > 120 ? `${body.slice(0, 120).trimEnd()}…` : body
 }
 
-export async function createNote(input: NoteInput): Promise<Note> {
-  const note: Note = {
-    ...input,
-    id: `n${nextNoteId++}`,
-    projectId: null,
-    excerpt: excerptFromBody(input.body),
-    pinned: false,
-    tags: [],
-    createdAt: new Date().toISOString(),
+function mapNote(row: NoteRow): Note {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    title: row.title || '',
+    body: row.content,
+    excerpt: excerptFromBody(row.content),
+    color: row.color,
+    pinned: row.pinned,
+    tags: row.tags || [],
+    createdAt: row.created_at,
   }
-  notes = [note, ...notes]
-  const result = await delay(note)
+}
+
+interface DocumentRow {
+  id: string
+  project_id: string
+  name: string
+  mime_type: string
+  url: string
+  storage_path: string
+  size: number
+  created_at: string
+}
+
+function mapDocument(row: DocumentRow): ProjectDocument {
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    name: row.name,
+    mimeType: row.mime_type,
+    url: row.url,
+    storagePath: row.storage_path,
+    size: row.size,
+    uploadedAt: row.created_at,
+  }
+}
+
+interface CalendarEventRow {
+  id: string
+  title: string
+  location: string | null
+  projectId: string | null
+  startTime: string
+  endTime: string
+}
+
+function mapMeeting(row: CalendarEventRow): Meeting {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    title: row.title,
+    location: row.location,
+    startTime: row.startTime,
+    endTime: row.endTime,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Members - no team/invite system exists on the backend, so the only real
+// "member" of any project is the signed-in user themself.
+// ---------------------------------------------------------------------------
+
+export async function fetchMembers(): Promise<Member[]> {
+  const me = await fetchBackendMe(authToken())
+  return [{ id: me.uid, name: me.name || me.email, photoURL: me.picture }]
+}
+
+// ---------------------------------------------------------------------------
+// Contacts
+// ---------------------------------------------------------------------------
+
+export async function fetchContacts(): Promise<Contact[]> {
+  const { data } = await getJson<ApiEnvelope<ContactRow[]>>('/contacts', authToken())
+  return data.map(mapContact)
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+export async function fetchProjects(): Promise<Project[]> {
+  const { data } = await getJson<ApiEnvelope<ProjectRow[]>>('/projects', authToken())
+  return data.map(mapProject)
+}
+
+export async function fetchProjectById(id: string): Promise<Project | undefined> {
+  try {
+    const { data } = await getJson<ApiEnvelope<ProjectRow>>(`/projects/${id}`, authToken())
+    return mapProject(data)
+  } catch {
+    return undefined
+  }
+}
+
+export async function createProject(input: CreateProjectInput): Promise<Project> {
+  const paletteIndex = Math.floor(Math.random() * PROJECT_COLOR_PALETTE.length)
+  const { data } = await postJsonAuthed<ApiEnvelope<ProjectRow>>(
+    '/projects',
+    {
+      name: input.name,
+      description: input.description,
+      tagline: input.description.length > 0 ? input.description.slice(0, 60) : 'A new project',
+      status: 'planning',
+      color: PROJECT_COLOR_PALETTE[paletteIndex % PROJECT_COLOR_PALETTE.length],
+      coverGradient: GRADIENT_PALETTE[paletteIndex % GRADIENT_PALETTE.length],
+      category: 'General',
+      priority: 'medium',
+      image: input.image,
+      startDate: input.startDate,
+      dueDate: input.dueDate,
+    },
+    authToken(),
+  )
   emitProjectsChanged()
-  return result
+  return mapProject(data)
+}
+
+export async function updateProjectStatus(projectId: string, status: ProjectStatus): Promise<void> {
+  await patchJson(`/projects/${projectId}`, { status }, authToken())
+  emitProjectsChanged()
+}
+
+export async function updateProjectImage(projectId: string, image: string | null): Promise<void> {
+  await patchJson(`/projects/${projectId}`, { image }, authToken())
+  emitProjectsChanged()
+}
+
+// ---------------------------------------------------------------------------
+// Folders
+// ---------------------------------------------------------------------------
+
+export async function fetchFolders(): Promise<Folder[]> {
+  const { data } = await getJson<ApiEnvelope<FolderRow[]>>('/folders', authToken())
+  return data.map(mapFolder)
+}
+
+export async function createFolder(input: CreateFolderInput): Promise<Folder> {
+  const { data } = await postJsonAuthed<ApiEnvelope<FolderRow>>('/folders', input, authToken())
+  emitProjectsChanged()
+  return mapFolder(data)
+}
+
+// ---------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------
+
+export async function fetchTasks(): Promise<Task[]> {
+  const { data } = await getJson<ApiEnvelope<TaskRow[]>>('/tasks', authToken())
+  return data.map(mapTask)
+}
+
+export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
+  await patchJson(`/tasks/${taskId}`, { status }, authToken())
+  emitProjectsChanged()
+}
+
+export async function createTask(input: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
+  const { data } = await postJsonAuthed<ApiEnvelope<TaskRow>>(
+    '/tasks',
+    {
+      title: input.title,
+      priority: input.priority,
+      status: input.status,
+      startDate: input.startDate,
+      dueDate: input.dueDate,
+      projectId: input.projectId,
+      assigneeId: input.assigneeIds[0],
+    },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return mapTask(data)
+}
+
+// ---------------------------------------------------------------------------
+// Todos
+// ---------------------------------------------------------------------------
+
+export async function fetchTodos(): Promise<Todo[]> {
+  const { data } = await getJson<ApiEnvelope<TodoRow[]>>('/todos', authToken())
+  return data.map(mapTodo)
+}
+
+export async function toggleTodo(todoId: string): Promise<void> {
+  const token = authToken()
+  const { data: current } = await getJson<ApiEnvelope<TodoRow>>(`/todos/${todoId}`, token)
+  await patchJson(`/todos/${todoId}`, { done: !current.done }, token)
+  emitProjectsChanged()
+}
+
+// ---------------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------------
+
+export async function fetchNotes(): Promise<Note[]> {
+  const { notes } = await getJson<{ success: boolean; notes: NoteRow[] }>('/notes', authToken())
+  return notes.map(mapNote)
+}
+
+export async function createNote(input: NoteInput): Promise<Note> {
+  const { note } = await postJsonAuthed<{ success: boolean; note: NoteRow }>(
+    '/notes',
+    { title: input.title, content: input.body, color: input.color },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return mapNote(note)
 }
 
 export async function updateNote(noteId: string, input: NoteInput): Promise<void> {
-  notes = notes.map((n) => (n.id === noteId ? { ...n, ...input, excerpt: excerptFromBody(input.body) } : n))
-  await delay(undefined)
+  await patchJson(`/notes/${noteId}`, { title: input.title, content: input.body, color: input.color }, authToken())
   emitProjectsChanged()
 }
 
 export async function deleteNote(noteId: string): Promise<void> {
-  notes = notes.filter((n) => n.id !== noteId)
-  await delay(undefined)
+  await deleteJson(`/notes/${noteId}`, authToken())
   emitProjectsChanged()
 }
 
 export async function toggleNotePinned(noteId: string): Promise<void> {
-  notes = notes.map((n) => (n.id === noteId ? { ...n, pinned: !n.pinned } : n))
-  await delay(undefined)
+  const token = authToken()
+  const { note: current } = await getJson<{ success: boolean; note: NoteRow }>(`/notes/${noteId}`, token)
+  await patchJson(`/notes/${noteId}`, { pinned: !current.pinned }, token)
   emitProjectsChanged()
 }
+
+// ---------------------------------------------------------------------------
+// Meetings - real backend Google-Calendar-backed events, mapped into the
+// lighter-weight Meeting shape the dashboard reminder card/mini calendar use.
+// ---------------------------------------------------------------------------
 
 export async function fetchMeetings(): Promise<Meeting[]> {
-  return delay(meetings)
+  const { events } = await getJson<{ success: boolean; events: CalendarEventRow[] }>('/calendar', authToken())
+  return events.map(mapMeeting)
 }
 
-export async function toggleTodo(todoId: string): Promise<void> {
-  todos = todos.map((t) => (t.id === todoId ? { ...t, done: !t.done } : t))
-  await delay(undefined)
+// ---------------------------------------------------------------------------
+// Documents - metadata only; bytes already live in Firebase Storage by the
+// time uploadDocument is called (see src/lib/documentUpload.ts).
+// ---------------------------------------------------------------------------
+
+export async function fetchDocuments(): Promise<ProjectDocument[]> {
+  const { data } = await getJson<ApiEnvelope<DocumentRow[]>>('/documents', authToken())
+  return data.map(mapDocument)
+}
+
+export async function uploadDocument(input: UploadDocumentInput): Promise<ProjectDocument> {
+  const { data } = await postJsonAuthed<ApiEnvelope<DocumentRow>>('/documents', input, authToken())
   emitProjectsChanged()
+  return mapDocument(data)
+}
+
+export async function deleteDocument(documentId: string): Promise<void> {
+  const { data } = await deleteJson<ApiEnvelope<{ id: string; storagePath: string }>>(
+    `/documents/${documentId}`,
+    authToken(),
+  )
+  emitProjectsChanged()
+  // Best-effort cleanup of the underlying Storage object, same pattern as
+  // AvatarUploader.tsx - the backend only ever tracked the metadata row.
+  if (data.storagePath) {
+    deleteObject(ref(storage, data.storagePath)).catch(() => {})
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Email / AI Assistant - deliberately still mock. Both features are locked
+// behind the "coming soon" nav treatment (no backend endpoint exists for
+// either), but their pages/hooks stay in the tree for a fast follow-up.
+// ---------------------------------------------------------------------------
+
+let emails: Email[] = MOCK_EMAILS.map((e) => ({ ...e }))
+let nextEmailId = emails.length + 1
+let chatMessages: ChatMessage[] = MOCK_CHAT_MESSAGES.map((m) => ({ ...m }))
+let nextChatMessageId = chatMessages.length + 1
+
+const NETWORK_DELAY_MS = 350
+
+function delay<T>(value: T): Promise<T> {
+  return new Promise((resolve) => setTimeout(() => resolve(value), NETWORK_DELAY_MS))
 }
 
 export async function fetchEmails(): Promise<Email[]> {
@@ -192,86 +527,6 @@ export async function composeEmail(input: ComposeEmailInput): Promise<Email> {
   const result = await delay(email)
   emitProjectsChanged()
   return result
-}
-
-const DEFAULT_FOLDER_ID = 'f1'
-
-export async function createFolder(input: CreateFolderInput): Promise<Folder> {
-  const folder: Folder = { ...input, id: `f${nextFolderId++}`, createdAt: new Date().toISOString() }
-  folders = [...folders, folder]
-  const result = await delay(folder)
-  emitProjectsChanged()
-  return result
-}
-
-export async function createProject(input: CreateProjectInput): Promise<Project> {
-  const index = projects.length
-  const project: Project = {
-    ...input,
-    id: `p${nextProjectId++}`,
-    tagline: input.description.length > 0 ? input.description.slice(0, 60) : 'A new project',
-    status: 'planning',
-    color: PROJECT_COLOR_PALETTE[index % PROJECT_COLOR_PALETTE.length],
-    coverGradient: GRADIENT_PALETTE[index % GRADIENT_PALETTE.length],
-    tags: [],
-    category: 'General',
-    folderId: DEFAULT_FOLDER_ID,
-    priority: 'medium',
-    trackedSeconds: 0,
-    createdAt: new Date().toISOString(),
-  }
-  projects = [project, ...projects]
-  const result = await delay(project)
-  emitProjectsChanged()
-  return result
-}
-
-export async function updateProjectStatus(projectId: string, status: ProjectStatus): Promise<void> {
-  projects = projects.map((p) => (p.id === projectId ? { ...p, status } : p))
-  await delay(undefined)
-  emitProjectsChanged()
-}
-
-export async function updateProjectImage(projectId: string, image: string | null): Promise<void> {
-  projects = projects.map((p) => (p.id === projectId ? { ...p, image } : p))
-  await delay(undefined)
-  emitProjectsChanged()
-}
-
-export async function updateTaskStatus(taskId: string, status: TaskStatus): Promise<void> {
-  tasks = tasks.map((t) => (t.id === taskId ? { ...t, status } : t))
-  await delay(undefined)
-  emitProjectsChanged()
-}
-
-export async function createTask(input: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
-  const task: Task = { ...input, id: `t${nextTaskId++}`, createdAt: new Date().toISOString() }
-  tasks = [task, ...tasks]
-  const result = await delay(task)
-  emitProjectsChanged()
-  return result
-}
-
-export async function fetchDocuments(): Promise<ProjectDocument[]> {
-  return delay(documents.map((d) => ({ ...d })))
-}
-
-export async function uploadDocument(input: UploadDocumentInput): Promise<ProjectDocument> {
-  const document: ProjectDocument = {
-    ...input,
-    id: `d${nextDocumentId++}`,
-    uploadedAt: new Date().toISOString(),
-  }
-  documents = [document, ...documents]
-  const result = await delay(document)
-  emitProjectsChanged()
-  return result
-}
-
-export async function deleteDocument(documentId: string): Promise<void> {
-  documents = documents.filter((d) => d.id !== documentId)
-  await delay(undefined)
-  emitProjectsChanged()
 }
 
 export async function fetchChatMessages(): Promise<ChatMessage[]> {

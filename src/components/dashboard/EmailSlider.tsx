@@ -8,6 +8,7 @@ import { formatInboxTimestamp } from '../../lib/formatDate'
 import { getPersonPhoto } from '../../lib/avatars'
 import { Avatar } from '../common/Avatar'
 import { Card } from '../ui/card'
+import { Skeleton } from '../ui/skeleton'
 import { EASE_PREMIUM, slideVariants, useCarousel } from '../../lib/motion'
 
 export function EmailSlider() {
@@ -45,7 +46,14 @@ export function EmailSlider() {
       </div>
 
       {isLoading ? (
-        <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
+        <div className="flex items-start gap-3">
+          <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <Skeleton className="h-3.5 w-1/3" />
+            <Skeleton className="h-3.5 w-4/5" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+        </div>
       ) : !email ? (
         <p className="py-6 text-center text-sm text-slate-400">No project emails yet.</p>
       ) : (

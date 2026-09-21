@@ -1,6 +1,40 @@
 import { File, FileImage, FileSpreadsheet, FileText } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
+export const DOCUMENT_ACCEPTED_TYPES =
+  'application/pdf,text/csv,.csv,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*'
+
+// 10MB ceiling on the *input* file. Images get downscaled well under this by
+// prepareDocumentUpload; PDFs/Office docs pass through untouched to Firebase
+// Storage, so this is the real cap for those.
+export const DOCUMENT_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+
+const ALLOWED_DOCUMENT_MIME_TYPES = new Set([
+  'application/pdf',
+  'text/csv',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+])
+const ALLOWED_DOCUMENT_EXTENSIONS = ['.csv', '.doc', '.docx']
+
+/**
+ * Returns a user-facing error message, or null if the file is acceptable.
+ * The `accept` attribute on the file input is advisory only (bypassable via
+ * drag-and-drop or a manually crafted file), so this re-checks type and size
+ * before a file is handed to prepareDocumentUpload.
+ */
+export function validateDocumentFile(file: File): string | null {
+  const isImage = file.type.startsWith('image/')
+  const hasAllowedExtension = ALLOWED_DOCUMENT_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))
+  if (!isImage && !ALLOWED_DOCUMENT_MIME_TYPES.has(file.type) && !hasAllowedExtension) {
+    return 'Please choose a PDF, Word document, CSV, or image file.'
+  }
+  if (file.size > DOCUMENT_UPLOAD_MAX_BYTES) {
+    return `File must be smaller than ${Math.round(DOCUMENT_UPLOAD_MAX_BYTES / (1024 * 1024))}MB.`
+  }
+  return null
+}
+
 export function getDocumentIcon(mimeType: string): LucideIcon {
   if (mimeType.startsWith('image/')) return FileImage
   if (mimeType === 'text/csv') return FileSpreadsheet
@@ -23,12 +57,8 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-/** Parses a small CSV data URL (base64 or percent-encoded) into rows for a simple table preview. */
-export function parseCsvDataUrl(dataUrl: string): string[][] {
-  const commaIndex = dataUrl.indexOf(',')
-  const header = dataUrl.slice(0, commaIndex)
-  const encoded = dataUrl.slice(commaIndex + 1)
-  const text = header.includes(';base64') ? atob(encoded) : decodeURIComponent(encoded)
+/** Parses raw CSV text into rows for a simple table preview. */
+export function parseCsvText(text: string): string[][] {
   return text
     .split('\n')
     .filter((line) => line.length > 0)

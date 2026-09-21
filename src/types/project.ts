@@ -173,19 +173,48 @@ export type ContactStatus = z.infer<typeof ContactStatusSchema>
 export const ContactStageSchema = z.enum(['in_progress', 'proposal_sent', 'completed', 'rejected'])
 export type ContactStage = z.infer<typeof ContactStageSchema>
 
+export const ContactVisibilitySchema = z.enum(['private', 'shared'])
+export type ContactVisibility = z.infer<typeof ContactVisibilitySchema>
+
 export const ContactSchema = z.object({
   id: z.string(),
   company: z.string(),
   contactName: z.string(),
   role: z.string(),
   email: z.string(),
+  phone: z.string(),
   photoURL: z.string().nullable(),
   status: ContactStatusSchema,
   niche: z.string(),
   stage: ContactStageSchema,
+  workspaceId: z.string(),
+  visibility: ContactVisibilitySchema,
+  projectId: z.string().nullable(),
   createdAt: z.string(),
 })
 export type Contact = z.infer<typeof ContactSchema>
+
+export const ContactInputSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  company: z.string().optional(),
+  role: z.string().optional(),
+  niche: z.string().optional(),
+  workspaceId: z.string().optional(),
+  visibility: ContactVisibilitySchema.optional(),
+  projectId: z.string().nullable().optional(),
+  allowDuplicate: z.boolean().optional(),
+})
+export type ContactInput = z.infer<typeof ContactInputSchema>
+
+export interface BulkImportContactsResult {
+  created: Contact[]
+  duplicateCount: number
+  failedCount: number
+  createdCount: number
+}
 
 export const ChatRoleSchema = z.enum(['user', 'assistant'])
 export type ChatRole = z.infer<typeof ChatRoleSchema>

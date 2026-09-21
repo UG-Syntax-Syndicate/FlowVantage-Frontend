@@ -4,10 +4,12 @@ import { queryKeys } from '../lib/queryClient'
 import * as projectsApi from '../api/projectsApi'
 import { subscribeToProjectsChanged } from '../api/mockRealtimeBus'
 import { useAuth } from './useAuth'
+import { useWorkspace } from './useWorkspace'
 import { logRecordChange } from '../lib/auditLog'
 import type { RecordChangeAction } from '../types/audit'
 import type {
   ComposeEmailInput,
+  ContactInput,
   CreateFolderInput,
   CreateProjectInput,
   CreateTaskInput,
@@ -84,10 +86,59 @@ export function useMembers() {
 
 export function useContacts() {
   const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
   return useQuery({
-    queryKey: queryKeys.contacts,
-    queryFn: projectsApi.fetchContacts,
-    enabled: Boolean(backendSessionToken),
+    queryKey: [...queryKeys.contacts, activeWorkspaceId],
+    queryFn: () => projectsApi.fetchContacts(activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
+  })
+}
+
+export function useCreateContact() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (input: ContactInput) => projectsApi.createContact(input),
+    onSuccess: (contact) => {
+      recordAudit('create', 'contact', contact.id, { name: contact.contactName })
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
+  })
+}
+
+export function useUpdateContact() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: ({ contactId, input }: { contactId: string; input: ContactInput }) =>
+      projectsApi.updateContact(contactId, input),
+    onSuccess: (_data, { contactId }) => {
+      recordAudit('update', 'contact', contactId)
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
+  })
+}
+
+export function useDeleteContact() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (contactId: string) => projectsApi.deleteContact(contactId),
+    onSuccess: (_data, contactId) => {
+      recordAudit('delete', 'contact', contactId)
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
+  })
+}
+
+export function useBulkImportContacts() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ workspaceId, contacts }: { workspaceId: string | undefined; contacts: ContactInput[] }) =>
+      projectsApi.bulkImportContacts(workspaceId, contacts),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
   })
 }
 

@@ -4,9 +4,11 @@ import { pickAvatar } from '../lib/avatars'
 import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE } from '../lib/constants'
 import { MOCK_CHAT_MESSAGES, MOCK_EMAILS } from '../mocks/seedData'
 import type {
+  BulkImportContactsResult,
   ChatMessage,
   ComposeEmailInput,
   Contact,
+  ContactInput,
   CreateFolderInput,
   CreateProjectInput,
   Email,
@@ -57,11 +59,15 @@ interface ContactRow {
   first_name: string
   last_name: string | null
   email: string | null
+  phone: string | null
   company: string | null
   role: string | null
   niche: string | null
   status: Contact['status']
   stage: Contact['stage']
+  workspace_id: string
+  visibility: Contact['visibility']
+  project_id: string | null
   created_at: string
 }
 
@@ -73,11 +79,31 @@ function mapContact(row: ContactRow): Contact {
     contactName,
     role: row.role || '',
     email: row.email || '',
+    phone: row.phone || '',
     photoURL: pickAvatar(row.email || row.id),
     status: row.status,
     niche: row.niche || '',
     stage: row.stage,
+    workspaceId: row.workspace_id,
+    visibility: row.visibility || 'private',
+    projectId: row.project_id,
     createdAt: row.created_at,
+  }
+}
+
+function contactInputBody(input: ContactInput) {
+  return {
+    first_name: input.firstName,
+    last_name: input.lastName,
+    email: input.email,
+    phone: input.phone,
+    company: input.company,
+    role: input.role,
+    niche: input.niche,
+    workspace_id: input.workspaceId,
+    visibility: input.visibility,
+    project_id: input.projectId,
+    allow_duplicate: input.allowDuplicate,
   }
 }
 
@@ -280,9 +306,54 @@ export async function fetchMembers(): Promise<Member[]> {
 // Contacts
 // ---------------------------------------------------------------------------
 
-export async function fetchContacts(): Promise<Contact[]> {
-  const { data } = await getJson<ApiEnvelope<ContactRow[]>>('/contacts', authToken())
+export async function fetchContacts(workspaceId?: string): Promise<Contact[]> {
+  const path = workspaceId ? `/contacts?workspace_id=${encodeURIComponent(workspaceId)}` : '/contacts'
+  const { data } = await getJson<ApiEnvelope<ContactRow[]>>(path, authToken())
   return data.map(mapContact)
+}
+
+export async function createContact(input: ContactInput): Promise<Contact> {
+  const { data } = await postJsonAuthed<ApiEnvelope<ContactRow>>('/contacts', contactInputBody(input), authToken())
+  emitProjectsChanged()
+  return mapContact(data)
+}
+
+export async function updateContact(contactId: string, input: ContactInput): Promise<Contact> {
+  const { data } = await patchJson<ApiEnvelope<ContactRow>>(
+    `/contacts/${contactId}`,
+    contactInputBody(input),
+    authToken(),
+  )
+  emitProjectsChanged()
+  return mapContact(data)
+}
+
+export async function deleteContact(contactId: string): Promise<void> {
+  await deleteJson(`/contacts/${contactId}`, authToken())
+  emitProjectsChanged()
+}
+
+export async function bulkImportContacts(
+  workspaceId: string | undefined,
+  contacts: ContactInput[],
+): Promise<BulkImportContactsResult> {
+  const { data } = await postJsonAuthed<ApiEnvelope<{
+    created: ContactRow[]
+    createdCount: number
+    duplicateCount: number
+    failedCount: number
+  }>>(
+    '/contacts/bulk-import',
+    { workspace_id: workspaceId, contacts: contacts.map(contactInputBody) },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return {
+    created: data.created.map(mapContact),
+    createdCount: data.createdCount,
+    duplicateCount: data.duplicateCount,
+    failedCount: data.failedCount,
+  }
 }
 
 // ---------------------------------------------------------------------------

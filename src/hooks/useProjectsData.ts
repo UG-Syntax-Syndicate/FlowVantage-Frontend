@@ -56,27 +56,57 @@ function useAuditRecorder() {
 }
 
 export function useProjects() {
-  return useQuery({ queryKey: queryKeys.projects, queryFn: projectsApi.fetchProjects })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.projects,
+    queryFn: projectsApi.fetchProjects,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useTasks() {
-  return useQuery({ queryKey: queryKeys.tasks, queryFn: projectsApi.fetchTasks })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.tasks,
+    queryFn: projectsApi.fetchTasks,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useMembers() {
-  return useQuery({ queryKey: queryKeys.members, queryFn: projectsApi.fetchMembers })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.members,
+    queryFn: projectsApi.fetchMembers,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useContacts() {
-  return useQuery({ queryKey: queryKeys.contacts, queryFn: projectsApi.fetchContacts })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.contacts,
+    queryFn: projectsApi.fetchContacts,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useFolders() {
-  return useQuery({ queryKey: queryKeys.folders, queryFn: projectsApi.fetchFolders })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.folders,
+    queryFn: projectsApi.fetchFolders,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useNotes() {
-  return useQuery({ queryKey: queryKeys.notes, queryFn: projectsApi.fetchNotes })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.notes,
+    queryFn: projectsApi.fetchNotes,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useCreateNote() {
@@ -139,11 +169,21 @@ export function useToggleNotePinned() {
 }
 
 export function useTodos() {
-  return useQuery({ queryKey: queryKeys.todos, queryFn: projectsApi.fetchTodos })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.todos,
+    queryFn: projectsApi.fetchTodos,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useMeetings() {
-  return useQuery({ queryKey: queryKeys.meetings, queryFn: projectsApi.fetchMeetings })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.meetings,
+    queryFn: projectsApi.fetchMeetings,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useEmails() {
@@ -355,7 +395,12 @@ export function useCreateTask() {
 }
 
 export function useDocuments() {
-  return useQuery({ queryKey: queryKeys.documents, queryFn: projectsApi.fetchDocuments })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.documents,
+    queryFn: projectsApi.fetchDocuments,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useUploadDocument() {

@@ -14,9 +14,11 @@ import { convertImageToWebp, validateImageFile } from '../../lib/images'
 
 interface CreateProjectModalProps {
   onClose: () => void
+  /** Called right after a successful create, before onClose - e.g. to navigate to the new project's list. */
+  onCreated?: () => void
 }
 
-export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
+export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalProps) {
   const { data: members = [] } = useMembers()
   const createProject = useCreateProject()
 
@@ -61,6 +63,7 @@ export function CreateProjectModal({ onClose }: CreateProjectModalProps) {
     try {
       await createProject.mutateAsync(values)
       showToast('success', 'Project created')
+      onCreated?.()
       onClose()
     } catch {
       showToast('error', 'Could not create project')

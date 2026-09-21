@@ -1,7 +1,10 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Layers, CheckCircle2, Clock, AlertTriangle, Plus, UserPlus, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useMeetings, useMembers, useProjects, useTasks } from '../../hooks/useProjectsData'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
+import { CreateProjectModal } from '../../components/projects/CreateProjectModal'
 import { StatCard } from '../../components/dashboard/StatCard'
 import { AvatarStack } from '../../components/dashboard/AvatarStack'
 import { DeliveriesChart } from '../../components/dashboard/DeliveriesChart'
@@ -22,11 +25,13 @@ const DAY_MS = 86_400_000
 const WEEK_MS = 7 * DAY_MS
 
 export function DashboardHome() {
+  const navigate = useNavigate()
   const { userProfile } = useAuth()
   const { data: tasks = [], isLoading: tasksLoading } = useTasks()
   const { data: projects = [] } = useProjects()
   const { data: members = [] } = useMembers()
   const { data: meetings = [] } = useMeetings()
+  const [createProjectOpen, setCreateProjectOpen] = useState(false)
 
   const projectStats = computeProjectStats(projects)
   const memberById = new Map(members.map((m) => [m.id, m]))
@@ -98,6 +103,7 @@ export function DashboardHome() {
               </button>
               <button
                 type="button"
+                onClick={() => setCreateProjectOpen(true)}
                 className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white hover:brightness-95"
               >
                 <Plus size={16} strokeWidth={2} />
@@ -235,6 +241,13 @@ export function DashboardHome() {
           </Reveal>
         </div>
       </div>
+
+      {createProjectOpen && (
+        <CreateProjectModal
+          onClose={() => setCreateProjectOpen(false)}
+          onCreated={() => navigate('/dashboard/projects')}
+        />
+      )}
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { signInWithEmailAndPassword } from 'firebase/auth'
+import { Loader2 } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { logAuditEvent } from '../../lib/auditLog'
 import { getAuthErrorMessage } from '../../lib/authErrors'
@@ -121,8 +122,9 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
+          {isSubmitting && <Loader2 size={16} className="animate-spin" />}
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </button>
       </form>

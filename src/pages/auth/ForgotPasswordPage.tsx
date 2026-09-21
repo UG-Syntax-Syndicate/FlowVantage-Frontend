@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { sendPasswordResetEmail } from 'firebase/auth'
+import { Loader2 } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { getAuthErrorMessage } from '../../lib/authErrors'
 import { showToast } from '../../lib/toast'
@@ -88,8 +89,9 @@ export function ForgotPasswordPage() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
+            {isSubmitting && <Loader2 size={16} className="animate-spin" />}
             {isSubmitting ? 'Sending…' : 'Send reset link'}
           </button>
 

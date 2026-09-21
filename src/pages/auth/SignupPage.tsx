@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { Loader2 } from 'lucide-react'
 import { auth, db } from '../../lib/firebase'
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../lib/constants'
 import { logAuditEvent } from '../../lib/auditLog'
@@ -179,8 +180,9 @@ export function SignupPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-rail px-4 py-3 font-semibold text-white transition hover:bg-rail-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
+          {isSubmitting && <Loader2 size={16} className="animate-spin" />}
           {isSubmitting ? 'Creating account…' : 'Create account'}
         </button>
       </form>

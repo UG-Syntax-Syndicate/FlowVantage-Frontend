@@ -102,11 +102,24 @@ export function AvatarUploader() {
       />
       <div className="space-y-1.5">
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" disabled={busy !== null} onClick={() => inputRef.current?.click()}>
+          <Button
+            type="button"
+            size="sm"
+            loading={busy === 'uploading'}
+            disabled={busy !== null}
+            onClick={() => inputRef.current?.click()}
+          >
             {busy === 'uploading' ? 'Uploading…' : '+ Change Image'}
           </Button>
           {hasCustomPhoto && (
-            <Button type="button" size="sm" variant="outline" disabled={busy !== null} onClick={handleRemove}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              loading={busy === 'removing'}
+              disabled={busy !== null}
+              onClick={handleRemove}
+            >
               {busy === 'removing' ? 'Removing…' : 'Remove Image'}
             </Button>
           )}

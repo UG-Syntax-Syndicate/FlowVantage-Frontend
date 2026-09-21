@@ -94,7 +94,7 @@ export function NoteFormModal({ note, onClose }: NoteFormModalProps) {
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" loading={isPending} disabled={isPending}>
               {isPending ? 'Saving…' : isEditing ? 'Save Changes' : 'Add Note'}
             </Button>
           </div>

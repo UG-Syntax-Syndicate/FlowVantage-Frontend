@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ChevronRight, FolderOpen, Upload } from 'lucide-react'
+import { ChevronRight, FolderOpen, Loader2, Upload } from 'lucide-react'
 import { useDeleteDocument, useDocuments, useProjects, useUploadDocument } from '../../hooks/useProjectsData'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { DocumentPreviewModal } from '../../components/projects/DocumentPreviewModal'
@@ -93,7 +93,11 @@ export function ProjectDocumentsPage() {
           disabled={uploadDocument.isPending}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white hover:brightness-95 disabled:opacity-60"
         >
-          <Upload size={15} strokeWidth={2} />
+          {uploadDocument.isPending ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : (
+            <Upload size={15} strokeWidth={2} />
+          )}
           {uploadDocument.isPending ? 'Uploading…' : 'Upload'}
         </button>
         <input

@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { FolderOpen, Upload } from 'lucide-react'
+import { FolderOpen, Loader2, Upload } from 'lucide-react'
 import { useDeleteDocument, useDocuments, useUploadDocument } from '../../hooks/useProjectsData'
 import { DocumentPreviewModal } from './DocumentPreviewModal'
 import {
@@ -86,7 +86,11 @@ export function DocumentsSection({ projectId }: DocumentsSectionProps) {
             disabled={uploadDocument.isPending}
             className="flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
           >
-            <Upload size={13} strokeWidth={2} />
+            {uploadDocument.isPending ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Upload size={13} strokeWidth={2} />
+            )}
             {uploadDocument.isPending ? 'Uploading…' : 'Upload'}
           </button>
           <input

@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { updatePassword } from 'firebase/auth'
+import { Loader2 } from 'lucide-react'
 import { getAuthErrorMessage } from '../../../lib/authErrors'
 import { logAuditEvent } from '../../../lib/auditLog'
 import { showToast } from '../../../lib/toast'
@@ -123,9 +124,10 @@ export function ChangePasswordSection({ compact = false }: ChangePasswordSection
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-white hover:bg-accent-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Update password
+          {isSubmitting && <Loader2 size={14} className="animate-spin" />}
+          {isSubmitting ? 'Updating…' : 'Update password'}
         </button>
       </form>
 

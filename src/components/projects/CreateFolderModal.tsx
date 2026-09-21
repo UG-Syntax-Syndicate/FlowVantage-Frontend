@@ -101,7 +101,7 @@ export function CreateFolderModal({ onClose }: CreateFolderModalProps) {
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createFolder.isPending}>
+            <Button type="submit" loading={createFolder.isPending} disabled={createFolder.isPending}>
               {createFolder.isPending ? 'Creating…' : 'Create folder'}
             </Button>
           </div>

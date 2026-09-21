@@ -106,7 +106,7 @@ export function ImageCropModal({ file, onCancel, onCropped }: ImageCropModalProp
           <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave} disabled={saving || !croppedAreaPixels}>
+          <Button type="button" loading={saving} onClick={handleSave} disabled={saving || !croppedAreaPixels}>
             {saving ? 'Saving…' : 'Save'}
           </Button>
         </DialogFooter>

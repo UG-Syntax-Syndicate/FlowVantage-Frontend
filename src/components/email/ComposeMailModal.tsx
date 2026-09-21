@@ -67,7 +67,7 @@ export function ComposeMailModal({ onClose }: ComposeMailModalProps) {
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={composeEmail.isPending}>
+            <Button type="submit" loading={composeEmail.isPending} disabled={composeEmail.isPending}>
               {composeEmail.isPending ? 'Saving…' : 'Save to Drafts'}
             </Button>
           </div>

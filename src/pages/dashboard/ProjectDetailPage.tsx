@@ -13,9 +13,20 @@ import {
   Triangle,
   ImagePlus,
   Loader2,
+  Plus,
   X,
 } from 'lucide-react'
-import { useFolders, useMeetings, useMembers, useProjects, useTodos, useUpdateProjectImage } from '../../hooks/useProjectsData'
+import {
+  useAttachProjectToFolder,
+  useDetachProjectFromFolder,
+  useFolders,
+  useMeetings,
+  useMembers,
+  useProjects,
+  useTodos,
+  useUpdateProjectImage,
+} from '../../hooks/useProjectsData'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu'
 import { useEnrichedTasks } from '../../hooks/useEnrichedTasks'
 import { ProjectTaskWidget } from '../../components/projects/ProjectTaskWidget'
 import { TodosPanel } from '../../components/projects/TodosPanel'
@@ -38,6 +49,8 @@ export function ProjectDetailPage() {
   const { data: todos = [] } = useTodos()
   const { data: meetings = [] } = useMeetings()
   const { tasks } = useEnrichedTasks()
+  const attachFolder = useAttachProjectToFolder()
+  const detachFolder = useDetachProjectFromFolder()
   const [taskExpandSignal, setTaskExpandSignal] = useState(0)
   const taskWidgetRef = useRef<HTMLDivElement>(null)
   const coverInputRef = useRef<HTMLInputElement>(null)
@@ -45,7 +58,8 @@ export function ProjectDetailPage() {
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null)
 
   const project = projects.find((p) => p.id === projectId)
-  const folder = folders.find((f) => f.id === project?.folderId)
+  const projectFolders = folders.filter((f) => project?.folderIds.includes(f.id))
+  const folder = projectFolders[0]
   const projectTasks = tasks.filter((t) => t.projectId === projectId)
   const projectTodos = todos.filter((t) => t.projectId === projectId)
   const projectMeetings = meetings.filter((m) => m.projectId === projectId)
@@ -242,10 +256,47 @@ export function ProjectDetailPage() {
                   <span className="font-medium text-slate-900">{assignee?.name ?? 'Unassigned'}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <FolderKanban size={16} className="shrink-0 text-slate-400" />
-                <span className="text-slate-500">Group</span>
-                <span className="ml-auto font-medium text-slate-900">{folder?.name ?? '—'}</span>
+              <div className="flex items-start gap-3">
+                <FolderKanban size={16} className="mt-0.5 shrink-0 text-slate-400" />
+                <span className="text-slate-500">Folders</span>
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+                  {projectFolders.map((f) => (
+                    <span
+                      key={f.id}
+                      className="flex items-center gap-1 rounded-full bg-slate-100 py-0.5 pr-1 pl-2 text-[11px] font-medium text-slate-600"
+                    >
+                      {f.name}
+                      <button
+                        type="button"
+                        onClick={() => detachFolder.mutate({ projectId: project.id, folderId: f.id })}
+                        aria-label={`Remove from ${f.name}`}
+                        className="flex h-3.5 w-3.5 items-center justify-center rounded-full hover:bg-slate-200"
+                      >
+                        <X size={9} />
+                      </button>
+                    </span>
+                  ))}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      aria-label="Add to a folder"
+                      className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-400 outline-none hover:border-primary hover:text-primary"
+                    >
+                      <Plus size={11} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {folders
+                        .filter((f) => !project.folderIds.includes(f.id))
+                        .map((f) => (
+                          <DropdownMenuItem key={f.id} onClick={() => attachFolder.mutate({ projectId: project.id, folderId: f.id })}>
+                            {f.name}
+                          </DropdownMenuItem>
+                        ))}
+                      {folders.every((f) => project.folderIds.includes(f.id)) && (
+                        <p className="px-2 py-1.5 text-xs text-slate-400">No more folders</p>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <Flag size={16} className="shrink-0 text-slate-400" />

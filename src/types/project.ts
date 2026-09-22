@@ -44,7 +44,7 @@ export const ProjectSchema = z.object({
   coverGradient: z.string(),
   tags: z.array(z.string()),
   category: z.string(),
-  folderId: z.string().nullable(),
+  folderIds: z.array(z.string()),
   priority: PrioritySchema,
   trackedSeconds: z.number(),
   memberIds: z.array(z.string()),
@@ -77,12 +77,18 @@ export const FolderSchema = z.object({
   name: z.string(),
   icon: FolderIconSchema,
   color: z.string(),
+  workspaceId: z.string(),
   createdAt: z.string(),
 })
 export type Folder = z.infer<typeof FolderSchema>
 
-export const CreateFolderInputSchema = FolderSchema.pick({ name: true, icon: true, color: true })
+export const CreateFolderInputSchema = FolderSchema.pick({ name: true, icon: true, color: true }).extend({
+  workspaceId: z.string().optional(),
+})
 export type CreateFolderInput = z.infer<typeof CreateFolderInputSchema>
+
+export const UpdateFolderInputSchema = FolderSchema.pick({ name: true, icon: true, color: true }).partial()
+export type UpdateFolderInput = z.infer<typeof UpdateFolderInputSchema>
 
 export const CreateTaskInputSchema = TaskSchema.pick({
   title: true,

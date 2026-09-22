@@ -25,8 +25,7 @@ import type {
   UploadDocumentInput,
 } from '../types/project'
 import { emitProjectsChanged } from './mockRealtimeBus'
-import { deleteObject, ref } from 'firebase/storage'
-import { storage } from '../lib/firebase'
+import { destroyCloudinaryAsset } from '../lib/cloudinaryUpload'
 
 /**
  * REAL DATA LAYER (except Email/AI Assistant, deliberately still mock — see
@@ -542,10 +541,12 @@ export async function deleteDocument(documentId: string): Promise<void> {
     authToken(),
   )
   emitProjectsChanged()
-  // Best-effort cleanup of the underlying Storage object, same pattern as
+  // Best-effort cleanup of the underlying Cloudinary asset, same pattern as
   // AvatarUploader.tsx - the backend only ever tracked the metadata row.
-  if (data.storagePath) {
-    deleteObject(ref(storage, data.storagePath)).catch(() => {})
+  // storagePath is "<resourceType>:<publicId>" (see documentUpload.ts).
+  const [resourceType, publicId] = data.storagePath?.split(':') ?? []
+  if (publicId) {
+    destroyCloudinaryAsset(publicId, resourceType)
   }
 }
 

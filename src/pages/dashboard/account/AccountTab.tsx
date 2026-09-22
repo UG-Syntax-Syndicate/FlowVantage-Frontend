@@ -6,6 +6,7 @@ import { updateProfile } from 'firebase/auth'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../../../lib/firebase'
 import { logAuditEvent } from '../../../lib/auditLog'
+import { PromiseTimeoutError, promiseWithTimeout } from '../../../lib/promise'
 import { useAuth } from '../../../hooks/useAuth'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { Button } from '../../../components/ui/button'
@@ -25,9 +26,18 @@ const nameSchema = z.object({
 
 type NameFormValues = z.infer<typeof nameSchema>
 
+// Same bound as AvatarUploader.tsx's upload/remove handlers: this chain
+// (Auth profile write, then a Firestore doc write, then an audit log write)
+// can hang forever with no error if Firestore is offline/unreachable, since
+// queued writes wait indefinitely for connectivity instead of rejecting.
+// See src/lib/promise.ts.
+const ACTION_TIMEOUT_MS = 20_000
+const TIMEOUT_MESSAGE = 'This is taking too long. Check your connection and try again.'
+
 function ProfileNameForm() {
   const { currentUser, userProfile } = useAuth()
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
   const {
     register,
@@ -41,10 +51,27 @@ function ProfileNameForm() {
   const onSubmit = async (values: NameFormValues) => {
     if (!currentUser) return
     setMessage('')
-    await updateProfile(currentUser, { displayName: values.name })
-    await updateDoc(doc(db, 'users', currentUser.uid), { name: values.name })
-    await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'name' })
-    setMessage('Profile updated.')
+    setError('')
+    try {
+      await promiseWithTimeout(
+        (async () => {
+          await updateProfile(currentUser, { displayName: values.name })
+          await updateDoc(doc(db, 'users', currentUser.uid), { name: values.name })
+          await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'name' })
+        })(),
+        ACTION_TIMEOUT_MS,
+      )
+      setMessage('Profile updated.')
+    } catch (caught) {
+      console.error('Profile name update failed', caught)
+      setError(
+        caught instanceof PromiseTimeoutError
+          ? TIMEOUT_MESSAGE
+          : caught instanceof Error
+            ? caught.message
+            : 'Could not update your name. Please try again.',
+      )
+    }
   }
 
   return (
@@ -58,6 +85,12 @@ function ProfileNameForm() {
       {message && (
         <div className="sm:col-span-2">
           <Alert variant="success">{message}</Alert>
+        </div>
+      )}
+
+      {error && (
+        <div className="sm:col-span-2">
+          <Alert variant="error">{error}</Alert>
         </div>
       )}
 

@@ -91,6 +91,9 @@ export function CalendarToolbar({
               <DropdownMenuRadioItem value="assignee" className="px-2 py-1.5">
                 Color by assignee
               </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="tag" className="px-2 py-1.5">
+                Color by tag
+              </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>

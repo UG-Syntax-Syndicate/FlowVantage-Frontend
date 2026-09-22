@@ -31,3 +31,19 @@ export const GRADIENTS = {
 export const GRADIENT_PALETTE = Object.values(GRADIENTS)
 export const PROJECT_COLOR_PALETTE = ['#ec721d', '#6366f1', '#0ea5e9', '#22c55e', '#a855f7', '#f43f5e']
 export const FOLDER_COLOR_PALETTE = ['#ec4899', '#22c55e', '#f59e0b', '#0ea5e9', '#8b5cf6', '#6366f1']
+
+/**
+ * Picks a PROJECT_COLOR_PALETTE index for a new project, preferring one no
+ * existing project is already using so two projects don't blur together on
+ * the calendar - only degrades to a fully random pick once every palette
+ * slot is already taken (an inherent limit of a 6-color palette, not
+ * something more colors than that can meaningfully solve). The same index
+ * is used for GRADIENT_PALETTE so a project's card gradient and calendar
+ * color always agree.
+ */
+export function pickProjectColorIndex(existingColors: string[]): number {
+  const usedIndices = new Set(existingColors.map((color) => PROJECT_COLOR_PALETTE.indexOf(color)).filter((i) => i !== -1))
+  const available = PROJECT_COLOR_PALETTE.map((_, i) => i).filter((i) => !usedIndices.has(i))
+  const pool = available.length > 0 ? available : PROJECT_COLOR_PALETTE.map((_, i) => i)
+  return pool[Math.floor(Math.random() * pool.length)]
+}

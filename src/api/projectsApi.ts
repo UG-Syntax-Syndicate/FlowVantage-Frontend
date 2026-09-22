@@ -1,7 +1,7 @@
 import { getJson, patchJson, deleteJson, postJsonAuthed, fetchBackendMe } from '../lib/backendApi'
 import { readBackendSessionToken } from '../lib/backendSession'
 import { pickAvatar } from '../lib/avatars'
-import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE } from '../lib/constants'
+import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE, pickProjectColorIndex } from '../lib/constants'
 import type {
   BulkImportContactsResult,
   ComposeEmailInput,
@@ -26,8 +26,7 @@ import type {
   UploadDocumentInput,
 } from '../types/project'
 import { emitProjectsChanged } from './mockRealtimeBus'
-import { deleteObject, ref } from 'firebase/storage'
-import { storage } from '../lib/firebase'
+import { destroyCloudinaryAsset } from '../lib/cloudinaryUpload'
 
 /**
  * REAL DATA LAYER (except Email/AI Assistant, deliberately still mock — see
@@ -162,6 +161,7 @@ interface TaskRow {
   status: TaskStatus
   priority: Task['priority']
   assignee_id: string | null
+  tags: string[]
   start_date: string | null
   due_date: string | null
   created_at: string
@@ -175,6 +175,7 @@ function mapTask(row: TaskRow): Task {
     status: row.status,
     priority: row.priority,
     assigneeIds: row.assignee_id ? [row.assignee_id] : [],
+    tags: row.tags || [],
     startDate: row.start_date || row.created_at,
     dueDate: row.due_date || row.created_at,
     createdAt: row.created_at,
@@ -378,8 +379,8 @@ export async function fetchProjectById(id: string): Promise<Project | undefined>
   }
 }
 
-export async function createProject(input: CreateProjectInput): Promise<Project> {
-  const paletteIndex = Math.floor(Math.random() * PROJECT_COLOR_PALETTE.length)
+export async function createProject(input: CreateProjectInput, existingColors: string[] = []): Promise<Project> {
+  const paletteIndex = pickProjectColorIndex(existingColors)
   const { data } = await postJsonAuthed<ApiEnvelope<ProjectRow>>(
     '/projects',
     {
@@ -477,6 +478,7 @@ export async function createTask(input: Omit<Task, 'id' | 'createdAt'>): Promise
       dueDate: input.dueDate,
       projectId: input.projectId,
       assigneeId: input.assigneeIds[0],
+      tags: input.tags,
     },
     authToken(),
   )
@@ -568,10 +570,12 @@ export async function deleteDocument(documentId: string): Promise<void> {
     authToken(),
   )
   emitProjectsChanged()
-  // Best-effort cleanup of the underlying Storage object, same pattern as
+  // Best-effort cleanup of the underlying Cloudinary asset, same pattern as
   // AvatarUploader.tsx - the backend only ever tracked the metadata row.
-  if (data.storagePath) {
-    deleteObject(ref(storage, data.storagePath)).catch(() => {})
+  // storagePath is "<resourceType>:<publicId>" (see documentUpload.ts).
+  const [resourceType, publicId] = data.storagePath?.split(':') ?? []
+  if (publicId) {
+    destroyCloudinaryAsset(publicId, resourceType)
   }
 }
 

@@ -20,8 +20,10 @@ import {
   useAttachProjectToFolder,
   useDetachProjectFromFolder,
   useFolders,
+  useMeetings,
   useMembers,
   useProjects,
+  useTodos,
   useUpdateProjectImage,
 } from '../../hooks/useProjectsData'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu'
@@ -44,6 +46,8 @@ export function ProjectDetailPage() {
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const { data: folders = [] } = useFolders()
   const { data: members = [] } = useMembers()
+  const { data: todos = [] } = useTodos()
+  const { data: meetings = [] } = useMeetings()
   const { tasks } = useEnrichedTasks()
   const attachFolder = useAttachProjectToFolder()
   const detachFolder = useDetachProjectFromFolder()
@@ -57,6 +61,8 @@ export function ProjectDetailPage() {
   const projectFolders = folders.filter((f) => project?.folderIds.includes(f.id))
   const folder = projectFolders[0]
   const projectTasks = tasks.filter((t) => t.projectId === projectId)
+  const projectTodos = todos.filter((t) => t.projectId === projectId)
+  const projectMeetings = meetings.filter((m) => m.projectId === projectId)
   const projectMembers = members.filter((m) => project?.memberIds.includes(m.id))
   const assignee = members.find((m) => m.id === project?.memberIds[0])
 
@@ -328,6 +334,9 @@ export function ProjectDetailPage() {
               projectId={project.id}
               members={projectMembers}
               tasks={projectTasks}
+              todos={projectTodos}
+              meetings={projectMeetings}
+              project={project}
               expandSignal={taskExpandSignal}
             />
           </div>

@@ -23,6 +23,7 @@ export const TaskSchema = z.object({
   status: TaskStatusSchema,
   priority: PrioritySchema,
   assigneeIds: z.array(z.string()),
+  tags: z.array(z.string()),
   startDate: z.string(),
   dueDate: z.string(),
   createdAt: z.string(),
@@ -93,6 +94,7 @@ export const CreateTaskInputSchema = TaskSchema.pick({
   title: true,
   priority: true,
   assigneeIds: true,
+  tags: true,
   startDate: true,
   dueDate: true,
 })

@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { deleteUser } from 'firebase/auth'
 import { deleteDoc, doc } from 'firebase/firestore'
-import { deleteObject, ref } from 'firebase/storage'
-import { db, storage } from '../../../lib/firebase'
+import { db } from '../../../lib/firebase'
+import { destroyCloudinaryAsset, extractCloudinaryPublicId } from '../../../lib/cloudinaryUpload'
 import { getAuthErrorMessage } from '../../../lib/authErrors'
 import { logAuditEvent } from '../../../lib/auditLog'
 import { showToast } from '../../../lib/toast'
@@ -32,8 +32,9 @@ export function DeleteAccountSection({ compact = false }: DeleteAccountSectionPr
     try {
       await logAuditEvent(currentUser.uid, 'account_deletion_initiated')
 
-      if (userProfile?.photoURL?.includes('/avatars%2F')) {
-        await deleteObject(ref(storage, userProfile.photoURL)).catch(() => {})
+      const avatarPublicId = extractCloudinaryPublicId(userProfile?.photoURL)
+      if (avatarPublicId) {
+        destroyCloudinaryAsset(avatarPublicId)
       }
 
       await deleteDoc(doc(db, 'users', currentUser.uid))

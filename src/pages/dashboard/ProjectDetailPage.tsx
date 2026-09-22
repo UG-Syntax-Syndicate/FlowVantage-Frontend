@@ -15,7 +15,7 @@ import {
   Loader2,
   X,
 } from 'lucide-react'
-import { useFolders, useMembers, useProjects, useUpdateProjectImage } from '../../hooks/useProjectsData'
+import { useFolders, useMeetings, useMembers, useProjects, useTodos, useUpdateProjectImage } from '../../hooks/useProjectsData'
 import { useEnrichedTasks } from '../../hooks/useEnrichedTasks'
 import { ProjectTaskWidget } from '../../components/projects/ProjectTaskWidget'
 import { TodosPanel } from '../../components/projects/TodosPanel'
@@ -35,6 +35,8 @@ export function ProjectDetailPage() {
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
   const { data: folders = [] } = useFolders()
   const { data: members = [] } = useMembers()
+  const { data: todos = [] } = useTodos()
+  const { data: meetings = [] } = useMeetings()
   const { tasks } = useEnrichedTasks()
   const [taskExpandSignal, setTaskExpandSignal] = useState(0)
   const taskWidgetRef = useRef<HTMLDivElement>(null)
@@ -45,6 +47,8 @@ export function ProjectDetailPage() {
   const project = projects.find((p) => p.id === projectId)
   const folder = folders.find((f) => f.id === project?.folderId)
   const projectTasks = tasks.filter((t) => t.projectId === projectId)
+  const projectTodos = todos.filter((t) => t.projectId === projectId)
+  const projectMeetings = meetings.filter((m) => m.projectId === projectId)
   const projectMembers = members.filter((m) => project?.memberIds.includes(m.id))
   const assignee = members.find((m) => m.id === project?.memberIds[0])
 
@@ -279,6 +283,9 @@ export function ProjectDetailPage() {
               projectId={project.id}
               members={projectMembers}
               tasks={projectTasks}
+              todos={projectTodos}
+              meetings={projectMeetings}
+              project={project}
               expandSignal={taskExpandSignal}
             />
           </div>

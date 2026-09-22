@@ -8,6 +8,7 @@ import { AiComposer } from '../../components/dashboard/ai/AiComposer'
 import { QuickStartGrid } from '../../components/dashboard/ai/QuickStartGrid'
 import { AiMessageContent } from '../../components/dashboard/ai/AiMessageContent'
 import { ProviderSwitcher } from '../../components/dashboard/ai/ProviderSwitcher'
+import { BrandedLoadingOverlay } from '../../components/common/BrandedLoadingOverlay'
 import {
   MessageScroller,
   MessageScrollerContent,
@@ -19,7 +20,6 @@ import {
 const TABS = [
   { id: 'chats', label: 'Chats' },
   { id: 'colab', label: 'Colab' },
-  { id: 'code', label: 'Code' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -38,7 +38,7 @@ function timeOfDayGreeting(): string {
 
 export function AiAssistantPage() {
   const { userProfile, currentUser } = useAuth()
-  const { data: messages = [] } = useChatMessages()
+  const { data: messages = [], isLoading: messagesLoading } = useChatMessages()
   const sendMessage = useSendChatMessage()
   const [draft, setDraft] = useState('')
   const [awaitingReply, setAwaitingReply] = useState(false)
@@ -67,9 +67,9 @@ export function AiAssistantPage() {
     sendMessage.mutate(
       { content: trimmed, provider },
       {
-        onError: () => {
+        onError: (error) => {
           setAwaitingReply(false)
-          showToast('error', "Venon couldn't reach the AI provider. Please try again.")
+          showToast('error', error instanceof Error ? error.message : "Venon AI couldn't reach the AI provider. Please try again.")
         },
       },
     )
@@ -85,6 +85,7 @@ export function AiAssistantPage() {
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-b from-orange-100 via-amber-50 to-white">
+      {messagesLoading && <BrandedLoadingOverlay message="Loading conversation…" />}
       <div className="flex shrink-0 items-center justify-center gap-3 pt-4">
         <div className="flex items-center gap-1 rounded-full bg-white/60 p-1 ring-1 ring-black/5 backdrop-blur-sm">
           {TABS.map((item) => (
@@ -196,7 +197,7 @@ export function AiAssistantPage() {
                 disabled={sendMessage.isPending}
               />
               <p className="mt-3 text-center text-xs text-slate-400">
-                Venon can make mistakes. Verify important information.
+                Venon AI can make mistakes. Verify important information.
               </p>
             </div>
           </div>
@@ -208,14 +209,14 @@ export function AiAssistantPage() {
               {timeOfDayGreeting()}, {name}
             </h1>
             <p className="mb-6 text-center text-sm text-slate-500">
-              I'm Venon, your workspace assistant. Ask me about your contacts, tasks, or projects.
+              I'm Venon AI, your workspace assistant. Ask me about your contacts, tasks, or projects.
             </p>
 
             <AiComposer
               value={draft}
               onChange={setDraft}
               onSubmit={() => submit(draft)}
-              placeholder="Ask Venon anything about your workspace…"
+              placeholder="Ask Venon AI anything about your workspace…"
               disabled={sendMessage.isPending}
             />
 

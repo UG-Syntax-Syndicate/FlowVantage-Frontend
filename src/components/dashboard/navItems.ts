@@ -27,7 +27,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/dashboard/email', label: 'Email', icon: Mail },
   { to: '/dashboard/notes', label: 'Notes', icon: StickyNote },
-  { to: '/dashboard/ai-assistant', label: 'Venon', icon: Sparkles },
+  { to: '/dashboard/ai-assistant', label: 'Venon AI', icon: Sparkles },
   { to: '/dashboard/inventory', label: 'Inventory', icon: Package, locked: true },
   { to: '/dashboard/reporting', label: 'Reporting', icon: BarChart3, locked: true },
 ]

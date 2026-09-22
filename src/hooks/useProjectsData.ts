@@ -15,6 +15,7 @@ import type {
   CreateTaskInput,
   EmailFolder,
   NoteInput,
+  Project,
   ProjectStatus,
   TaskStatus,
   UploadDocumentInput,
@@ -402,7 +403,10 @@ export function useCreateProject() {
   const queryClient = useQueryClient()
   const recordAudit = useAuditRecorder()
   return useMutation({
-    mutationFn: (input: CreateProjectInput) => projectsApi.createProject(input),
+    mutationFn: (input: CreateProjectInput) => {
+      const existingColors = (queryClient.getQueryData<Project[]>(queryKeys.projects) ?? []).map((p) => p.color)
+      return projectsApi.createProject(input, existingColors)
+    },
     onSuccess: (project) => {
       recordAudit('create', 'project', project.id, { name: project.name })
       queryClient.invalidateQueries({ queryKey: queryKeys.projects })

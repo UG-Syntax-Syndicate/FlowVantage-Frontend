@@ -196,6 +196,7 @@ export function MonthGrid({ cursor, events, colorMode, onTaskClick, onTodoClick,
                           <p>{bar.event.task.projectName}</p>
                           <p>{TASK_STATUS_META[bar.event.task.status].label}</p>
                           {bar.event.task.assignees.length > 0 && <p>{bar.event.task.assignees.map((a) => a.name).join(', ')}</p>}
+                          {bar.event.task.tags.length > 0 && <p>{bar.event.task.tags.join(', ')}</p>}
                         </div>
                       </TooltipContent>
                     </Tooltip>

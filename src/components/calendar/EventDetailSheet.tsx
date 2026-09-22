@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../animate-ui/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
 import { TaskStatusBadge, PriorityBadge } from '../projects/StatusBadge'
 import { AvatarStack } from '../dashboard/AvatarStack'
-import { colorForTask, type CalendarColorMode } from './taskColor'
+import { colorForTask, tagColorHex, type CalendarColorMode } from './taskColor'
 import { isTimedTask } from '../../lib/calendarDate'
 import type { CalendarMeetingEvent, CalendarTaskEvent } from '../../types/calendarEvent'
 import type { TaskStatus } from '../../types/project'
@@ -103,6 +103,20 @@ export function EventDetailSheet({ event, colorMode, onClose, onStatusChange, st
                     <span className="text-slate-400">Unassigned</span>
                   )}
                 </div>
+
+                {event.task.tags.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {event.task.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{ backgroundColor: `${tagColorHex(tag)}1a`, color: tagColorHex(tag) }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <button
                   type="button"

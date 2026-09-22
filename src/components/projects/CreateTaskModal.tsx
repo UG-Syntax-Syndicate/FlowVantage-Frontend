@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { X } from 'lucide-react'
 import { CreateTaskInputSchema, type CreateTaskInput, type Member, type Priority } from '../../types/project'
 import { useCreateTask } from '../../hooks/useProjectsData'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
@@ -37,6 +38,7 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
       title: '',
       priority: 'medium',
       assigneeIds: members[0] ? [members[0].id] : [],
+      tags: [],
       startDate: new Date().toISOString(),
       dueDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
     },
@@ -44,6 +46,8 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
 
   const selectedPriority = watch('priority')
   const selectedAssigneeIds = watch('assigneeIds')
+  const selectedTags = watch('tags')
+  const [tagDraft, setTagDraft] = useState('')
 
   const [startDateStr, setStartDateStr] = useState(watch('startDate').slice(0, 10))
   const [dueDateStr, setDueDateStr] = useState(watch('dueDate').slice(0, 10))
@@ -74,6 +78,32 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
       ? selectedAssigneeIds.filter((assigneeId) => assigneeId !== id)
       : [...selectedAssigneeIds, id]
     setValue('assigneeIds', next)
+  }
+
+  function addTag() {
+    const tag = tagDraft.trim()
+    if (!tag || selectedTags.includes(tag)) {
+      setTagDraft('')
+      return
+    }
+    setValue('tags', [...selectedTags, tag])
+    setTagDraft('')
+  }
+
+  function removeTag(tag: string) {
+    setValue(
+      'tags',
+      selectedTags.filter((t) => t !== tag),
+    )
+  }
+
+  function handleTagKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault()
+      addTag()
+    } else if (event.key === 'Backspace' && tagDraft === '' && selectedTags.length > 0) {
+      removeTag(selectedTags[selectedTags.length - 1])
+    }
   }
 
   return (
@@ -126,6 +156,39 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
                   {member.name}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <Label>Tags</Label>
+            <p className="mt-1 text-xs text-slate-400">
+              Tags color-code this task on the calendar, separately from its project or assignee.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-input px-2 py-1.5">
+              {selectedTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="flex items-center gap-1 rounded-full bg-accent-50 py-1 pr-1 pl-2.5 text-xs font-medium text-primary"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    aria-label={`Remove tag ${tag}`}
+                    className="flex h-4 w-4 items-center justify-center rounded-full hover:bg-primary/10"
+                  >
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+              <input
+                value={tagDraft}
+                onChange={(e) => setTagDraft(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                onBlur={addTag}
+                placeholder={selectedTags.length === 0 ? 'e.g. design, launch…' : ''}
+                className="min-w-[6rem] flex-1 bg-transparent py-0.5 text-sm outline-none placeholder:text-slate-400"
+              />
             </div>
           </div>
 

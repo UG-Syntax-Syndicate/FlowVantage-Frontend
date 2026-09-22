@@ -1,10 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ImagePlus, X } from 'lucide-react'
 import { CreateProjectInputSchema, type CreateProjectInput } from '../../types/project'
-import { useCreateProject } from '../../hooks/useProjectsData'
+import { useAttachProjectToFolder, useCreateProject, useFolders } from '../../hooks/useProjectsData'
 import { useAuth } from '../../hooks/useAuth'
 import { useWorkspace } from '../../hooks/useWorkspace'
 import { useWorkspaceMembers } from '../../hooks/useWorkspacesData'
@@ -26,7 +26,11 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
   const { currentUser } = useAuth()
   const { activeWorkspace } = useWorkspace()
   const { data: workspaceMembers = [] } = useWorkspaceMembers(activeWorkspace?.id)
+  const { data: allFolders = [] } = useFolders()
   const createProject = useCreateProject()
+  const attachProjectToFolder = useAttachProjectToFolder()
+  const [selectedFolderIds, setSelectedFolderIds] = useState<string[]>([])
+  const workspaceFolders = allFolders.filter((f) => f.workspaceId === activeWorkspace?.id)
 
   const {
     register,
@@ -76,7 +80,11 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await createProject.mutateAsync(values)
+      const project = await createProject.mutateAsync(values)
+      // Folders only make sense once the project exists (attach is a
+      // project-scoped endpoint) - fire these after create, same as the
+      // cover image upload flow for a brand-new project.
+      await Promise.all(selectedFolderIds.map((folderId) => attachProjectToFolder.mutateAsync({ projectId: project.id, folderId })))
       showToast('success', 'Project created')
       onCreated?.()
       onClose()
@@ -90,6 +98,10 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
       ? selectedMemberIds.filter((memberId) => memberId !== id)
       : [...selectedMemberIds, id]
     setValue('memberIds', next)
+  }
+
+  function toggleFolder(id: string) {
+    setSelectedFolderIds((prev) => (prev.includes(id) ? prev.filter((folderId) => folderId !== id) : [...prev, id]))
   }
 
   return (
@@ -165,6 +177,28 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
                     }`}
                   >
                     {member.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workspaceFolders.length > 0 && (
+            <div>
+              <Label>Folders</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {workspaceFolders.map((f) => (
+                  <button
+                    type="button"
+                    key={f.id}
+                    onClick={() => toggleFolder(f.id)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      selectedFolderIds.includes(f.id)
+                        ? 'border-primary bg-accent-50 text-primary'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {f.name}
                   </button>
                 ))}
               </div>

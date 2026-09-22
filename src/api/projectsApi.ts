@@ -22,6 +22,7 @@ import type {
   TaskStatus,
   ProjectStatus,
   Todo,
+  UpdateFolderInput,
   UploadDocumentInput,
 } from '../types/project'
 import { emitProjectsChanged } from './mockRealtimeBus'
@@ -121,7 +122,7 @@ interface ProjectRow {
   color: string | null
   cover_gradient: string | null
   category: string | null
-  folder_id: string | null
+  folder_ids: string[]
   priority: Project['priority']
   tracked_seconds: number
   memberIds: string[]
@@ -142,7 +143,7 @@ function mapProject(row: ProjectRow): Project {
     coverGradient: row.cover_gradient || GRADIENT_PALETTE[0],
     tags: row.tags || [],
     category: row.category || 'General',
-    folderId: row.folder_id,
+    folderIds: row.folder_ids || [],
     priority: row.priority,
     trackedSeconds: row.tracked_seconds ?? 0,
     memberIds: row.memberIds || [],
@@ -185,6 +186,7 @@ interface FolderRow {
   name: string
   icon: Folder['icon']
   color: string | null
+  workspace_id: string
   created_at: string
 }
 
@@ -194,6 +196,7 @@ function mapFolder(row: FolderRow): Folder {
     name: row.name,
     icon: row.icon,
     color: row.color || '#94a3b8',
+    workspaceId: row.workspace_id,
     createdAt: row.created_at,
   }
 }
@@ -424,6 +427,29 @@ export async function createFolder(input: CreateFolderInput): Promise<Folder> {
   const { data } = await postJsonAuthed<ApiEnvelope<FolderRow>>('/folders', input, authToken())
   emitProjectsChanged()
   return mapFolder(data)
+}
+
+export async function updateFolder(folderId: string, input: UpdateFolderInput): Promise<Folder> {
+  const { data } = await patchJson<ApiEnvelope<FolderRow>>(`/folders/${folderId}`, input, authToken())
+  emitProjectsChanged()
+  return mapFolder(data)
+}
+
+export async function deleteFolder(folderId: string): Promise<void> {
+  await deleteJson(`/folders/${folderId}`, authToken())
+  emitProjectsChanged()
+}
+
+export async function attachProjectToFolder(projectId: string, folderId: string): Promise<Project> {
+  const { data } = await postJsonAuthed<ApiEnvelope<ProjectRow>>(`/projects/${projectId}/folders`, { folderId }, authToken())
+  emitProjectsChanged()
+  return mapProject(data)
+}
+
+export async function detachProjectFromFolder(projectId: string, folderId: string): Promise<Project> {
+  const { data } = await deleteJson<ApiEnvelope<ProjectRow>>(`/projects/${projectId}/folders/${folderId}`, authToken())
+  emitProjectsChanged()
+  return mapProject(data)
 }
 
 // ---------------------------------------------------------------------------

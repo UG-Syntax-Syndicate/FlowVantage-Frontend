@@ -13,7 +13,7 @@ export function FolderProjectsPage() {
   const { data: projects = [], isLoading: projectsLoading } = useProjects()
 
   const folder = folders.find((f) => f.id === folderId)
-  const folderProjects = projects.filter((p) => p.folderId === folderId)
+  const folderProjects = projects.filter((p) => folderId && p.folderIds.includes(folderId))
 
   if (!foldersLoading && !folder) {
     return <Navigate to="/dashboard/projects" replace />

@@ -27,4 +27,8 @@ export const queryKeys = {
   documents: ['documents'] as const,
   contacts: ['contacts'] as const,
   chatMessages: ['chatMessages'] as const,
+  workspaces: ['workspaces'] as const,
+  workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
+  pendingInvites: (workspaceId: string) => ['workspaces', workspaceId, 'invites'] as const,
+  projectMembers: (projectId: string) => ['projects', projectId, 'members'] as const,
 }

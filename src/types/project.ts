@@ -29,6 +29,9 @@ export const TaskSchema = z.object({
 })
 export type Task = z.infer<typeof TaskSchema>
 
+export const ProjectVisibilitySchema = z.enum(['private', 'workspace'])
+export type ProjectVisibility = z.infer<typeof ProjectVisibilitySchema>
+
 export const ProjectSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -44,6 +47,8 @@ export const ProjectSchema = z.object({
   priority: PrioritySchema,
   trackedSeconds: z.number(),
   memberIds: z.array(z.string()),
+  workspaceId: z.string(),
+  visibility: ProjectVisibilitySchema,
   startDate: z.string(),
   dueDate: z.string(),
   createdAt: z.string(),
@@ -57,6 +62,9 @@ export const CreateProjectInputSchema = ProjectSchema.pick({
   memberIds: true,
   startDate: true,
   dueDate: true,
+}).extend({
+  workspaceId: z.string().optional(),
+  visibility: ProjectVisibilitySchema.optional(),
 })
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>
 
@@ -111,7 +119,9 @@ export const NoteSchema = z.object({
 })
 export type Note = z.infer<typeof NoteSchema>
 
-export const NoteInputSchema = NoteSchema.pick({ title: true, body: true, color: true })
+export const NoteInputSchema = NoteSchema.pick({ title: true, body: true, color: true }).extend({
+  projectId: z.string().nullable().optional(),
+})
 export type NoteInput = z.infer<typeof NoteInputSchema>
 
 export const EmailFolderSchema = z.enum(['inbox', 'pending', 'drafts', 'spam', 'trash'])
@@ -165,19 +175,50 @@ export type ContactStatus = z.infer<typeof ContactStatusSchema>
 export const ContactStageSchema = z.enum(['in_progress', 'proposal_sent', 'completed', 'rejected'])
 export type ContactStage = z.infer<typeof ContactStageSchema>
 
+export const ContactVisibilitySchema = z.enum(['private', 'shared'])
+export type ContactVisibility = z.infer<typeof ContactVisibilitySchema>
+
 export const ContactSchema = z.object({
   id: z.string(),
   company: z.string(),
   contactName: z.string(),
   role: z.string(),
   email: z.string(),
+  phone: z.string(),
   photoURL: z.string().nullable(),
   status: ContactStatusSchema,
   niche: z.string(),
+  notes: z.string(),
   stage: ContactStageSchema,
+  workspaceId: z.string(),
+  visibility: ContactVisibilitySchema,
+  projectId: z.string().nullable(),
   createdAt: z.string(),
 })
 export type Contact = z.infer<typeof ContactSchema>
+
+export const ContactInputSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  company: z.string().optional(),
+  role: z.string().optional(),
+  niche: z.string().optional(),
+  notes: z.string().optional(),
+  workspaceId: z.string().optional(),
+  visibility: ContactVisibilitySchema.optional(),
+  projectId: z.string().nullable().optional(),
+  allowDuplicate: z.boolean().optional(),
+})
+export type ContactInput = z.infer<typeof ContactInputSchema>
+
+export interface BulkImportContactsResult {
+  created: Contact[]
+  duplicateCount: number
+  failedCount: number
+  createdCount: number
+}
 
 export const ChatRoleSchema = z.enum(['user', 'assistant'])
 export type ChatRole = z.infer<typeof ChatRoleSchema>

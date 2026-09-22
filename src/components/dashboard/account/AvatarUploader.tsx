@@ -6,6 +6,7 @@ import { db, storage } from '../../../lib/firebase'
 import { logAuditEvent } from '../../../lib/auditLog'
 import { getStorageErrorMessage } from '../../../lib/storageErrors'
 import { extensionForImageType, IMAGE_PRESETS, optimizeImage } from '../../../lib/images'
+import { PromiseTimeoutError, promiseWithTimeout } from '../../../lib/promise'
 import { useAuth } from '../../../hooks/useAuth'
 import { Avatar } from '../../common/Avatar'
 import { Button } from '../../ui/button'
@@ -13,6 +14,12 @@ import { getUserAvatarUrl } from '../../../lib/avatars'
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+// Any single step here (image encode, Storage upload, Firestore write) can in
+// principle hang instead of erroring — e.g. Firestore queues writes made while
+// offline and waits indefinitely for connectivity rather than rejecting. This
+// bounds the whole operation so the button's loading state always resolves.
+const ACTION_TIMEOUT_MS = 20_000
+const TIMEOUT_MESSAGE = 'This is taking too long. Check your connection and try again.'
 
 function isStorageAvatarUrl(url: string | null | undefined): url is string {
   return Boolean(url && url.includes('/avatars%2F'))
@@ -41,30 +48,35 @@ export function AvatarUploader() {
     setError('')
     setBusy('uploading')
     try {
-      const previousPhotoURL = userProfile?.photoURL
+      await promiseWithTimeout(
+        (async () => {
+          const previousPhotoURL = userProfile?.photoURL
 
-      // Downscale + re-encode before upload so Storage only ever holds a small
-      // avatar-sized image, never the multi-MB original the user picked.
-      const optimized = await optimizeImage(file, IMAGE_PRESETS.avatar)
-      const extension = extensionForImageType(optimized.type)
+          // Downscale + re-encode before upload so Storage only ever holds a small
+          // avatar-sized image, never the multi-MB original the user picked.
+          const optimized = await optimizeImage(file, IMAGE_PRESETS.avatar)
+          const extension = extensionForImageType(optimized.type)
 
-      const path = `avatars/${currentUser.uid}/${Date.now()}.${extension}`
-      const storageRef = ref(storage, path)
-      await uploadBytes(storageRef, optimized.blob, { contentType: optimized.type })
-      const url = await getDownloadURL(storageRef)
+          const path = `avatars/${currentUser.uid}/${Date.now()}.${extension}`
+          const storageRef = ref(storage, path)
+          await uploadBytes(storageRef, optimized.blob, { contentType: optimized.type })
+          const url = await getDownloadURL(storageRef)
 
-      await updateProfile(currentUser, { photoURL: url })
-      await updateDoc(doc(db, 'users', currentUser.uid), { photoURL: url })
-      await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'photoURL' })
+          await updateProfile(currentUser, { photoURL: url })
+          await updateDoc(doc(db, 'users', currentUser.uid), { photoURL: url })
+          await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'photoURL' })
 
-      // Best-effort cleanup of the previous avatar file; ignore failures
-      // (e.g. the old photoURL came from an OAuth provider, not Storage).
-      if (isStorageAvatarUrl(previousPhotoURL)) {
-        deleteObject(ref(storage, previousPhotoURL)).catch(() => {})
-      }
+          // Best-effort cleanup of the previous avatar file; ignore failures
+          // (e.g. the old photoURL came from an OAuth provider, not Storage).
+          if (isStorageAvatarUrl(previousPhotoURL)) {
+            deleteObject(ref(storage, previousPhotoURL)).catch(() => {})
+          }
+        })(),
+        ACTION_TIMEOUT_MS,
+      )
     } catch (caught) {
       console.error('Avatar upload failed', caught)
-      setError(getStorageErrorMessage(caught))
+      setError(caught instanceof PromiseTimeoutError ? TIMEOUT_MESSAGE : getStorageErrorMessage(caught))
     } finally {
       setBusy(null)
     }
@@ -76,16 +88,21 @@ export function AvatarUploader() {
     setError('')
     setBusy('removing')
     try {
-      await updateProfile(currentUser, { photoURL: null })
-      await updateDoc(doc(db, 'users', currentUser.uid), { photoURL: null })
-      await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'photoURL' })
+      await promiseWithTimeout(
+        (async () => {
+          await updateProfile(currentUser, { photoURL: null })
+          await updateDoc(doc(db, 'users', currentUser.uid), { photoURL: null })
+          await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'photoURL' })
 
-      if (isStorageAvatarUrl(previousPhotoURL)) {
-        deleteObject(ref(storage, previousPhotoURL)).catch(() => {})
-      }
+          if (isStorageAvatarUrl(previousPhotoURL)) {
+            deleteObject(ref(storage, previousPhotoURL)).catch(() => {})
+          }
+        })(),
+        ACTION_TIMEOUT_MS,
+      )
     } catch (caught) {
       console.error('Avatar removal failed', caught)
-      setError(getStorageErrorMessage(caught))
+      setError(caught instanceof PromiseTimeoutError ? TIMEOUT_MESSAGE : getStorageErrorMessage(caught))
     } finally {
       setBusy(null)
     }

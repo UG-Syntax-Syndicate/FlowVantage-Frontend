@@ -2,11 +2,11 @@ import { getJson, patchJson, deleteJson, postJsonAuthed, fetchBackendMe } from '
 import { readBackendSessionToken } from '../lib/backendSession'
 import { pickAvatar } from '../lib/avatars'
 import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE } from '../lib/constants'
-import { MOCK_CHAT_MESSAGES, MOCK_EMAILS } from '../mocks/seedData'
 import type {
-  ChatMessage,
+  BulkImportContactsResult,
   ComposeEmailInput,
   Contact,
+  ContactInput,
   CreateFolderInput,
   CreateProjectInput,
   Email,
@@ -57,11 +57,16 @@ interface ContactRow {
   first_name: string
   last_name: string | null
   email: string | null
+  phone: string | null
   company: string | null
   role: string | null
   niche: string | null
+  notes: string | null
   status: Contact['status']
   stage: Contact['stage']
+  workspace_id: string
+  visibility: Contact['visibility']
+  project_id: string | null
   created_at: string
 }
 
@@ -73,11 +78,33 @@ function mapContact(row: ContactRow): Contact {
     contactName,
     role: row.role || '',
     email: row.email || '',
+    phone: row.phone || '',
     photoURL: pickAvatar(row.email || row.id),
     status: row.status,
     niche: row.niche || '',
+    notes: row.notes || '',
     stage: row.stage,
+    workspaceId: row.workspace_id,
+    visibility: row.visibility || 'private',
+    projectId: row.project_id,
     createdAt: row.created_at,
+  }
+}
+
+function contactInputBody(input: ContactInput) {
+  return {
+    first_name: input.firstName,
+    last_name: input.lastName,
+    email: input.email,
+    phone: input.phone,
+    company: input.company,
+    role: input.role,
+    niche: input.niche,
+    notes: input.notes,
+    workspace_id: input.workspaceId,
+    visibility: input.visibility,
+    project_id: input.projectId,
+    allow_duplicate: input.allowDuplicate,
   }
 }
 
@@ -98,6 +125,8 @@ interface ProjectRow {
   priority: Project['priority']
   tracked_seconds: number
   memberIds: string[]
+  workspace_id: string
+  visibility: Project['visibility']
   created_at: string
 }
 
@@ -117,6 +146,8 @@ function mapProject(row: ProjectRow): Project {
     priority: row.priority,
     trackedSeconds: row.tracked_seconds ?? 0,
     memberIds: row.memberIds || [],
+    workspaceId: row.workspace_id,
+    visibility: row.visibility || 'private',
     startDate: row.start_date || row.created_at,
     dueDate: row.end_date || row.created_at,
     createdAt: row.created_at,
@@ -276,9 +307,54 @@ export async function fetchMembers(): Promise<Member[]> {
 // Contacts
 // ---------------------------------------------------------------------------
 
-export async function fetchContacts(): Promise<Contact[]> {
-  const { data } = await getJson<ApiEnvelope<ContactRow[]>>('/contacts', authToken())
+export async function fetchContacts(workspaceId?: string): Promise<Contact[]> {
+  const path = workspaceId ? `/contacts?workspace_id=${encodeURIComponent(workspaceId)}` : '/contacts'
+  const { data } = await getJson<ApiEnvelope<ContactRow[]>>(path, authToken())
   return data.map(mapContact)
+}
+
+export async function createContact(input: ContactInput): Promise<Contact> {
+  const { data } = await postJsonAuthed<ApiEnvelope<ContactRow>>('/contacts', contactInputBody(input), authToken())
+  emitProjectsChanged()
+  return mapContact(data)
+}
+
+export async function updateContact(contactId: string, input: ContactInput): Promise<Contact> {
+  const { data } = await patchJson<ApiEnvelope<ContactRow>>(
+    `/contacts/${contactId}`,
+    contactInputBody(input),
+    authToken(),
+  )
+  emitProjectsChanged()
+  return mapContact(data)
+}
+
+export async function deleteContact(contactId: string): Promise<void> {
+  await deleteJson(`/contacts/${contactId}`, authToken())
+  emitProjectsChanged()
+}
+
+export async function bulkImportContacts(
+  workspaceId: string | undefined,
+  contacts: ContactInput[],
+): Promise<BulkImportContactsResult> {
+  const { data } = await postJsonAuthed<ApiEnvelope<{
+    created: ContactRow[]
+    createdCount: number
+    duplicateCount: number
+    failedCount: number
+  }>>(
+    '/contacts/bulk-import',
+    { workspace_id: workspaceId, contacts: contacts.map(contactInputBody) },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return {
+    created: data.created.map(mapContact),
+    createdCount: data.createdCount,
+    duplicateCount: data.duplicateCount,
+    failedCount: data.failedCount,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -313,6 +389,9 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
       category: 'General',
       priority: 'medium',
       image: input.image,
+      memberIds: input.memberIds,
+      workspaceId: input.workspaceId,
+      visibility: input.visibility,
       startDate: input.startDate,
       dueDate: input.dueDate,
     },
@@ -407,7 +486,7 @@ export async function fetchNotes(): Promise<Note[]> {
 export async function createNote(input: NoteInput): Promise<Note> {
   const { note } = await postJsonAuthed<{ success: boolean; note: NoteRow }>(
     '/notes',
-    { title: input.title, content: input.body, color: input.color },
+    { title: input.title, content: input.body, color: input.color, projectId: input.projectId },
     authToken(),
   )
   emitProjectsChanged()
@@ -471,138 +550,82 @@ export async function deleteDocument(documentId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Email / AI Assistant - deliberately still mock. Both features are locked
-// behind the "coming soon" nav treatment (no backend endpoint exists for
-// either), but their pages/hooks stay in the tree for a fast follow-up.
+// Email
 // ---------------------------------------------------------------------------
 
-let emails: Email[] = MOCK_EMAILS.map((e) => ({ ...e }))
-let nextEmailId = emails.length + 1
-let chatMessages: ChatMessage[] = MOCK_CHAT_MESSAGES.map((m) => ({ ...m }))
-let nextChatMessageId = chatMessages.length + 1
+interface EmailRow {
+  id: string
+  project_id: string | null
+  folder: EmailFolder
+  sender_name: string | null
+  sender_email: string
+  sender_color: string | null
+  subject: string | null
+  body: string | null
+  sent_at: string
+  starred: boolean
+  read: boolean
+}
 
-const NETWORK_DELAY_MS = 350
+function excerptFromEmailBody(body: string): string {
+  return body.length > 120 ? `${body.slice(0, 120).trimEnd()}…` : body
+}
 
-function delay<T>(value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(value), NETWORK_DELAY_MS))
+function mapEmail(row: EmailRow): Email {
+  const body = row.body || ''
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    folder: row.folder,
+    senderName: row.sender_name || row.sender_email,
+    senderColor: row.sender_color || '#94a3b8',
+    subject: row.subject || '',
+    snippet: excerptFromEmailBody(body),
+    body,
+    receivedAt: row.sent_at,
+    starred: row.starred,
+    read: row.read,
+  }
 }
 
 export async function fetchEmails(): Promise<Email[]> {
-  return delay(emails.map((e) => ({ ...e })))
+  const { data } = await getJson<ApiEnvelope<EmailRow[]>>('/emails', authToken())
+  return data.map(mapEmail)
 }
 
 export async function toggleEmailStar(emailId: string): Promise<void> {
-  emails = emails.map((e) => (e.id === emailId ? { ...e, starred: !e.starred } : e))
-  await delay(undefined)
+  const token = authToken()
+  const { data: current } = await getJson<ApiEnvelope<EmailRow>>(`/emails/${emailId}`, token)
+  await patchJson(`/emails/${emailId}`, { starred: !current.starred }, token)
   emitProjectsChanged()
 }
 
 export async function markEmailsRead(emailIds: string[]): Promise<void> {
-  emails = emails.map((e) => (emailIds.includes(e.id) ? { ...e, read: true } : e))
-  await delay(undefined)
+  const token = authToken()
+  await Promise.all(emailIds.map((id) => patchJson(`/emails/${id}`, { read: true }, token)))
   emitProjectsChanged()
 }
 
 export async function moveEmailsToFolder(emailIds: string[], folder: EmailFolder): Promise<void> {
-  emails = emails.map((e) => (emailIds.includes(e.id) ? { ...e, folder } : e))
-  await delay(undefined)
+  const token = authToken()
+  await Promise.all(emailIds.map((id) => patchJson(`/emails/${id}`, { folder }, token)))
   emitProjectsChanged()
 }
 
 export async function composeEmail(input: ComposeEmailInput): Promise<Email> {
-  const email: Email = {
-    id: `e${nextEmailId++}`,
-    projectId: null,
-    folder: 'drafts',
-    senderName: 'You',
-    senderColor: '#94a3b8',
-    subject: input.subject,
-    snippet: input.snippet,
-    body: input.snippet,
-    receivedAt: new Date().toISOString(),
-    starred: false,
-    read: true,
-  }
-  emails = [email, ...emails]
-  const result = await delay(email)
+  const { data } = await postJsonAuthed<ApiEnvelope<EmailRow>>(
+    '/emails',
+    { to: input.to, subject: input.subject, snippet: input.snippet },
+    authToken(),
+  )
   emitProjectsChanged()
-  return result
+  return mapEmail(data)
 }
 
-export async function fetchChatMessages(): Promise<ChatMessage[]> {
-  return delay(chatMessages.map((m) => ({ ...m })))
-}
-
-const ASSISTANT_REPLY_DELAY_MS = 900
-
-function cannedAssistantReply(userMessage: string): string {
-  const text = userMessage.toLowerCase()
-  if (text.includes('overdue') || text.includes('risk') || text.includes('billing')) {
-    return [
-      '**Billing Migration** is the one to watch.',
-      '',
-      '- "Reconcile historic ledger data" is **overdue**',
-      '- The project deadline is only **5 days** out',
-      '',
-      'Everything else across your projects is on track for now.',
-    ].join('\n')
-  }
-  if (text.includes('progress') || text.includes('summary') || text.includes('status')) {
-    return [
-      '### Project status',
-      '',
-      '1. **Hikoko Design System** — 2 tasks in progress',
-      '2. **Mobile App Revamp** — 2 tasks in progress',
-      '3. **Q3 Marketing Site** — still in planning',
-      '4. **Billing Migration** — 1 overdue task',
-      '',
-      '---',
-      '',
-      'Hikoko Design System and Mobile App Revamp are the most active projects this week.',
-    ].join('\n')
-  }
-  if (text.includes('marketing') || text.includes('draft') || text.includes('note')) {
-    return [
-      "Here's a short draft you can send as-is or adjust:",
-      '',
-      '> Hi team — quick update on Q3 Marketing Site: design review wrapped this week and development kicks off Monday. No blockers so far.',
-      '',
-      'Let me know if you would rather I adjust the tone or add specific numbers before you send it.',
-    ].join('\n')
-  }
-  if (text.includes('meeting') || text.includes('calendar')) {
-    return [
-      'Your next meeting is the **Mobile revamp check-in** with the Field Ops Team.',
-      '',
-      'I can draft an agenda if that would help.',
-    ].join('\n')
-  }
-  return "I don't have live access to your workspace yet in this demo, but based on your recent activity, **Hikoko Design System** and **Mobile App Revamp** are the most active projects this week. Ask me about a specific project and I will do my best with what's here."
-}
-
-export async function sendChatMessage(content: string): Promise<ChatMessage> {
-  const userMessage: ChatMessage = {
-    id: `cm${nextChatMessageId++}`,
-    role: 'user',
-    content,
-    createdAt: new Date().toISOString(),
-  }
-  chatMessages = [...chatMessages, userMessage]
-  const result = await delay(userMessage)
-  emitProjectsChanged()
-
-  // Simulate an async assistant reply arriving a moment later, same as a
-  // real backend would push one over a socket/webhook.
-  setTimeout(() => {
-    const reply: ChatMessage = {
-      id: `cm${nextChatMessageId++}`,
-      role: 'assistant',
-      content: cannedAssistantReply(content),
-      createdAt: new Date().toISOString(),
-    }
-    chatMessages = [...chatMessages, reply]
-    emitProjectsChanged()
-  }, ASSISTANT_REPLY_DELAY_MS)
-
-  return result
-}
+// ---------------------------------------------------------------------------
+// AI Assistant (Venon) - real backend calls now live in src/api/aiApi.ts
+// (fetchChatMessages/sendChatMessage), not here. See that file for why: it
+// needs a longer request timeout than the rest of this API client, plus a
+// provider (OpenAI/Gemini) and workspaceId that this module's other
+// functions don't deal with.
+// ---------------------------------------------------------------------------

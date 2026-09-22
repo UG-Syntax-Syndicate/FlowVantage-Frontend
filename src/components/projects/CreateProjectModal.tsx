@@ -1,9 +1,13 @@
+import { useEffect } from 'react'
 import type { ChangeEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ImagePlus, X } from 'lucide-react'
 import { CreateProjectInputSchema, type CreateProjectInput } from '../../types/project'
-import { useCreateProject, useMembers } from '../../hooks/useProjectsData'
+import { useCreateProject } from '../../hooks/useProjectsData'
+import { useAuth } from '../../hooks/useAuth'
+import { useWorkspace } from '../../hooks/useWorkspace'
+import { useWorkspaceMembers } from '../../hooks/useWorkspacesData'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -19,7 +23,9 @@ interface CreateProjectModalProps {
 }
 
 export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalProps) {
-  const { data: members = [] } = useMembers()
+  const { currentUser } = useAuth()
+  const { activeWorkspace } = useWorkspace()
+  const { data: workspaceMembers = [] } = useWorkspaceMembers(activeWorkspace?.id)
   const createProject = useCreateProject()
 
   const {
@@ -35,13 +41,22 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
       description: '',
       image: null,
       memberIds: [],
+      visibility: 'private',
       startDate: new Date().toISOString(),
       dueDate: new Date(Date.now() + 14 * 86_400_000).toISOString(),
     },
   })
 
+  useEffect(() => {
+    if (activeWorkspace) setValue('workspaceId', activeWorkspace.id)
+  }, [activeWorkspace, setValue])
+
   const selectedImage = watch('image')
   const selectedMemberIds = watch('memberIds')
+  const visibility = watch('visibility')
+  // Everyone but yourself, since the creator is always added as the project
+  // owner automatically.
+  const otherMembers = workspaceMembers.filter((member) => member.userId !== currentUser?.uid)
 
   async function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -134,25 +149,59 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
             )}
           </div>
 
-          <div>
-            <Label>Members</Label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {members.map((member) => (
+          {otherMembers.length > 0 && (
+            <div>
+              <Label>Members</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {otherMembers.map((member) => (
+                  <button
+                    type="button"
+                    key={member.userId}
+                    onClick={() => toggleMember(member.userId)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      selectedMemberIds.includes(member.userId)
+                        ? 'border-primary bg-accent-50 text-primary'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {member.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!activeWorkspace?.isPersonal && (
+            <div>
+              <Label>Visibility</Label>
+              <div className="mt-2 flex gap-2">
                 <button
                   type="button"
-                  key={member.id}
-                  onClick={() => toggleMember(member.id)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                    selectedMemberIds.includes(member.id)
+                  onClick={() => setValue('visibility', 'private')}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-left text-xs font-medium transition ${
+                    visibility === 'private'
                       ? 'border-primary bg-accent-50 text-primary'
                       : 'border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  {member.name}
+                  Private
+                  <span className="mt-0.5 block font-normal text-slate-400">Only invited members can see it</span>
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setValue('visibility', 'workspace')}
+                  className={`flex-1 rounded-lg border px-3 py-2 text-left text-xs font-medium transition ${
+                    visibility === 'workspace'
+                      ? 'border-primary bg-accent-50 text-primary'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                  }`}
+                >
+                  Workspace
+                  <span className="mt-0.5 block font-normal text-slate-400">Anyone in the workspace can see it</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>

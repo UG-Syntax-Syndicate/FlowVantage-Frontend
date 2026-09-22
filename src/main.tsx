@@ -7,6 +7,7 @@ import { Toaster } from 'sonner'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './context/AuthProvider'
+import { WorkspaceProvider } from './context/WorkspaceProvider'
 import { SplashScreen } from './components/splash/SplashScreen'
 import { queryClient } from './lib/queryClient'
 
@@ -17,17 +18,19 @@ function Root() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
-          <App />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              classNames: {
-                toast: '!rounded-xl !border !border-slate-200 !bg-white !text-slate-900 !text-sm !shadow-lg',
-                description: '!text-slate-500',
-              },
-            }}
-          />
+          <WorkspaceProvider>
+            {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
+            <App />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                classNames: {
+                  toast: '!rounded-xl !border !border-slate-200 !bg-white !text-slate-900 !text-sm !shadow-lg',
+                  description: '!text-slate-500',
+                },
+              }}
+            />
+          </WorkspaceProvider>
         </AuthProvider>
       </BrowserRouter>
       {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}

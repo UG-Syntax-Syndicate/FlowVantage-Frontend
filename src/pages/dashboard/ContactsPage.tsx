@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ArrowUpDown, Upload } from 'lucide-react'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { ContactRow } from '../../components/contacts/ContactRow'
 import { ContactDetailModal } from '../../components/contacts/ContactDetailModal'
+import { ImportContactsModal } from '../../components/contacts/ImportContactsModal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,9 +13,12 @@ import {
 } from '../../components/ui/dropdown-menu'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../components/ui/table'
 import { Checkbox } from '../../components/ui/checkbox'
+import { Button } from '../../components/ui/button'
 import { TableRowsSkeleton } from '../../components/common/skeletons/TableRowsSkeleton'
-import { useContacts } from '../../hooks/useProjectsData'
+import { useContacts, useProjects } from '../../hooks/useProjectsData'
 import type { Contact } from '../../types/project'
+
+const ALL_PROJECTS = 'All projects'
 
 type SortField = 'company' | 'contactName' | 'email' | 'status'
 type SortDir = 'asc' | 'desc'
@@ -44,26 +48,31 @@ function buildPageList(current: number, total: number): (number | 'ellipsis')[] 
 
 export function ContactsPage() {
   const { data: contacts = [], isLoading } = useContacts()
+  const { data: projects = [] } = useProjects()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [nicheFilter, setNicheFilter] = useState<string>('All niches')
+  const [projectFilter, setProjectFilter] = useState<string>(ALL_PROJECTS)
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10)
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [viewingContactId, setViewingContactId] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const niches = useMemo(() => ['All niches', ...Array.from(new Set(contacts.map((c) => c.niche))).sort()], [contacts])
+  const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
 
   const filtered = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     return contacts.filter((c) => {
       if (nicheFilter !== 'All niches' && c.niche !== nicheFilter) return false
+      if (projectFilter !== ALL_PROJECTS && c.projectId !== projectFilter) return false
       if (!query) return true
       return `${c.company} ${c.contactName} ${c.email}`.toLowerCase().includes(query)
     })
-  }, [contacts, nicheFilter, searchQuery])
+  }, [contacts, nicheFilter, projectFilter, searchQuery])
 
   const sorted = useMemo(() => {
     if (!sortField) return filtered
@@ -123,25 +132,55 @@ export function ContactsPage() {
         searchPlaceholder="Search for a contact..."
         searchValue={searchQuery}
         onSearchChange={(value) => updateFilters(() => setSearchQuery(value))}
+        actions={
+          <Button type="button" size="sm" onClick={() => setImporting(true)}>
+            <Upload size={14} strokeWidth={2} />
+            Import Contacts
+          </Button>
+        }
       />
 
       <div className="rounded-2xl border border-line bg-white shadow-[0px_10px_40px_10px_rgba(152,150,163,0.16)]">
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 text-base font-semibold text-slate-900 outline-none">
-              {nicheFilter}
-              <ChevronDown size={16} strokeWidth={2} className="text-slate-400" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
-              <DropdownMenuRadioGroup value={nicheFilter} onValueChange={(value) => updateFilters(() => setNicheFilter(value))}>
-                {niches.map((niche) => (
-                  <DropdownMenuRadioItem key={niche} value={niche} className="px-2 py-1.5">
-                    {niche}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+          <div className="flex items-center gap-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1.5 text-base font-semibold text-slate-900 outline-none">
+                {nicheFilter}
+                <ChevronDown size={16} strokeWidth={2} className="text-slate-400" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuRadioGroup value={nicheFilter} onValueChange={(value) => updateFilters(() => setNicheFilter(value))}>
+                  {niches.map((niche) => (
+                    <DropdownMenuRadioItem key={niche} value={niche} className="px-2 py-1.5">
+                      {niche}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1.5 text-sm font-medium text-slate-500 outline-none hover:text-slate-700">
+                {projectFilter === ALL_PROJECTS ? ALL_PROJECTS : projectNameById.get(projectFilter) ?? ALL_PROJECTS}
+                <ChevronDown size={14} strokeWidth={2} className="text-slate-400" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuRadioGroup
+                  value={projectFilter}
+                  onValueChange={(value) => updateFilters(() => setProjectFilter(value))}
+                >
+                  <DropdownMenuRadioItem value={ALL_PROJECTS} className="px-2 py-1.5">
+                    {ALL_PROJECTS}
                   </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  {projects.map((project) => (
+                    <DropdownMenuRadioItem key={project.id} value={project.id} className="px-2 py-1.5">
+                      {project.name}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <span className="text-xs text-slate-400">{sorted.length} contacts</span>
         </div>
 
@@ -248,6 +287,7 @@ export function ContactsPage() {
       </div>
 
       {viewingContact && <ContactDetailModal contact={viewingContact} onClose={() => setViewingContactId(null)} />}
+      {importing && <ImportContactsModal onClose={() => setImporting(false)} />}
     </div>
   )
 }

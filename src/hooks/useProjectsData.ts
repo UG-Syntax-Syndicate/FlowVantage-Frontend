@@ -1,13 +1,15 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../lib/queryClient'
 import * as projectsApi from '../api/projectsApi'
-import { subscribeToProjectsChanged } from '../api/mockRealtimeBus'
+import * as aiApi from '../api/aiApi'
 import { useAuth } from './useAuth'
+import { useWorkspace } from './useWorkspace'
 import { logRecordChange } from '../lib/auditLog'
 import type { RecordChangeAction } from '../types/audit'
 import type {
   ComposeEmailInput,
+  ContactInput,
   CreateFolderInput,
   CreateProjectInput,
   CreateTaskInput,
@@ -17,21 +19,6 @@ import type {
   TaskStatus,
   UploadDocumentInput,
 } from '../types/project'
-
-/**
- * Chat (still mock-backed) needs its own subscription because the assistant's
- * reply lands via a second emitProjectsChanged() call a moment after the
- * user's message is sent (projectsApi.sendChatMessage), with no other
- * invalidation path for that delayed second message.
- */
-function useChatRealtimeInvalidation() {
-  const queryClient = useQueryClient()
-  useEffect(() => {
-    return subscribeToProjectsChanged(() => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.chatMessages })
-    })
-  }, [queryClient])
-}
 
 /**
  * Returns a fire-and-forget audit recorder bound to the current user, for the
@@ -84,10 +71,59 @@ export function useMembers() {
 
 export function useContacts() {
   const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
   return useQuery({
-    queryKey: queryKeys.contacts,
-    queryFn: projectsApi.fetchContacts,
-    enabled: Boolean(backendSessionToken),
+    queryKey: [...queryKeys.contacts, activeWorkspaceId],
+    queryFn: () => projectsApi.fetchContacts(activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
+  })
+}
+
+export function useCreateContact() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (input: ContactInput) => projectsApi.createContact(input),
+    onSuccess: (contact) => {
+      recordAudit('create', 'contact', contact.id, { name: contact.contactName })
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
+  })
+}
+
+export function useUpdateContact() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: ({ contactId, input }: { contactId: string; input: ContactInput }) =>
+      projectsApi.updateContact(contactId, input),
+    onSuccess: (_data, { contactId }) => {
+      recordAudit('update', 'contact', contactId)
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
+  })
+}
+
+export function useDeleteContact() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (contactId: string) => projectsApi.deleteContact(contactId),
+    onSuccess: (_data, contactId) => {
+      recordAudit('delete', 'contact', contactId)
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
+  })
+}
+
+export function useBulkImportContacts() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ workspaceId, contacts }: { workspaceId: string | undefined; contacts: ContactInput[] }) =>
+      projectsApi.bulkImportContacts(workspaceId, contacts),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
   })
 }
 
@@ -187,7 +223,12 @@ export function useMeetings() {
 }
 
 export function useEmails() {
-  return useQuery({ queryKey: queryKeys.emails, queryFn: projectsApi.fetchEmails })
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.emails,
+    queryFn: projectsApi.fetchEmails,
+    enabled: Boolean(backendSessionToken),
+  })
 }
 
 export function useToggleEmailStar() {
@@ -428,14 +469,19 @@ export function useDeleteDocument() {
 }
 
 export function useChatMessages() {
-  useChatRealtimeInvalidation()
-  return useQuery({ queryKey: queryKeys.chatMessages, queryFn: projectsApi.fetchChatMessages })
+  return useQuery({ queryKey: queryKeys.chatMessages, queryFn: aiApi.fetchChatMessages })
 }
 
 export function useSendChatMessage() {
   const queryClient = useQueryClient()
+  const { activeWorkspaceId } = useWorkspace()
   return useMutation({
-    mutationFn: (content: string) => projectsApi.sendChatMessage(content),
+    mutationFn: ({ content, provider }: { content: string; provider: aiApi.AiProvider }) => {
+      if (!activeWorkspaceId) {
+        throw new Error('No active workspace')
+      }
+      return aiApi.sendChatMessage(content, { provider, workspaceId: activeWorkspaceId })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.chatMessages })
     },

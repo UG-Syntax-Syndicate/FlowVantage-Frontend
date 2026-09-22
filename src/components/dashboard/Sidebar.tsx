@@ -4,6 +4,7 @@ import { NAV_ITEMS } from './navItems'
 import { useAuth } from '../../hooks/useAuth'
 import { useProjects } from '../../hooks/useProjectsData'
 import { UserMenu } from './UserMenu'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { Avatar } from '../common/Avatar'
 import { getUserAvatarUrl } from '../../lib/avatars'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../animate-ui/components/animate/tooltip'
@@ -35,8 +36,17 @@ export function Sidebar() {
     <SidebarRoot collapsible="offcanvas" className="border-none bg-navy text-white [&_[data-slot=sidebar-inner]]:bg-navy">
       <SidebarHeader className="px-8 pt-8 pb-2">
         <div className="flex items-center gap-2.5">
-          <img src="/flow-vantage-logo2.png" alt="" className="h-9 w-9 rounded-full" />
+          <img
+            src="/flow-vantage-logo2.png"
+            alt=""
+            width={36}
+            height={36}
+            className="h-9 w-9 shrink-0 rounded-full"
+          />
           <p className="text-2xl font-medium text-white">flowvantage</p>
+        </div>
+        <div className="mt-4">
+          <WorkspaceSwitcher />
         </div>
       </SidebarHeader>
 

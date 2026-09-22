@@ -35,10 +35,10 @@ const NotesPage = lazy(() => import('./pages/dashboard/NotesPage').then((m) => (
 const GlobalSearchPage = lazy(() =>
   import('./pages/dashboard/GlobalSearchPage').then((m) => ({ default: m.GlobalSearchPage })),
 )
-// EmailPage and AiAssistantPage stay in the tree (working, mock-backed UI)
-// but are deliberately unreferenced here - both routes render ComingSoonPage
-// instead, since neither has a real backend yet. See navItems.ts/Sidebar.tsx
-// for the matching locked nav-item treatment.
+const EmailPage = lazy(() => import('./pages/dashboard/EmailPage').then((m) => ({ default: m.EmailPage })))
+const AiAssistantPage = lazy(() =>
+  import('./pages/dashboard/AiAssistantPage').then((m) => ({ default: m.AiAssistantPage })),
+)
 const AccountSettingsPage = lazy(() =>
   import('./pages/dashboard/AccountSettingsPage').then((m) => ({ default: m.AccountSettingsPage })),
 )
@@ -47,6 +47,15 @@ const AccountTab = lazy(() =>
 )
 const NotificationsTab = lazy(() =>
   import('./pages/dashboard/account/NotificationsTab').then((m) => ({ default: m.NotificationsTab })),
+)
+const WorkspaceGeneralTab = lazy(() =>
+  import('./pages/dashboard/account/WorkspaceGeneralTab').then((m) => ({ default: m.WorkspaceGeneralTab })),
+)
+const WorkspaceMembersTab = lazy(() =>
+  import('./pages/dashboard/account/WorkspaceMembersTab').then((m) => ({ default: m.WorkspaceMembersTab })),
+)
+const InviteAcceptPage = lazy(() =>
+  import('./pages/InviteAcceptPage').then((m) => ({ default: m.InviteAcceptPage })),
 )
 const ComingSoonPage = lazy(() =>
   import('./components/dashboard/ComingSoonPage').then((m) => ({ default: m.ComingSoonPage })),
@@ -86,6 +95,14 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/setup-two-factor" element={<SetupTwoFactorPage />} />
+        <Route
+          path="/invite/:token"
+          element={
+            <Suspense fallback={<RouteFallback />}>
+              <InviteAcceptPage />
+            </Suspense>
+          }
+        />
       </Route>
 
       <Route element={<ProtectedRoute />}>
@@ -150,7 +167,7 @@ function App() {
             path="email"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <ComingSoonPage title="Email" description="A unified inbox for project and client email. Coming soon." />
+                <EmailPage />
               </Suspense>
             }
           />
@@ -174,10 +191,7 @@ function App() {
             path="ai-assistant"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <ComingSoonPage
-                  title="AI Assistant"
-                  description="AI-assisted project organization and summaries. Coming soon."
-                />
+                <AiAssistantPage />
               </Suspense>
             }
           />
@@ -247,10 +261,7 @@ function App() {
               path="workspace/general"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <ComingSoonPage
-                    title="Workspace general settings"
-                    description="Manage your workspace name, logo, and defaults. Coming soon."
-                  />
+                  <WorkspaceGeneralTab />
                 </Suspense>
               }
             />
@@ -258,10 +269,7 @@ function App() {
               path="workspace/members"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <ComingSoonPage
-                    title="Members"
-                    description="Invite teammates and manage workspace roles. Coming soon."
-                  />
+                  <WorkspaceMembersTab />
                 </Suspense>
               }
             />

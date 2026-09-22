@@ -33,8 +33,8 @@ export function PageHeaderBar({
         {subtitle && <p className="truncate text-xs text-slate-400">{subtitle}</p>}
       </div>
 
-      <div className="flex items-center gap-3">
-        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm text-slate-500 transition focus-within:bg-slate-200/70 sm:min-w-[160px] sm:max-w-xs">
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex min-w-0 basis-full items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm text-slate-500 transition focus-within:bg-slate-200/70 sm:min-w-[160px] sm:max-w-xs sm:flex-1 sm:basis-auto">
           <Search size={16} strokeWidth={1.9} className="shrink-0 text-slate-400" />
           <input
             type="search"

@@ -37,8 +37,9 @@ async function request<T>(
   path: string,
   body: unknown,
   sessionToken?: string,
+  timeoutMs: number = BACKEND_TIMEOUT_MS,
 ): Promise<T> {
-  const { signal, cancel } = withTimeout(BACKEND_TIMEOUT_MS)
+  const { signal, cancel } = withTimeout(timeoutMs)
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method,
@@ -84,6 +85,21 @@ export async function deleteJson<T>(path: string, sessionToken: string): Promise
 /** Authenticated POST - sessionToken is required since every non-auth endpoint needs one. */
 export async function postJsonAuthed<T>(path: string, body: unknown, sessionToken: string): Promise<T> {
   return request<T>('POST', path, body, sessionToken)
+}
+
+/**
+ * Authenticated POST with a longer, caller-specified timeout. The default
+ * 5s BACKEND_TIMEOUT_MS is too short for an LLM completion, so AI endpoints
+ * (src/api/aiApi.ts) use this instead of postJsonAuthed rather than raising
+ * the global default for every other endpoint.
+ */
+export async function postJsonAuthedWithTimeout<T>(
+  path: string,
+  body: unknown,
+  sessionToken: string,
+  timeoutMs: number,
+): Promise<T> {
+  return request<T>('POST', path, body, sessionToken, timeoutMs)
 }
 
 function toSessionResult(payload: BackendSessionPayload): BackendSessionResult {

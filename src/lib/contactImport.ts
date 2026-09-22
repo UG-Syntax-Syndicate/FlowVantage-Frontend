@@ -172,7 +172,7 @@ const ALIAS_CANDIDATES: Record<Exclude<MappableField, 'firstName' | 'lastName'> 
     'mobiel',
     'mobiele',
   ],
-  company: ['company', 'bedrijf', 'van'],
+  company: ['company', 'organization', 'organisation', 'bedrijf', 'van'],
   role: ['job title', 'title', 'functie', 'role'],
   notes: ['notes', 'note', 'opmerkingen', 'comments', 'comment', 'remarks'],
 }

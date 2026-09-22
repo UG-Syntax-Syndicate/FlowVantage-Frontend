@@ -280,6 +280,9 @@ export function ProjectDetailPage() {
               members={projectMembers}
               tasks={projectTasks}
               expandSignal={taskExpandSignal}
+              projectName={project.name}
+              projectColor={project.color}
+              projectDueDate={project.dueDate}
             />
           </div>
         </div>

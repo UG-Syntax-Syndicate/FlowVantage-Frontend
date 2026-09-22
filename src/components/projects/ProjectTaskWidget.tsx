@@ -9,6 +9,8 @@ import { CalendarView } from './CalendarView'
 import { CreateTaskModal } from './CreateTaskModal'
 import type { EnrichedTask } from '../../hooks/useEnrichedTasks'
 import type { Member } from '../../types/project'
+import { TASK_STATUS_META } from '../../types/statusMeta'
+import { formatShortDate } from '../../lib/formatDate'
 import { EASE_PREMIUM } from '../../lib/motion'
 
 interface ProjectTaskWidgetProps {
@@ -17,11 +19,23 @@ interface ProjectTaskWidgetProps {
   tasks: EnrichedTask[]
   /** Bump this (e.g. with a counter) to force the widget open from outside, such as a sidebar "View all". */
   expandSignal?: number
+  /** This project's own name/color/due date, shown as a deadline marker on the calendar view. */
+  projectName?: string
+  projectColor?: string
+  projectDueDate?: string
 }
 
 const COMPACT_HEIGHT = 'h-[380px]'
 
-export function ProjectTaskWidget({ projectId, members, tasks, expandSignal }: ProjectTaskWidgetProps) {
+export function ProjectTaskWidget({
+  projectId,
+  members,
+  tasks,
+  expandSignal,
+  projectName,
+  projectColor,
+  projectDueDate,
+}: ProjectTaskWidgetProps) {
   const [viewMode, setViewMode] = useState<ProjectViewMode>('list')
   const [isExpanded, setExpanded] = useState(false)
   const [addTaskOpen, setAddTaskOpen] = useState(false)
@@ -48,7 +62,30 @@ export function ProjectTaskWidget({ projectId, members, tasks, expandSignal }: P
       <GanttView tasks={tasks} />
     ) : (
       <CalendarView
-        events={tasks.map((t) => ({ id: t.id, title: t.title, date: t.dueDate, color: t.projectColor }))}
+        events={[
+          ...tasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            date: t.dueDate,
+            color: t.projectColor,
+            tooltipDetails: [
+              `Due ${formatShortDate(t.dueDate)}`,
+              TASK_STATUS_META[t.status].label,
+              ...(t.assignees.length ? [t.assignees.map((a) => a.name).join(', ')] : []),
+            ],
+          })),
+          ...(projectDueDate
+            ? [
+                {
+                  id: `deadline-${projectId}`,
+                  title: projectName ?? 'Project deadline',
+                  date: projectDueDate,
+                  color: projectColor ?? '#ef4444',
+                  variant: 'deadline' as const,
+                },
+              ]
+            : []),
+        ]}
       />
     )
 

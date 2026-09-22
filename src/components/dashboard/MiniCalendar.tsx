@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { Task } from '../../types/project'
+import type { Project, Task } from '../../types/project'
 import { Card } from '../ui/card'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../animate-ui/components/animate/tooltip'
 
 interface MiniCalendarProps {
   tasks: Task[]
+  projects: Project[]
 }
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -13,7 +15,7 @@ function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
-export function MiniCalendar({ tasks }: MiniCalendarProps) {
+export function MiniCalendar({ tasks, projects }: MiniCalendarProps) {
   const [cursor, setCursor] = useState(() => new Date())
   const today = new Date()
 
@@ -54,31 +56,61 @@ export function MiniCalendar({ tasks }: MiniCalendarProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-y-1.5 text-center text-[11px] text-slate-400">
-        {WEEKDAY_LABELS.map((label, i) => (
-          <div key={i}>{label}</div>
-        ))}
-        {cells.map((date, i) => {
-          const hasTask = date ? tasks.some((t) => isSameDay(new Date(t.dueDate), date)) : false
-          const isToday = date ? isSameDay(date, today) : false
-          return (
-            <div key={i} className="flex flex-col items-center gap-0.5 py-0.5">
-              {date && (
-                <>
-                  <span
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                      isToday ? 'bg-primary font-semibold text-white' : 'text-slate-600'
-                    }`}
-                  >
-                    {date.getDate()}
-                  </span>
-                  <span className={`h-1 w-1 rounded-full ${hasTask ? 'bg-primary' : 'bg-transparent'}`} />
-                </>
-              )}
-            </div>
-          )
-        })}
-      </div>
+      <TooltipProvider openDelay={150}>
+        <div className="grid grid-cols-7 gap-y-1.5 text-center text-[11px] text-slate-400">
+          {WEEKDAY_LABELS.map((label, i) => (
+            <div key={i}>{label}</div>
+          ))}
+          {cells.map((date, i) => {
+            const dayTasks = date ? tasks.filter((t) => isSameDay(new Date(t.dueDate), date)) : []
+            const dayDeadlineProjects = date ? projects.filter((p) => isSameDay(new Date(p.dueDate), date)) : []
+            const isToday = date ? isSameDay(date, today) : false
+            const hasMarkers = dayTasks.length > 0 || dayDeadlineProjects.length > 0
+
+            const dayContent = date && (
+              <>
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                    isToday ? 'bg-primary font-semibold text-white' : 'text-slate-600'
+                  }`}
+                >
+                  {date.getDate()}
+                </span>
+                <div className="flex items-center gap-0.5">
+                  <span className={`h-1 w-1 rounded-full ${dayTasks.length > 0 ? 'bg-primary' : 'bg-transparent'}`} />
+                  <span className={`h-1 w-1 rounded-full ${dayDeadlineProjects.length > 0 ? 'bg-red-500' : 'bg-transparent'}`} />
+                </div>
+              </>
+            )
+
+            return (
+              <div key={i} className="flex flex-col items-center gap-0.5 py-0.5">
+                {date && hasMarkers ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex flex-col items-center gap-0.5">{dayContent}</div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        {dayTasks.map((task) => (
+                          <p key={task.id}>{task.title}</p>
+                        ))}
+                        {dayDeadlineProjects.map((project) => (
+                          <p key={project.id} className="font-semibold">
+                            Deadline: {project.name}
+                          </p>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  dayContent
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </TooltipProvider>
     </Card>
   )
 }

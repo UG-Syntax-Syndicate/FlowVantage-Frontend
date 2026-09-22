@@ -237,7 +237,7 @@ export function DashboardHome() {
           </Reveal>
 
           <Reveal delay={0.15}>
-            <MiniCalendar tasks={tasks} />
+            <MiniCalendar tasks={tasks} projects={projects} />
           </Reveal>
 
           <Reveal delay={0.2}>

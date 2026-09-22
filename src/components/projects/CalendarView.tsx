@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../animate-ui/components/animate/tooltip'
 
 export interface CalendarEvent {
   id: string
@@ -7,6 +8,10 @@ export interface CalendarEvent {
   date: string
   color: string
   onClick?: () => void
+  /** 'deadline' renders as a slim red marker instead of a filled chip, so a project's due date reads as visually distinct from a task. Defaults to a normal chip. */
+  variant?: 'task' | 'deadline'
+  /** Extra lines shown in the hover tooltip (e.g. project name, status, assignee names). */
+  tooltipDetails?: string[]
 }
 
 interface CalendarViewProps {
@@ -76,45 +81,72 @@ export function CalendarView({ events }: CalendarViewProps) {
         ))}
       </div>
 
-      <div className="grid flex-1 grid-cols-7 grid-rows-6 overflow-y-auto">
-        {cells.map((date, i) => {
-          const dayEvents = date ? events.filter((event) => isSameDay(new Date(event.date), date)) : []
-          return (
-            <div
-              key={i}
-              className={`flex min-h-[92px] flex-col gap-1 border-r border-b border-line/70 p-1.5 last:border-r-0 ${
-                date ? '' : 'bg-slate-50/40'
-              }`}
-            >
-              {date && (
-                <span
-                  className={`self-start rounded-full px-1.5 text-xs ${
-                    isSameDay(date, today) ? 'bg-primary font-semibold text-white' : 'text-slate-500'
-                  }`}
-                >
-                  {date.getDate()}
-                </span>
-              )}
-              <div className="flex flex-col gap-1">
-                {dayEvents.slice(0, 3).map((event) => (
-                  <div
-                    key={event.id}
-                    title={event.title}
-                    onClick={event.onClick}
-                    className={`truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium text-white ${event.onClick ? 'cursor-pointer hover:brightness-95' : ''}`}
-                    style={{ backgroundColor: event.color }}
-                  >
-                    {event.title}
-                  </div>
-                ))}
-                {dayEvents.length > 3 && (
-                  <span className="px-1.5 text-[11px] text-slate-400">+{dayEvents.length - 3} more</span>
+      <TooltipProvider openDelay={150}>
+        <div className="grid flex-1 grid-cols-7 grid-rows-6 overflow-y-auto">
+          {cells.map((date, i) => {
+            const dayEvents = date ? events.filter((event) => isSameDay(new Date(event.date), date)) : []
+            const deadlineEvents = dayEvents.filter((event) => event.variant === 'deadline')
+            const taskEvents = dayEvents.filter((event) => event.variant !== 'deadline')
+            return (
+              <div
+                key={i}
+                className={`relative flex min-h-[92px] flex-col gap-1 border-r border-b border-line/70 p-1.5 last:border-r-0 ${
+                  date ? '' : 'bg-slate-50/40'
+                }`}
+              >
+                {deadlineEvents.length > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="absolute inset-y-0 left-0 w-1 rounded-r bg-red-500" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        <p className="font-semibold">Deadline</p>
+                        {deadlineEvents.map((event) => (
+                          <p key={event.id}>{event.title}</p>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
                 )}
+                {date && (
+                  <span
+                    className={`self-start rounded-full px-1.5 text-xs ${
+                      isSameDay(date, today) ? 'bg-primary font-semibold text-white' : 'text-slate-500'
+                    }`}
+                  >
+                    {date.getDate()}
+                  </span>
+                )}
+                <div className="flex flex-col gap-1">
+                  {taskEvents.slice(0, 3).map((event) => (
+                    <Tooltip key={event.id}>
+                      <TooltipTrigger asChild>
+                        <div
+                          onClick={event.onClick}
+                          className={`truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium text-white ${event.onClick ? 'cursor-pointer hover:brightness-95' : ''}`}
+                          style={{ backgroundColor: event.color }}
+                        >
+                          {event.title}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <div className="flex flex-col gap-0.5 text-xs">
+                          <p className="font-semibold">{event.title}</p>
+                          {event.tooltipDetails?.map((line, idx) => <p key={idx}>{line}</p>)}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                  {taskEvents.length > 3 && (
+                    <span className="px-1.5 text-[11px] text-slate-400">+{taskEvents.length - 3} more</span>
+                  )}
+                </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      </TooltipProvider>
     </div>
   )
 }

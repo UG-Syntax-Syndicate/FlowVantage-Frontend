@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ArrowUpDown, Upload } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ArrowUpDown, Upload, UserPlus } from 'lucide-react'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { ContactRow } from '../../components/contacts/ContactRow'
 import { ContactDetailModal } from '../../components/contacts/ContactDetailModal'
 import { ImportContactsModal } from '../../components/contacts/ImportContactsModal'
+import { AddContactModal } from '../../components/contacts/AddContactModal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,6 +62,7 @@ export function ContactsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [viewingContactId, setViewingContactId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
+  const [adding, setAdding] = useState(false)
 
   const niches = useMemo(() => ['All niches', ...Array.from(new Set(contacts.map((c) => c.niche))).sort()], [contacts])
   const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
@@ -134,10 +136,16 @@ export function ContactsPage() {
         searchValue={searchQuery}
         onSearchChange={(value) => updateFilters(() => setSearchQuery(value))}
         actions={
-          <Button type="button" size="sm" onClick={() => setImporting(true)}>
-            <Upload size={14} strokeWidth={2} />
-            Import Contacts
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => setAdding(true)}>
+              <UserPlus size={14} strokeWidth={2} />
+              Add Contact
+            </Button>
+            <Button type="button" size="sm" onClick={() => setImporting(true)}>
+              <Upload size={14} strokeWidth={2} />
+              Import Contacts
+            </Button>
+          </div>
         }
       />
 
@@ -289,6 +297,7 @@ export function ContactsPage() {
 
       {viewingContact && <ContactDetailModal contact={viewingContact} onClose={() => setViewingContactId(null)} />}
       {importing && <ImportContactsModal onClose={() => setImporting(false)} />}
+      {adding && <AddContactModal onClose={() => setAdding(false)} />}
     </div>
   )
 }

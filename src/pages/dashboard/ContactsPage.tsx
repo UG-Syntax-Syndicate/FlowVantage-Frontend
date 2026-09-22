@@ -23,7 +23,7 @@ const ALL_PROJECTS = 'All projects'
 type SortField = 'company' | 'contactName' | 'phone' | 'email' | 'status'
 type SortDir = 'asc' | 'desc'
 
-const PAGE_SIZE_OPTIONS = [8, 10, 12] as const
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
 
 const COLUMNS: { key: SortField; label: string }[] = [
   { key: 'company', label: 'Company' },

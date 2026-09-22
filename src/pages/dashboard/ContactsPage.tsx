@@ -20,14 +20,15 @@ import type { Contact } from '../../types/project'
 
 const ALL_PROJECTS = 'All projects'
 
-type SortField = 'company' | 'contactName' | 'email' | 'status'
+type SortField = 'company' | 'contactName' | 'phone' | 'email' | 'status'
 type SortDir = 'asc' | 'desc'
 
 const PAGE_SIZE_OPTIONS = [8, 10, 12] as const
 
 const COLUMNS: { key: SortField; label: string }[] = [
   { key: 'company', label: 'Company' },
-  { key: 'contactName', label: 'Contact' },
+  { key: 'contactName', label: 'Name' },
+  { key: 'phone', label: 'Phone' },
   { key: 'email', label: 'Email' },
   { key: 'status', label: 'Status' },
 ]
@@ -210,7 +211,7 @@ export function ContactsPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRowsSkeleton rows={8} columns={8} />
+                <TableRowsSkeleton rows={8} columns={9} />
               ) : (
                 pageItems.map((contact) => (
                   <ContactRow

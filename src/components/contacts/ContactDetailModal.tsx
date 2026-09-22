@@ -45,6 +45,10 @@ export function ContactDetailModal({ contact, onClose }: ContactDetailModalProps
             </a>
           </div>
           <div className="flex items-center justify-between">
+            <span className="text-slate-400">Phone</span>
+            <span className="font-medium text-slate-700">{contact.phone || '—'}</span>
+          </div>
+          <div className="flex items-center justify-between">
             <span className="text-slate-400">Company</span>
             <span className="font-medium text-slate-700">{contact.company}</span>
           </div>

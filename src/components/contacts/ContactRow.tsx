@@ -32,6 +32,7 @@ export function ContactRow({ contact, selected, onToggleSelect, onView }: Contac
           </div>
         </div>
       </TableCell>
+      <TableCell className="text-slate-500">{contact.phone}</TableCell>
       <TableCell className="text-slate-500">{contact.email}</TableCell>
       <TableCell>
         <span

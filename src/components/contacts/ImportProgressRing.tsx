@@ -1,3 +1,5 @@
+import { motion } from 'motion/react'
+
 interface ImportProgressRingProps {
   /** 0-100 */
   progress: number
@@ -29,7 +31,13 @@ export function ImportProgressRing({ progress }: ImportProgressRingProps) {
           className="stroke-primary transition-[stroke-dashoffset] duration-300 ease-out"
         />
       </svg>
-      <img src="/flow-vantage-logo.png" alt="FlowVantage" className="absolute h-10 w-10 drop-shadow-sm" />
+      <motion.img
+        src="/flow-vantage-logo.png"
+        alt="FlowVantage"
+        className="absolute h-10 w-10 drop-shadow-sm"
+        animate={{ scale: [1, 1.08, 1] }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+      />
     </div>
   )
 }

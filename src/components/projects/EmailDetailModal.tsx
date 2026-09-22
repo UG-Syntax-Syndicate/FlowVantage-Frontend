@@ -1,7 +1,7 @@
 import { Star, X } from 'lucide-react'
 import type { Email } from '../../types/project'
 import { formatDateTime } from '../../lib/formatDate'
-import { getPersonPhoto } from '../../lib/avatars'
+import { pickAvatar } from '../../lib/avatars'
 import { Avatar } from '../common/Avatar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 
@@ -19,7 +19,7 @@ export function EmailDetailModal({ email, projectName, onClose, onToggleStar }: 
         <DialogHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <Avatar photoURL={getPersonPhoto(email.senderName)} name={email.senderName} size={40} bgColor={email.senderColor} />
+              <Avatar photoURL={pickAvatar(email.senderName)} name={email.senderName} size={40} bgColor={email.senderColor} />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-900">{email.senderName}</p>
                 <p className="text-xs text-slate-400">{formatDateTime(email.receivedAt)}</p>

@@ -4,7 +4,7 @@ import { Mail, Star } from 'lucide-react'
 import { useEmails, useProjects, useToggleEmailStar } from '../../hooks/useProjectsData'
 import { EmailDetailModal } from './EmailDetailModal'
 import { formatInboxTimestamp } from '../../lib/formatDate'
-import { getPersonPhoto } from '../../lib/avatars'
+import { pickAvatar } from '../../lib/avatars'
 import { Avatar } from '../common/Avatar'
 import { Card } from '../ui/card'
 import type { Email } from '../../types/project'
@@ -51,7 +51,7 @@ export function EmailsPanel({ projectId }: EmailsPanelProps) {
               }}
               className="flex cursor-pointer items-start gap-2.5 rounded-xl p-2 hover:bg-slate-50/70"
             >
-              <Avatar photoURL={getPersonPhoto(email.senderName)} name={email.senderName} size={32} bgColor={email.senderColor} />
+              <Avatar photoURL={pickAvatar(email.senderName)} name={email.senderName} size={32} bgColor={email.senderColor} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <p className={`truncate text-sm ${email.read ? 'font-medium text-slate-700' : 'font-semibold text-slate-900'}`}>

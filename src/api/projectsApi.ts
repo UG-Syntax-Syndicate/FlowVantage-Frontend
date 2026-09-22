@@ -1,4 +1,4 @@
-import { getJson, patchJson, deleteJson, postJsonAuthed, fetchBackendMe } from '../lib/backendApi'
+import { getJson, patchJson, deleteJson, postJsonAuthed, postJsonAuthedWithTimeout, fetchBackendMe } from '../lib/backendApi'
 import { readBackendSessionToken } from '../lib/backendSession'
 import { pickAvatar } from '../lib/avatars'
 import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE } from '../lib/constants'
@@ -338,7 +338,13 @@ export async function bulkImportContacts(
   workspaceId: string | undefined,
   contacts: ContactInput[],
 ): Promise<BulkImportContactsResult> {
-  const { data } = await postJsonAuthed<ApiEnvelope<{
+  // The backend inserts rows sequentially (several DB round trips each), so
+  // the default 5s request timeout routinely aborts a real batch before the
+  // backend finishes - the contacts still get created, but the frontend
+  // never sees the response and shows a false "Import failed". Scale the
+  // timeout with batch size instead.
+  const importTimeoutMs = Math.min(60000, 15000 + contacts.length * 400)
+  const { data } = await postJsonAuthedWithTimeout<ApiEnvelope<{
     created: ContactRow[]
     createdCount: number
     duplicateCount: number
@@ -347,6 +353,7 @@ export async function bulkImportContacts(
     '/contacts/bulk-import',
     { workspace_id: workspaceId, contacts: contacts.map(contactInputBody) },
     authToken(),
+    importTimeoutMs,
   )
   emitProjectsChanged()
   return {
@@ -355,6 +362,37 @@ export async function bulkImportContacts(
     duplicateCount: data.duplicateCount,
     failedCount: data.failedCount,
   }
+}
+
+const IMPORT_CHUNK_SIZE = 25
+
+/**
+ * Splits a large import into fixed-size chunks and sends them sequentially,
+ * reporting real progress after each one completes. This is what makes the
+ * import progress ring genuine rather than simulated, and independently
+ * hardens the timeout fix above further - no single request ever has to
+ * carry more than IMPORT_CHUNK_SIZE rows, so it stays fast regardless of
+ * how large the overall import is.
+ */
+export async function bulkImportContactsChunked(
+  workspaceId: string | undefined,
+  contacts: ContactInput[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<BulkImportContactsResult> {
+  const total = contacts.length
+  const aggregate: BulkImportContactsResult = { created: [], createdCount: 0, duplicateCount: 0, failedCount: 0 }
+
+  for (let i = 0; i < contacts.length; i += IMPORT_CHUNK_SIZE) {
+    const chunk = contacts.slice(i, i + IMPORT_CHUNK_SIZE)
+    const result = await bulkImportContacts(workspaceId, chunk)
+    aggregate.created.push(...result.created)
+    aggregate.createdCount += result.createdCount
+    aggregate.duplicateCount += result.duplicateCount
+    aggregate.failedCount += result.failedCount
+    onProgress?.(Math.min(i + chunk.length, total), total)
+  }
+
+  return aggregate
 }
 
 // ---------------------------------------------------------------------------

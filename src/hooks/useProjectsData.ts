@@ -119,8 +119,15 @@ export function useDeleteContact() {
 export function useBulkImportContacts() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ workspaceId, contacts }: { workspaceId: string | undefined; contacts: ContactInput[] }) =>
-      projectsApi.bulkImportContacts(workspaceId, contacts),
+    mutationFn: ({
+      workspaceId,
+      contacts,
+      onProgress,
+    }: {
+      workspaceId: string | undefined
+      contacts: ContactInput[]
+      onProgress?: (done: number, total: number) => void
+    }) => projectsApi.bulkImportContactsChunked(workspaceId, contacts, onProgress),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
     },

@@ -21,6 +21,7 @@ import { getStoredAiProvider, setStoredAiProvider, suggestCsvHeaderMapping, type
 import { useBulkImportContacts } from '../../hooks/useProjectsData'
 import { useProjects } from '../../hooks/useProjectsData'
 import { useWorkspace } from '../../hooks/useWorkspace'
+import { ImportProgressRing } from './ImportProgressRing'
 import type { ContactVisibility } from '../../types/project'
 
 interface ImportContactsModalProps {
@@ -45,6 +46,7 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
   const [projectId, setProjectId] = useState<string>('none')
   const [visibility, setVisibility] = useState<ContactVisibility>('private')
   const [result, setResult] = useState<{ created: number; duplicates: number; failed: number } | null>(null)
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
 
   function handleProviderChange(next: AiProvider) {
     setProvider(next)
@@ -113,6 +115,7 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
   async function handleImport() {
     if (selectedRows.length === 0) return
 
+    setProgress({ done: 0, total: selectedRows.length })
     try {
       const outcome = await bulkImport.mutateAsync({
         workspaceId: activeWorkspace?.id,
@@ -127,10 +130,17 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
           projectId: projectId === 'none' ? null : projectId,
           visibility,
         })),
+        onProgress: (done, total) => setProgress({ done, total }),
       })
       setResult({ created: outcome.createdCount, duplicates: outcome.duplicateCount, failed: outcome.failedCount })
-    } catch {
+    } catch (err) {
+      // Bare catches here made the last false "Import failed" report take a
+      // full investigation to diagnose - log the real cause so next time it's
+      // visible in the console immediately.
+      console.error('Contact import failed', err)
       showToast('error', 'Import failed - please try again')
+    } finally {
+      setProgress(null)
     }
   }
 
@@ -154,6 +164,14 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
             <Button type="button" onClick={onClose}>
               Done
             </Button>
+          </div>
+        ) : bulkImport.isPending ? (
+          <div className="flex flex-col items-center gap-3 py-8 text-center">
+            <ImportProgressRing progress={progress ? (progress.done / progress.total) * 100 : 0} />
+            <p className="text-sm font-medium text-slate-800">
+              Importing {progress?.done ?? 0} of {progress?.total ?? selectedRows.length} contacts…
+            </p>
+            <p className="text-xs text-slate-400">This can take a moment for larger imports.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -247,12 +265,7 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
                   <Button type="button" variant="ghost" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button
-                    type="button"
-                    onClick={handleImport}
-                    loading={bulkImport.isPending}
-                    disabled={bulkImport.isPending || selectedRows.length === 0}
-                  >
+                  <Button type="button" onClick={handleImport} disabled={selectedRows.length === 0}>
                     Import {selectedRows.length} contact{selectedRows.length === 1 ? '' : 's'}
                   </Button>
                 </div>

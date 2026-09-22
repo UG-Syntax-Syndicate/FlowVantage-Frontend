@@ -102,11 +102,20 @@ function normalizeHeader(header: string): string {
   return header.trim().toLowerCase()
 }
 
-/** First header (case-insensitive) matching any of `candidates`, or -1. */
+/**
+ * First header (case-insensitive) matching any of `candidates`, or -1.
+ * Tries an exact match first (e.g. "Notes"), then falls back to a substring
+ * match (e.g. "Additional Notes", "Notes:") so real-world export headers
+ * that aren't byte-identical to a candidate still get picked up.
+ */
 function findColumn(headers: string[], candidates: string[]): number {
   const normalized = headers.map(normalizeHeader)
   for (const candidate of candidates) {
     const index = normalized.indexOf(candidate)
+    if (index !== -1) return index
+  }
+  for (const candidate of candidates) {
+    const index = normalized.findIndex((header) => header.includes(candidate))
     if (index !== -1) return index
   }
   return -1
@@ -165,7 +174,7 @@ const ALIAS_CANDIDATES: Record<Exclude<MappableField, 'firstName' | 'lastName'> 
   ],
   company: ['company', 'bedrijf', 'van'],
   role: ['job title', 'title', 'functie', 'role'],
-  notes: ['notes', 'note', 'opmerkingen', 'comments', 'comment'],
+  notes: ['notes', 'note', 'opmerkingen', 'comments', 'comment', 'remarks'],
 }
 
 /** Splits a CSV's first line into raw headers and the parsed data rows, without resolving column mapping yet. */
@@ -184,11 +193,14 @@ export function readCsvHeadersAndRows(text: string): { headers: string[]; rows: 
  * keeps working even when the AI call fails or is skipped entirely.
  */
 function resolveColumnMapping(headers: string[], aiSuggestions?: HeaderMappingSuggestion[]) {
+  const normalizedHeaders = headers.map(normalizeHeader)
   const aiFieldToColumn = new Map<MappableField, number>()
   if (aiSuggestions) {
     for (const suggestion of aiSuggestions) {
       if (!suggestion.mappedField) continue
-      const index = headers.indexOf(suggestion.header)
+      // Normalized comparison, not a raw case-sensitive indexOf - the model
+      // can retrim/re-case a header when echoing it back in JSON.
+      const index = normalizedHeaders.indexOf(normalizeHeader(suggestion.header))
       if (index !== -1 && !aiFieldToColumn.has(suggestion.mappedField)) {
         aiFieldToColumn.set(suggestion.mappedField, index)
       }

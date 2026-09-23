@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { getRedirectResult, onAuthStateChanged, signOut, type User } from 'firebase/auth'
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore'
-import { auth, db } from '../lib/firebase'
-import { ensureUserProfileDoc } from '../lib/oauth'
+import { auth } from '../lib/firebase'
 import { logAuditEvent } from '../lib/auditLog'
-import { exchangeFirebaseSession, logoutBackendSession } from '../lib/backendApi'
+import { exchangeFirebaseSession, fetchBackendMe, logoutBackendSession, type BackendSessionUser } from '../lib/backendApi'
 import {
   clearBackendSessionToken,
   readBackendSessionToken,
@@ -16,8 +14,23 @@ import { isIdleExpired, markActivityNow } from '../lib/sessionExpiry'
 import { publishAuthEvent, subscribeAuthEvent } from '../lib/authBroadcast'
 import { AuthContext, type TwoFactorChallenge } from './AuthContext'
 import type { UserProfile } from '../types/user'
+import { DEFAULT_NOTIFICATION_PREFERENCES } from '../lib/constants'
 
 const VERIFICATION_POLL_MS = 5000
+
+/** Maps the backend's session-user shape (GET/PATCH /auth/me) to the app's UserProfile — replaces the old Firestore users/{uid} document shape. */
+function mapBackendUserToProfile(user: BackendSessionUser): UserProfile {
+  return {
+    id: user.uid,
+    name: user.name ?? '',
+    email: user.email,
+    role: (user.role as UserProfile['role']) ?? 'owner',
+    authProvider: (user.authProvider as UserProfile['authProvider']) ?? 'password',
+    photoURL: user.picture,
+    createdAt: null,
+    notificationPreferences: user.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES,
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)

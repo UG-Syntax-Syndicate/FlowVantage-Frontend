@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app'
 import { connectAuthEmulator, getAuth, GoogleAuthProvider, OAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -14,13 +13,14 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
-export const db = getFirestore(app)
 
+// Firebase is strictly an auth provider - profile data and audit logs live
+// in the FlowVantage-Backend (Neon/Postgres) instead, and images upload
+// straight to Cloudinary (see src/lib/cloudinaryUpload.ts). No Firestore, no
+// Storage.
+//
 // Local dev only: routes Auth calls to a local emulator (see `npm run
 // emulators`) so test sign-ups never touch the real Firebase project.
-// Firestore is deliberately NOT emulated - a signup still writes a real
-// users/{uid} doc and audit-log entries there. Storage isn't used at all
-// (images upload straight to Cloudinary - see src/lib/cloudinaryUpload.ts).
 if (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
   connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true })
 }

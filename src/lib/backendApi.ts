@@ -8,7 +8,14 @@ function withTimeout(ms: number): { signal: AbortSignal; cancel: () => void } {
   return { signal: controller.signal, cancel: () => clearTimeout(timeoutId) }
 }
 
-interface BackendSessionUser {
+export interface BackendNotificationPreferences {
+  emailOnAssignment: boolean
+  emailOnMention: boolean
+  weeklyDigest: boolean
+  productUpdates: boolean
+}
+
+export interface BackendSessionUser {
   uid: string
   email: string
   emailVerified: boolean
@@ -17,6 +24,7 @@ interface BackendSessionUser {
   role?: string
   authProvider?: string
   twoFactorEnabled?: boolean
+  notificationPreferences?: BackendNotificationPreferences
 }
 
 interface BackendSessionPayload {
@@ -158,6 +166,33 @@ export async function fetchBackendMe(sessionToken: string): Promise<BackendSessi
   } finally {
     cancel()
   }
+}
+
+/** Partial profile update - only the fields present get written. Replaces the old Firestore users/{uid} document writes. */
+export interface BackendProfileUpdate {
+  name?: string
+  avatarUrl?: string | null
+  notificationPreferences?: Partial<BackendNotificationPreferences>
+}
+
+export async function updateBackendProfile(
+  sessionToken: string,
+  updates: BackendProfileUpdate,
+): Promise<BackendSessionUser> {
+  const payload = await patchJson<{ user: BackendSessionUser }>('/auth/me', updates, sessionToken)
+  return payload.user
+}
+
+/**
+ * Records a client-originated audit event. Replaces the old Firestore
+ * write-only auditLogs collection - see src/lib/auditLog.ts, its one caller.
+ */
+export async function postAuditEvent(
+  sessionToken: string,
+  action: string,
+  metadata?: Record<string, unknown>,
+): Promise<void> {
+  await postJsonAuthed('/auth/audit', { action, metadata }, sessionToken)
 }
 
 export interface TwoFactorSetupSecret {

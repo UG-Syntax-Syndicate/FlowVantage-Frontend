@@ -8,7 +8,9 @@ import type {
   Contact,
   ContactInput,
   CreateFolderInput,
+  CreateMeetingInput,
   CreateProjectInput,
+  CreateTaskInput,
   Email,
   EmailFolder,
   Folder,
@@ -112,6 +114,7 @@ interface ProjectRow {
   id: string
   name: string
   description: string | null
+  client: string | null
   status: ProjectStatus
   start_date: string | null
   end_date: string | null
@@ -136,6 +139,7 @@ function mapProject(row: ProjectRow): Project {
     name: row.name,
     tagline: row.tagline || '',
     description: row.description || '',
+    client: row.client || '',
     status: row.status,
     color: row.color || PROJECT_COLOR_PALETTE[0],
     image: row.image,
@@ -424,12 +428,13 @@ export async function createProject(input: CreateProjectInput, existingColors: s
     {
       name: input.name,
       description: input.description,
+      client: input.client,
       tagline: input.description.length > 0 ? input.description.slice(0, 60) : 'A new project',
       status: 'planning',
       color: PROJECT_COLOR_PALETTE[paletteIndex % PROJECT_COLOR_PALETTE.length],
       coverGradient: GRADIENT_PALETTE[paletteIndex % GRADIENT_PALETTE.length],
       category: 'General',
-      priority: 'medium',
+      priority: input.priority ?? 'medium',
       image: input.image,
       memberIds: input.memberIds,
       workspaceId: input.workspaceId,
@@ -505,7 +510,9 @@ export async function updateTaskStatus(taskId: string, status: TaskStatus): Prom
   emitProjectsChanged()
 }
 
-export async function createTask(input: Omit<Task, 'id' | 'createdAt'>): Promise<Task> {
+export async function createTask(
+  input: CreateTaskInput & { projectId: string; status: TaskStatus },
+): Promise<Task> {
   const { data } = await postJsonAuthed<ApiEnvelope<TaskRow>>(
     '/tasks',
     {
@@ -515,7 +522,7 @@ export async function createTask(input: Omit<Task, 'id' | 'createdAt'>): Promise
       startDate: input.startDate,
       dueDate: input.dueDate,
       projectId: input.projectId,
-      assigneeId: input.assigneeIds[0],
+      assigneeId: input.assigneeId,
       tags: input.tags,
     },
     authToken(),
@@ -584,6 +591,23 @@ export async function toggleNotePinned(noteId: string): Promise<void> {
 export async function fetchMeetings(): Promise<Meeting[]> {
   const { events } = await getJson<{ success: boolean; events: CalendarEventRow[] }>('/calendar', authToken())
   return events.map(mapMeeting)
+}
+
+export async function createMeeting(input: CreateMeetingInput): Promise<Meeting> {
+  const { event } = await postJsonAuthed<{ success: boolean; event: CalendarEventRow; syncedToGoogle: boolean }>(
+    '/calendar',
+    {
+      title: input.title,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      location: input.location ?? undefined,
+      description: input.description,
+      projectId: input.projectId,
+    },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return mapMeeting(event)
 }
 
 // ---------------------------------------------------------------------------

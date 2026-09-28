@@ -38,6 +38,7 @@ export const ProjectSchema = z.object({
   name: z.string(),
   tagline: z.string(),
   description: z.string(),
+  client: z.string(),
   status: ProjectStatusSchema,
   color: z.string(),
   image: z.string().nullable(),
@@ -66,6 +67,8 @@ export const CreateProjectInputSchema = ProjectSchema.pick({
 }).extend({
   workspaceId: z.string().optional(),
   visibility: ProjectVisibilitySchema.optional(),
+  priority: PrioritySchema.optional(),
+  client: z.string().trim().optional(),
 })
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>
 
@@ -90,13 +93,16 @@ export type CreateFolderInput = z.infer<typeof CreateFolderInputSchema>
 export const UpdateFolderInputSchema = FolderSchema.pick({ name: true, icon: true, color: true }).partial()
 export type UpdateFolderInput = z.infer<typeof UpdateFolderInputSchema>
 
-export const CreateTaskInputSchema = TaskSchema.pick({
-  title: true,
-  priority: true,
-  assigneeIds: true,
-  tags: true,
-  startDate: true,
-  dueDate: true,
+// A standalone object rather than TaskSchema.pick(): the create shape sends a
+// single assigneeId (matching the backend's one-assignee FK), while
+// TaskSchema.assigneeIds stays an array for the read/board/calendar side.
+export const CreateTaskInputSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  priority: PrioritySchema,
+  assigneeId: z.string().min(1, 'Assignee is required'),
+  tags: z.array(z.string()),
+  startDate: z.string(),
+  dueDate: z.string(),
 })
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>
 
@@ -248,3 +254,16 @@ export const MeetingSchema = z.object({
   endTime: z.string(),
 })
 export type Meeting = z.infer<typeof MeetingSchema>
+
+// A standalone object rather than MeetingSchema.pick(): create-input wants
+// location/projectId optional-and-nullable, while the read shape has them as
+// plain nullable (always present once the row exists).
+export const CreateMeetingInputSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  location: z.string().nullable().optional(),
+  startTime: z.string(),
+  endTime: z.string(),
+  projectId: z.string().optional(),
+  description: z.string().optional(),
+})
+export type CreateMeetingInput = z.infer<typeof CreateMeetingInputSchema>

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import { useEmails, useProjects, useToggleEmailStar } from '../../hooks/useProjectsData'
 import { EmailDetailModal } from '../projects/EmailDetailModal'
 import { formatInboxTimestamp } from '../../lib/formatDate'
-import { getPersonPhoto } from '../../lib/avatars'
+import { pickAvatar } from '../../lib/avatars'
 import { Avatar } from '../common/Avatar'
 import { Card } from '../ui/card'
 import { Skeleton } from '../ui/skeleton'
@@ -71,7 +71,7 @@ export function EmailSlider() {
                 className="flex flex-col gap-2.5"
               >
                 <div className="flex items-start gap-3">
-                  <Avatar photoURL={getPersonPhoto(email.senderName)} name={email.senderName} size={36} bgColor={email.senderColor} />
+                  <Avatar photoURL={pickAvatar(email.senderName)} name={email.senderName} size={36} bgColor={email.senderColor} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <p className={`truncate text-sm ${email.read ? 'font-medium text-slate-700' : 'font-semibold text-slate-900'}`}>

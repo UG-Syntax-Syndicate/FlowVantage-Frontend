@@ -80,7 +80,7 @@ function PendingInvites({ workspaceId }: { workspaceId: string }) {
   const { data: invites = [], isLoading } = usePendingInvites(workspaceId)
   const revokeInvite = useRevokeInvite(workspaceId)
 
-  if (isLoading) return null
+  if (isLoading) return <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
   if (invites.length === 0) return null
 
   return (

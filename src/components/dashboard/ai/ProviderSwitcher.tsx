@@ -8,9 +8,9 @@ interface ProviderSwitcherProps {
 }
 
 /**
- * Shared OpenAI/Gemini picker used by both the CSV-import AI mapping
- * (ImportContactsModal) and Venon (AiAssistantPage) - the two features that
- * call the backend's ai-assistant module, which supports either provider.
+ * Shared Groq/Gemini picker used by both the CSV-import AI mapping
+ * (ImportContactsModal) and Venon AI (AiAssistantPage) - the two features
+ * that call the backend's ai-assistant module, which supports either provider.
  */
 export function ProviderSwitcher({ value, onChange, className }: ProviderSwitcherProps) {
   return (
@@ -19,7 +19,7 @@ export function ProviderSwitcher({ value, onChange, className }: ProviderSwitche
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="openai">OpenAI</SelectItem>
+        <SelectItem value="groq">Groq</SelectItem>
         <SelectItem value="gemini">Gemini</SelectItem>
       </SelectContent>
     </Select>

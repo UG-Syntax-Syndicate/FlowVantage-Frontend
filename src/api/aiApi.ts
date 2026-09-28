@@ -7,17 +7,17 @@ import type { ChatMessage } from '../types/project'
 // timeout (src/lib/backendApi.ts) - give AI endpoints more room.
 const AI_TIMEOUT_MS = 25000
 
-export type AiProvider = 'openai' | 'gemini'
+export type AiProvider = 'groq' | 'gemini'
 
 const AI_PROVIDER_STORAGE_KEY = 'flowvantage.aiProvider'
 
-/** The user's last-picked AI provider (CSV mapping, Venon), persisted per-browser. Defaults to OpenAI. */
+/** The user's last-picked AI provider (CSV mapping, Venon AI), persisted per-browser. Defaults to Groq. */
 export function getStoredAiProvider(): AiProvider {
   try {
     const stored = localStorage.getItem(AI_PROVIDER_STORAGE_KEY)
-    return stored === 'gemini' ? 'gemini' : 'openai'
+    return stored === 'gemini' ? 'gemini' : 'groq'
   } catch {
-    return 'openai'
+    return 'groq'
   }
 }
 

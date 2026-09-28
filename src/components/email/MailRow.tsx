@@ -1,7 +1,7 @@
 import { Star } from 'lucide-react'
 import type { Email, Project } from '../../types/project'
 import { formatInboxTimestamp } from '../../lib/formatDate'
-import { getPersonPhoto } from '../../lib/avatars'
+import { pickAvatar } from '../../lib/avatars'
 import { Avatar } from '../common/Avatar'
 
 interface MailRowProps {
@@ -26,7 +26,7 @@ export function MailRow({ email, project, selected, onToggleSelect, onToggleStar
         className="h-4 w-4 shrink-0 rounded border-slate-300 text-primary focus:ring-primary/40"
       />
 
-      <Avatar photoURL={getPersonPhoto(email.senderName)} name={email.senderName} size={32} bgColor={email.senderColor} />
+      <Avatar photoURL={pickAvatar(email.senderName)} name={email.senderName} size={32} bgColor={email.senderColor} />
 
       <p className={`w-36 shrink-0 truncate text-sm ${email.read ? 'text-slate-600' : 'font-semibold text-slate-900'}`}>
         {email.senderName}

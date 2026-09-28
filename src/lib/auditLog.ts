@@ -9,7 +9,7 @@ import type { AuditAction, RecordChangeAction } from '../types/audit'
  * authenticated endpoint does.
  */
 export async function logAuditEvent(
-  uid: string,
+  _uid: string,
   action: AuditAction,
   metadata?: Record<string, unknown>,
 ): Promise<void> {

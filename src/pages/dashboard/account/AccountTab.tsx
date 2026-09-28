@@ -3,8 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { updateProfile } from 'firebase/auth'
-import { doc, updateDoc } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
+import { updateBackendProfile } from '../../../lib/backendApi'
 import { logAuditEvent } from '../../../lib/auditLog'
 import { PromiseTimeoutError, promiseWithTimeout } from '../../../lib/promise'
 import { useAuth } from '../../../hooks/useAuth'
@@ -26,16 +25,13 @@ const nameSchema = z.object({
 
 type NameFormValues = z.infer<typeof nameSchema>
 
-// Same bound as AvatarUploader.tsx's upload/remove handlers: this chain
-// (Auth profile write, then a Firestore doc write, then an audit log write)
-// can hang forever with no error if Firestore is offline/unreachable, since
-// queued writes wait indefinitely for connectivity instead of rejecting.
-// See src/lib/promise.ts.
+// Same bound as AvatarUploader.tsx's upload/remove handlers - see
+// src/lib/promise.ts.
 const ACTION_TIMEOUT_MS = 20_000
 const TIMEOUT_MESSAGE = 'This is taking too long. Check your connection and try again.'
 
 function ProfileNameForm() {
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, backendSessionToken, refreshUserProfile } = useAuth()
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -49,14 +45,15 @@ function ProfileNameForm() {
   })
 
   const onSubmit = async (values: NameFormValues) => {
-    if (!currentUser) return
+    if (!currentUser || !backendSessionToken) return
     setMessage('')
     setError('')
     try {
       await promiseWithTimeout(
         (async () => {
           await updateProfile(currentUser, { displayName: values.name })
-          await updateDoc(doc(db, 'users', currentUser.uid), { name: values.name })
+          await updateBackendProfile(backendSessionToken, { name: values.name })
+          await refreshUserProfile()
           await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'name' })
         })(),
         ACTION_TIMEOUT_MS,

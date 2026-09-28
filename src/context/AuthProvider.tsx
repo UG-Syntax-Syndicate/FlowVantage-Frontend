@@ -47,7 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       markActivityNow()
       const providerId =
         result.providerId === 'microsoft.com' ? 'microsoft.com' : 'google.com'
-      await ensureUserProfileDoc(result.user, providerId)
       await logAuditEvent(result.user.uid, 'login', { provider: providerId })
     }).catch(() => {
       // Ignore redirect-result errors; the user simply lands signed out.
@@ -146,32 +145,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUser, emailVerified])
 
+  // Replaces the old Firestore users/{uid} onSnapshot listener: there's no
+  // realtime push from the backend, so the profile is (re)fetched whenever a
+  // backend session becomes available, and callers that mutate it (name,
+  // avatar, notification prefs) call refreshUserProfile() below afterward.
   useEffect(() => {
-    if (!currentUser) return
+    if (!backendSessionToken) {
+      setUserProfile(null)
+      return
+    }
 
-    const profileRef = doc(db, 'users', currentUser.uid)
+    let cancelled = false
 
-    const unsubscribe = onSnapshot(
-      profileRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data() as Omit<UserProfile, 'id'>
-          setUserProfile({ id: snapshot.id, ...data })
-
-          if (currentUser.email && data.email !== currentUser.email) {
-            updateDoc(profileRef, { email: currentUser.email }).catch(() => {})
-          }
-        }
-      },
-      (error) => {
+    fetchBackendMe(backendSessionToken)
+      .then((user) => {
+        if (!cancelled) setUserProfile(mapBackendUserToProfile(user))
+      })
+      .catch((error) => {
         console.warn('Failed to load user profile', error)
-      },
-    )
+      })
 
     return () => {
-      unsubscribe()
+      cancelled = true
     }
-  }, [currentUser])
+  }, [backendSessionToken])
+
+  const refreshUserProfile = useCallback(async () => {
+    if (!backendSessionToken) return
+    try {
+      const user = await fetchBackendMe(backendSessionToken)
+      setUserProfile(mapBackendUserToProfile(user))
+    } catch (error) {
+      console.warn('Failed to refresh user profile', error)
+    }
+  }, [backendSessionToken])
 
   useEffect(() => {
     if (!currentUser) {
@@ -293,6 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         currentUser,
         userProfile,
+        refreshUserProfile,
         loading,
         backendSessionToken,
         emailVerified,

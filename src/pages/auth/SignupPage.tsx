@@ -4,10 +4,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { Loader2 } from 'lucide-react'
-import { auth, db } from '../../lib/firebase'
-import { DEFAULT_NOTIFICATION_PREFERENCES } from '../../lib/constants'
+import { auth } from '../../lib/firebase'
 import { logAuditEvent } from '../../lib/auditLog'
 import { getAuthErrorMessage } from '../../lib/authErrors'
 import { markActivityNow } from '../../lib/sessionExpiry'
@@ -60,15 +58,9 @@ export function SignupPage() {
       setPendingAuthRedirect('/verify-email-pending')
       const credential = await createUserWithEmailAndPassword(auth, values.email, values.password)
       await updateProfile(credential.user, { displayName: values.name })
-      await setDoc(doc(db, 'users', credential.user.uid), {
-        name: values.name,
-        email: values.email,
-        role: 'owner',
-        authProvider: 'password',
-        photoURL: null,
-        createdAt: serverTimestamp(),
-        notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
-      })
+      // No client-side profile doc to create anymore - POST /auth/login
+      // (fired by AuthProvider's token-exchange effect right after this
+      // resolves) upserts the backend user row with these same defaults.
       await logAuditEvent(credential.user.uid, 'account_created', { provider: 'password' }).catch((error) => {
         console.warn('Failed to log account-created audit event', error)
       })

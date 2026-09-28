@@ -1,7 +1,6 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { updateProfile } from 'firebase/auth'
-import { doc, updateDoc } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
+import { updateBackendProfile } from '../../../lib/backendApi'
 import { logAuditEvent } from '../../../lib/auditLog'
 import { destroyCloudinaryAsset, extractCloudinaryPublicId, uploadToCloudinary } from '../../../lib/cloudinaryUpload'
 import { extensionForImageType, IMAGE_PRESETS, optimizeImage } from '../../../lib/images'
@@ -13,10 +12,9 @@ import { getUserAvatarUrl } from '../../../lib/avatars'
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
-// Any single step here (image encode, Cloudinary upload, Firestore write) can
-// in principle hang instead of erroring — e.g. Firestore queues writes made
-// while offline and waits indefinitely for connectivity rather than
-// rejecting. This bounds the whole operation so the loading state always resolves.
+// Any single step here (image encode, Cloudinary upload, backend write) can
+// in principle hang instead of erroring, so this bounds the whole operation
+// so the loading state always resolves.
 const ACTION_TIMEOUT_MS = 20_000
 const TIMEOUT_MESSAGE = 'This is taking too long. Check your connection and try again.'
 
@@ -25,7 +23,7 @@ function uploadErrorMessage(caught: unknown): string {
 }
 
 export function AvatarUploader() {
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, backendSessionToken, refreshUserProfile } = useAuth()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState<'uploading' | 'removing' | null>(null)
   const [error, setError] = useState('')
@@ -33,7 +31,7 @@ export function AvatarUploader() {
   const handleSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (!file || !currentUser) return
+    if (!file || !currentUser || !backendSessionToken) return
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError('Please choose a PNG, JPEG, GIF, or WEBP image.')
@@ -58,7 +56,8 @@ export function AvatarUploader() {
           const { url } = await uploadToCloudinary(optimized.blob, fileName, 'avatar')
 
           await updateProfile(currentUser, { photoURL: url })
-          await updateDoc(doc(db, 'users', currentUser.uid), { photoURL: url })
+          await updateBackendProfile(backendSessionToken, { avatarUrl: url })
+          await refreshUserProfile()
           await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'photoURL' })
 
           // Best-effort cleanup of the previous avatar asset; ignore failures
@@ -79,7 +78,7 @@ export function AvatarUploader() {
   }
 
   const handleRemove = async () => {
-    if (!currentUser) return
+    if (!currentUser || !backendSessionToken) return
     const previousPhotoURL = userProfile?.photoURL
     setError('')
     setBusy('removing')
@@ -87,7 +86,8 @@ export function AvatarUploader() {
       await promiseWithTimeout(
         (async () => {
           await updateProfile(currentUser, { photoURL: null })
-          await updateDoc(doc(db, 'users', currentUser.uid), { photoURL: null })
+          await updateBackendProfile(backendSessionToken, { avatarUrl: null })
+          await refreshUserProfile()
           await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'photoURL' })
 
           const previousPublicId = extractCloudinaryPublicId(previousPhotoURL)

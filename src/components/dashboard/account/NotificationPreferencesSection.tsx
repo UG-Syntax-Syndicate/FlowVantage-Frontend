@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { doc, updateDoc } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
+import { updateBackendProfile } from '../../../lib/backendApi'
 import { logAuditEvent } from '../../../lib/auditLog'
 import { showToast } from '../../../lib/toast'
 import { useAuth } from '../../../hooks/useAuth'
@@ -30,16 +29,15 @@ const TOGGLES: { key: keyof NotificationPreferences; label: string; description:
 ]
 
 export function NotificationPreferencesSection() {
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, backendSessionToken, refreshUserProfile } = useAuth()
   const [savingKey, setSavingKey] = useState<string | null>(null)
 
   const handleToggle = async (key: keyof NotificationPreferences, value: boolean) => {
-    if (!currentUser) return
+    if (!currentUser || !backendSessionToken) return
     setSavingKey(key)
     try {
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        [`notificationPreferences.${key}`]: value,
-      })
+      await updateBackendProfile(backendSessionToken, { notificationPreferences: { [key]: value } })
+      await refreshUserProfile()
       await logAuditEvent(currentUser.uid, 'notification_preferences_updated', { key, value })
       showToast('success', 'Preference saved.')
     } catch {

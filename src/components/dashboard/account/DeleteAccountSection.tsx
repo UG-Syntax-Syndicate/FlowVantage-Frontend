@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { deleteUser } from 'firebase/auth'
-import { deleteDoc, doc } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
 import { destroyCloudinaryAsset, extractCloudinaryPublicId } from '../../../lib/cloudinaryUpload'
 import { getAuthErrorMessage } from '../../../lib/authErrors'
 import { logAuditEvent } from '../../../lib/auditLog'
@@ -37,7 +35,10 @@ export function DeleteAccountSection({ compact = false }: DeleteAccountSectionPr
         destroyCloudinaryAsset(avatarPublicId)
       }
 
-      await deleteDoc(doc(db, 'users', currentUser.uid))
+      // TODO(backend): there is no DELETE /auth/me endpoint yet, so this only
+      // revokes Firebase access - the Postgres user row (and owned projects/
+      // contacts/etc.) is left behind. Needs a backend endpoint before this
+      // is a real account deletion.
       await deleteUser(currentUser)
 
       showToast('success', 'Your account has been deleted.')

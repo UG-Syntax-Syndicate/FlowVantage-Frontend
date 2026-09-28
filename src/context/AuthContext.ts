@@ -9,6 +9,8 @@ export interface TwoFactorChallenge {
 export interface AuthContextValue {
   currentUser: User | null
   userProfile: UserProfile | null
+  /** Re-fetches userProfile from GET /auth/me — call after a successful profile mutation (name/avatar/notification prefs), since there's no more realtime Firestore listener pushing updates automatically. */
+  refreshUserProfile: () => Promise<void>
   loading: boolean
   backendSessionToken: string | null
   emailVerified: boolean

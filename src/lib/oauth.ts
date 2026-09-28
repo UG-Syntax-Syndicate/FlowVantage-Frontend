@@ -1,36 +1,11 @@
 import {
   signInWithPopup,
   signInWithRedirect,
-  type User,
 } from 'firebase/auth'
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
-import { auth, db, googleProvider, microsoftProvider } from './firebase'
-import { DEFAULT_NOTIFICATION_PREFERENCES } from './constants'
+import { auth, googleProvider, microsoftProvider } from './firebase'
 import { logAuditEvent } from './auditLog'
 import { markActivityNow } from './sessionExpiry'
 import type { AuthProviderId } from '../types/user'
-
-export async function ensureUserProfileDoc(
-  user: User,
-  authProvider: AuthProviderId,
-): Promise<void> {
-  const profileRef = doc(db, 'users', user.uid)
-  const existing = await getDoc(profileRef)
-
-  if (existing.exists()) {
-    return
-  }
-
-  await setDoc(profileRef, {
-    name: user.displayName ?? user.email?.split('@')[0] ?? 'New user',
-    email: user.email ?? '',
-    role: 'owner',
-    authProvider,
-    photoURL: user.photoURL ?? null,
-    createdAt: serverTimestamp(),
-    notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
-  })
-}
 
 async function signInWithOAuthProvider(
   provider: typeof googleProvider | typeof microsoftProvider,
@@ -39,7 +14,9 @@ async function signInWithOAuthProvider(
   try {
     const result = await signInWithPopup(auth, provider)
     markActivityNow()
-    await ensureUserProfileDoc(result.user, providerId)
+    // No client-side profile doc to create anymore - POST /auth/login (fired
+    // by AuthProvider's token-exchange effect right after this resolves)
+    // upserts the backend user row on first sign-in, same as email/password.
     await logAuditEvent(result.user.uid, 'login', { provider: providerId }).catch((error) => {
       console.warn('Failed to log login audit event', error)
     })

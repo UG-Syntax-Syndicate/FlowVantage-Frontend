@@ -3,9 +3,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { updateProfile } from 'firebase/auth'
-import { doc, updateDoc } from 'firebase/firestore'
-import { db } from '../../../lib/firebase'
+import { updateBackendProfile } from '../../../lib/backendApi'
 import { logAuditEvent } from '../../../lib/auditLog'
+import { PromiseTimeoutError, promiseWithTimeout } from '../../../lib/promise'
 import { useAuth } from '../../../hooks/useAuth'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { Button } from '../../../components/ui/button'
@@ -25,9 +25,15 @@ const nameSchema = z.object({
 
 type NameFormValues = z.infer<typeof nameSchema>
 
+// Same bound as AvatarUploader.tsx's upload/remove handlers - see
+// src/lib/promise.ts.
+const ACTION_TIMEOUT_MS = 20_000
+const TIMEOUT_MESSAGE = 'This is taking too long. Check your connection and try again.'
+
 function ProfileNameForm() {
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, backendSessionToken, refreshUserProfile } = useAuth()
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
   const {
     register,
@@ -39,12 +45,30 @@ function ProfileNameForm() {
   })
 
   const onSubmit = async (values: NameFormValues) => {
-    if (!currentUser) return
+    if (!currentUser || !backendSessionToken) return
     setMessage('')
-    await updateProfile(currentUser, { displayName: values.name })
-    await updateDoc(doc(db, 'users', currentUser.uid), { name: values.name })
-    await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'name' })
-    setMessage('Profile updated.')
+    setError('')
+    try {
+      await promiseWithTimeout(
+        (async () => {
+          await updateProfile(currentUser, { displayName: values.name })
+          await updateBackendProfile(backendSessionToken, { name: values.name })
+          await refreshUserProfile()
+          await logAuditEvent(currentUser.uid, 'profile_updated', { field: 'name' })
+        })(),
+        ACTION_TIMEOUT_MS,
+      )
+      setMessage('Profile updated.')
+    } catch (caught) {
+      console.error('Profile name update failed', caught)
+      setError(
+        caught instanceof PromiseTimeoutError
+          ? TIMEOUT_MESSAGE
+          : caught instanceof Error
+            ? caught.message
+            : 'Could not update your name. Please try again.',
+      )
+    }
   }
 
   return (
@@ -58,6 +82,12 @@ function ProfileNameForm() {
       {message && (
         <div className="sm:col-span-2">
           <Alert variant="success">{message}</Alert>
+        </div>
+      )}
+
+      {error && (
+        <div className="sm:col-span-2">
+          <Alert variant="error">{error}</Alert>
         </div>
       )}
 

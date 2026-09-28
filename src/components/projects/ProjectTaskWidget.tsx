@@ -1,41 +1,33 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Plus } from 'lucide-react'
 import { ViewSwitcher, type ProjectViewMode } from './ViewSwitcher'
 import { ListView } from './ListView'
 import { BoardView } from './BoardView'
 import { GanttView } from './GanttView'
-import { CalendarView } from './CalendarView'
+import { CalendarBoard } from '../calendar/CalendarBoard'
 import { CreateTaskModal } from './CreateTaskModal'
 import type { EnrichedTask } from '../../hooks/useEnrichedTasks'
-import type { Member } from '../../types/project'
-import { TASK_STATUS_META } from '../../types/statusMeta'
-import { formatShortDate } from '../../lib/formatDate'
+import type { Member, Meeting, Project, Todo } from '../../types/project'
+import type { CalendarEvent } from '../../types/calendarEvent'
 import { EASE_PREMIUM } from '../../lib/motion'
 
 interface ProjectTaskWidgetProps {
   projectId: string
   members: Member[]
   tasks: EnrichedTask[]
+  /** This project's own todos/meetings, for the calendar view mode. */
+  todos: Todo[]
+  meetings: Meeting[]
+  /** This project itself, so the calendar view mode can show its deadline marker. */
+  project?: Project
   /** Bump this (e.g. with a counter) to force the widget open from outside, such as a sidebar "View all". */
   expandSignal?: number
-  /** This project's own name/color/due date, shown as a deadline marker on the calendar view. */
-  projectName?: string
-  projectColor?: string
-  projectDueDate?: string
 }
 
 const COMPACT_HEIGHT = 'h-[380px]'
 
-export function ProjectTaskWidget({
-  projectId,
-  members,
-  tasks,
-  expandSignal,
-  projectName,
-  projectColor,
-  projectDueDate,
-}: ProjectTaskWidgetProps) {
+export function ProjectTaskWidget({ projectId, members, tasks, todos, meetings, project, expandSignal }: ProjectTaskWidgetProps) {
   const [viewMode, setViewMode] = useState<ProjectViewMode>('list')
   const [isExpanded, setExpanded] = useState(false)
   const [addTaskOpen, setAddTaskOpen] = useState(false)
@@ -53,6 +45,16 @@ export function ProjectTaskWidget({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isExpanded])
 
+  const calendarEvents = useMemo<CalendarEvent[]>(
+    () => [
+      ...tasks.map((task): CalendarEvent => ({ kind: 'task', task })),
+      ...todos.map((todo): CalendarEvent => ({ kind: 'todo', todo })),
+      ...meetings.map((meeting): CalendarEvent => ({ kind: 'meeting', meeting, projectColor: project?.color })),
+      ...(project ? [{ kind: 'deadline', project } as const] : []),
+    ],
+    [tasks, todos, meetings, project],
+  )
+
   const activeView =
     viewMode === 'list' ? (
       <ListView tasks={tasks} />
@@ -61,32 +63,7 @@ export function ProjectTaskWidget({
     ) : viewMode === 'gantt' ? (
       <GanttView tasks={tasks} />
     ) : (
-      <CalendarView
-        events={[
-          ...tasks.map((t) => ({
-            id: t.id,
-            title: t.title,
-            date: t.dueDate,
-            color: t.projectColor,
-            tooltipDetails: [
-              `Due ${formatShortDate(t.dueDate)}`,
-              TASK_STATUS_META[t.status].label,
-              ...(t.assignees.length ? [t.assignees.map((a) => a.name).join(', ')] : []),
-            ],
-          })),
-          ...(projectDueDate
-            ? [
-                {
-                  id: `deadline-${projectId}`,
-                  title: projectName ?? 'Project deadline',
-                  date: projectDueDate,
-                  color: projectColor ?? '#ef4444',
-                  variant: 'deadline' as const,
-                },
-              ]
-            : []),
-        ]}
-      />
+      <CalendarBoard events={calendarEvents} allowedViewModes={isExpanded ? ['month', 'week', 'day'] : ['month']} />
     )
 
   const animatedView = (

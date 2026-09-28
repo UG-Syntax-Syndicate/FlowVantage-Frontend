@@ -1,7 +1,9 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CreateFolderInputSchema, type CreateFolderInput, type FolderIcon } from '../../types/project'
 import { useCreateFolder } from '../../hooks/useProjectsData'
+import { useWorkspace } from '../../hooks/useWorkspace'
 import { FOLDER_COLOR_PALETTE } from '../../lib/constants'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
@@ -18,6 +20,7 @@ interface CreateFolderModalProps {
 
 export function CreateFolderModal({ onClose }: CreateFolderModalProps) {
   const createFolder = useCreateFolder()
+  const { activeWorkspace } = useWorkspace()
 
   const {
     register,
@@ -32,6 +35,14 @@ export function CreateFolderModal({ onClose }: CreateFolderModalProps) {
 
   const selectedIcon = watch('icon')
   const selectedColor = watch('color')
+
+  // Folders default to the caller's personal workspace on the backend when
+  // omitted - set it explicitly once the active workspace is known, so a
+  // folder created while working in a team workspace lands there instead,
+  // visible to the rest of the team (matches CreateProjectModal.tsx).
+  useEffect(() => {
+    if (activeWorkspace) setValue('workspaceId', activeWorkspace.id)
+  }, [activeWorkspace, setValue])
 
   const onSubmit = handleSubmit(async (values) => {
     try {

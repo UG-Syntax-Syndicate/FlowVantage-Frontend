@@ -13,6 +13,7 @@
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
     "@hookform/resolvers": "^3.9.1",
+    "@sentry/react": "^11.7.0",
     "@shadcn/react": "^0.3.1",
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-query-devtools": "^5.102.8",
@@ -33,6 +34,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@sentry/vite-plugin": "^5.4.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",

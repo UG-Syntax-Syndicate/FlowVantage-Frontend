@@ -1,6 +1,40 @@
-import { QueryClient } from '@tanstack/react-query'
+import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
+import { reportError } from './observability'
+
+/**
+ * A failed session is expected and already handled a layer down, where the
+ * request re-authenticates and replays itself (see backendApi.request). Only a
+ * failure that survives that is worth reporting, so the recovered ones don't
+ * drown out real faults.
+ */
+function isExpectedFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error)
+  return /not signed in|session expired|missing session token/i.test(message)
+}
+
+/**
+ * Every query and mutation failure funnels through here. There was previously no
+ * global hook at all, so a failing query surfaced as a stale or empty screen and
+ * nothing recorded that it had failed - which is how a workspace list that could
+ * not load ended up looking identical to a user who simply had no workspaces.
+ */
+const queryCache = new QueryCache({
+  onError: (error, query) => {
+    if (isExpectedFailure(error)) return
+    reportError(error, { source: 'react-query.query', queryKey: query.queryKey })
+  },
+})
+
+const mutationCache = new MutationCache({
+  onError: (error, _variables, _context, mutation) => {
+    if (isExpectedFailure(error)) return
+    reportError(error, { source: 'react-query.mutation', mutationKey: mutation.options.mutationKey })
+  },
+})
 
 export const queryClient = new QueryClient({
+  queryCache,
+  mutationCache,
   defaultOptions: {
     queries: {
       staleTime: 30_000,

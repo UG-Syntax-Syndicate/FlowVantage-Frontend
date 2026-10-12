@@ -16,6 +16,7 @@ import {
   storeBackendSessionToken,
 } from '../lib/backendSession'
 import { clearAllClientSession } from '../lib/sessionCleanup'
+import { identifyUser, reportError } from '../lib/observability'
 import { isIdleExpired, markActivityNow } from '../lib/sessionExpiry'
 import { publishAuthEvent, subscribeAuthEvent } from '../lib/authBroadcast'
 import { AuthContext, type TwoFactorChallenge } from './AuthContext'
@@ -211,7 +212,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTwoFactorChallenge(null)
       return result.sessionToken
     } catch (error) {
-      console.warn('Backend session refresh failed', error)
+      reportError(error, {
+        source: 'auth.sessionRefresh',
+        detail: 'Re-authentication after a 401 failed; the original error will surface to the caller',
+      })
       return null
     }
   }, [])
@@ -220,6 +224,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerSessionRefresher(refreshBackendSession)
     return () => registerSessionRefresher(null)
   }, [refreshBackendSession])
+
+  // Tags reports with the uid, so a fault can be traced to an account. Uid only
+  // - no email or name - since the PRD commits to GDPR-compliant handling and
+  // the uid is enough to correlate without sending personal data off-site.
+  useEffect(() => {
+    identifyUser(currentUser?.uid ?? null)
+  }, [currentUser])
 
   const refreshUserProfile = useCallback(async () => {
     if (!backendSessionToken) return
@@ -266,9 +277,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTwoFactorChallenge(null)
       })
       .catch((error) => {
-        // Best-effort only: the app must keep working via Firebase alone if
-        // the backend is unreachable or not yet deployed.
-        console.warn('Backend session exchange failed', error)
+        // Reported, not merely logged. This exchange provisions the user's row
+        // and their personal workspace, so a failure here is the difference
+        // between a working account and one with no workspace at all - it was a
+        // bare console.warn, which is precisely why that bug went unnoticed in
+        // production. GET /workspaces now provisions on read as a second line
+        // of defence, but this failing still means something is wrong
+        // (unreachable backend, unlisted CORS origin, rate limit).
+        reportError(error, {
+          source: 'auth.sessionExchange',
+          uid: currentUser.uid,
+          detail: 'Firebase token could not be exchanged for a backend session',
+        })
         if (!cancelled && auth.currentUser?.uid === currentUser.uid) {
           clearBackendSessionToken()
           setBackendSessionToken(null)

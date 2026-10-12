@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Building2, ChevronsUpDown, Plus, User } from 'lucide-react'
+import { AlertTriangle, Building2, ChevronsUpDown, Plus, RefreshCw, User } from 'lucide-react'
 import { useWorkspace } from '../../hooks/useWorkspace'
 import { useCreateOrganization } from '../../hooks/useWorkspacesData'
 import { showToast } from '../../lib/toast'
@@ -18,11 +18,55 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 
 export function WorkspaceSwitcher() {
-  const { workspaces, activeWorkspace, setActiveWorkspaceId } = useWorkspace()
+  const { workspaces, activeWorkspace, setActiveWorkspaceId, isLoading, isError, retry } = useWorkspace()
   const [creatingOrg, setCreatingOrg] = useState(false)
 
-  if (!activeWorkspace) {
+  // Only a genuine in-flight load shows the shimmer now. This component used to
+  // render it for *any* falsy activeWorkspace, which meant a failed load and an
+  // account with no workspace at all both showed a placeholder that never
+  // resolved - and since "Create organization" lives in the dropdown below, the
+  // user could not even make one. That was the whole visible surface of the
+  // missing-workspace bug.
+  if (isLoading && !activeWorkspace) {
     return <div className="h-10 w-full animate-pulse rounded-[10px] bg-white/5" />
+  }
+
+  if (isError && !activeWorkspace) {
+    return (
+      <button
+        type="button"
+        onClick={retry}
+        className="flex w-full items-center gap-2 rounded-[10px] border border-white/10 bg-white/5 px-2.5 py-2 text-left transition hover:bg-white/10"
+      >
+        <AlertTriangle size={16} strokeWidth={2} className="shrink-0 text-amber-400" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">Couldn't load workspaces</span>
+        <RefreshCw size={14} strokeWidth={2} className="shrink-0 text-[#a0a0a3]" />
+      </button>
+    )
+  }
+
+  // Loaded successfully, but there is nothing to show. Give the user the one
+  // action that can fix it rather than a dead placeholder.
+  if (!activeWorkspace) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setCreatingOrg(true)}
+          className="flex w-full items-center gap-2 rounded-[10px] border border-dashed border-white/20 bg-white/5 px-2.5 py-2 text-left transition hover:bg-white/10"
+        >
+          <Plus size={16} strokeWidth={2} className="shrink-0 text-[#a0a0a3]" />
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-white">Create organization</span>
+        </button>
+
+        {creatingOrg && (
+          <CreateOrganizationModal
+            onClose={() => setCreatingOrg(false)}
+            onCreated={(workspaceId) => setActiveWorkspaceId(workspaceId)}
+          />
+        )}
+      </>
+    )
   }
 
   return (

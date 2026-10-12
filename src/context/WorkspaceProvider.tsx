@@ -6,7 +6,12 @@ import { WorkspaceContext } from './WorkspaceContext'
 const STORAGE_KEY = 'flowvantage.activeWorkspaceId'
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const { data: workspaces = [], isLoading } = useWorkspaces()
+  // isError and refetch are deliberately read, not discarded. When they were
+  // dropped, a user whose workspace list failed to load - or who genuinely had
+  // no workspace, which the session-exchange bug produced - got an
+  // indistinguishable "still loading" state that never resolved, and no way to
+  // act on it.
+  const { data: workspaces = [], isLoading, isError, refetch } = useWorkspaces()
   const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string | null>(() => {
     try {
       return window.localStorage.getItem(STORAGE_KEY)
@@ -45,6 +50,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       value={{
         workspaces,
         isLoading,
+        isError,
+        retry: () => void refetch(),
         activeWorkspace,
         activeWorkspaceId: activeWorkspace?.id ?? null,
         setActiveWorkspaceId,

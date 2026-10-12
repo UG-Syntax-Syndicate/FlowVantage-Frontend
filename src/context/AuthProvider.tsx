@@ -3,7 +3,13 @@ import type { ReactNode } from 'react'
 import { getRedirectResult, onAuthStateChanged, signOut, type User } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { logAuditEvent } from '../lib/auditLog'
-import { exchangeFirebaseSession, fetchBackendMe, logoutBackendSession, type BackendSessionUser } from '../lib/backendApi'
+import {
+  exchangeFirebaseSession,
+  fetchBackendMe,
+  logoutBackendSession,
+  registerSessionRefresher,
+  type BackendSessionUser,
+} from '../lib/backendApi'
 import {
   clearBackendSessionToken,
   readBackendSessionToken,
@@ -169,6 +175,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [backendSessionToken])
+
+  /**
+   * Mints a replacement backend session for the already-signed-in Firebase
+   * user, and returns its token.
+   *
+   * Registered with backendApi so that any request which comes back 401 can
+   * recover in place. The backend deletes a session row once its inactivity
+   * window lapses, so a token can die while the Firebase sign-in is still
+   * perfectly valid - and the exchange effect below is keyed on `currentUser`,
+   * which does not change when that happens. Without this hook the app had no
+   * path back to a working session short of a page reload.
+   *
+   * Returns null when re-authentication cannot help (signed out, or the account
+   * needs a 2FA code first), which tells the caller to surface the original 401
+   * rather than retry.
+   */
+  const refreshBackendSession = useCallback(async (): Promise<string | null> => {
+    const user = auth.currentUser
+    if (!user) return null
+
+    try {
+      const idToken = await user.getIdToken(true)
+      const result = await exchangeFirebaseSession(idToken)
+
+      if (result.status === 'requiresTwoFactor') {
+        clearBackendSessionToken()
+        setBackendSessionToken(null)
+        setTwoFactorChallenge({ userId: result.userId })
+        return null
+      }
+
+      storeBackendSessionToken(result.sessionToken)
+      setBackendSessionToken(result.sessionToken)
+      setTwoFactorChallenge(null)
+      return result.sessionToken
+    } catch (error) {
+      console.warn('Backend session refresh failed', error)
+      return null
+    }
+  }, [])
+
+  useEffect(() => {
+    registerSessionRefresher(refreshBackendSession)
+    return () => registerSessionRefresher(null)
+  }, [refreshBackendSession])
 
   const refreshUserProfile = useCallback(async () => {
     if (!backendSessionToken) return

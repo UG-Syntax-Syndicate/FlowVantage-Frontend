@@ -125,11 +125,14 @@ export function useBulkImportContacts() {
       workspaceId,
       contacts,
       onProgress,
+      allowDuplicates,
     }: {
       workspaceId: string | undefined
       contacts: ContactInput[]
       onProgress?: (done: number, total: number) => void
-    }) => projectsApi.bulkImportContactsChunked(workspaceId, contacts, onProgress),
+      /** Import rows duplicate detection flags anyway (US-C1's "continue as a new contact"). */
+      allowDuplicates?: boolean
+    }) => projectsApi.bulkImportContactsChunked(workspaceId, contacts, onProgress, allowDuplicates),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
     },

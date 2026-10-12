@@ -1,10 +1,16 @@
 import type { NotificationPreferences } from '../types/user'
 
-// Must match the backend's SESSION_INACTIVITY_TIMEOUT_MINUTES (see
-// FlowVantage-Backend/src/config/env.js) so the client-side idle timer and
-// the server's sliding-window session expiry agree on the same window — if
-// you change this, update that backend default too, or the UI's countdown
-// and the server's actual expiry will drift apart.
+// Fallback only. The real window is served by the backend as
+// `session.inactivityTimeoutMinutes` on GET /auth/me and read by
+// useSessionTimeout — the server owns its own expiry policy, so it is the only
+// thing that can state it authoritatively.
+//
+// This used to be the client's own copy of the value, with a comment insisting
+// it be kept in step with the backend's SESSION_INACTIVITY_TIMEOUT_MINUTES by
+// hand. It wasn't: this said 15 minutes while the backend defaulted to 4, so
+// require-session.js had already deleted the session row while the UI still
+// showed a live session with 11 minutes left. Every request then 401'd with no
+// recovery path. Only used now before the first /auth/me response lands.
 export const SESSION_TIMEOUT_MS = 15 * 60 * 1000
 // How long before the timeout to show the "you're about to be signed out" warning.
 export const SESSION_WARNING_MS = 2 * 60 * 1000

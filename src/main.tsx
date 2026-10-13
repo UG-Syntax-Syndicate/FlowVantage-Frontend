@@ -10,6 +10,12 @@ import { AuthProvider } from './context/AuthProvider'
 import { WorkspaceProvider } from './context/WorkspaceProvider'
 import { SplashScreen } from './components/splash/SplashScreen'
 import { queryClient } from './lib/queryClient'
+import { AppErrorBoundary } from './components/common/AppErrorBoundary'
+import { initObservability } from './lib/observability'
+
+// Before anything renders, so a failure during the first paint is still
+// reported. No-ops when VITE_SENTRY_DSN is unset.
+initObservability()
 
 function Root() {
   const [showSplash, setShowSplash] = useState(true)
@@ -20,7 +26,15 @@ function Root() {
         <AuthProvider>
           <WorkspaceProvider>
             {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
-            <App />
+            {/*
+              Inside the providers, not outside: a boundary above AuthProvider
+              would unmount the auth state it is trying to recover from, and
+              most render failures here are a page's, not the shell's. App's own
+              Suspense fallbacks sit below this.
+            */}
+            <AppErrorBoundary boundary="app">
+              <App />
+            </AppErrorBoundary>
             <Toaster
               position="top-right"
               toastOptions={{

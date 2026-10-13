@@ -4,6 +4,7 @@ import { pickAvatar } from '../lib/avatars'
 import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE, pickProjectColorIndex } from '../lib/constants'
 import type {
   BulkImportContactsResult,
+  BulkImportSkippedRow,
   ComposeEmailInput,
   Contact,
   ContactInput,
@@ -338,9 +339,41 @@ export async function deleteContact(contactId: string): Promise<void> {
   emitProjectsChanged()
 }
 
+interface BulkImportSkippedRowPayload {
+  input: Record<string, unknown>
+  existingContact?: ContactRow
+  message?: string
+}
+
+/**
+ * Maps a skipped row back to the camelCase shape the UI works in. The server
+ * echoes the snake_case body it received, so this is the inverse of
+ * contactInputBody.
+ */
+function mapSkippedRow(row: BulkImportSkippedRowPayload): BulkImportSkippedRow {
+  const input = row.input ?? {}
+  return {
+    contact: {
+      firstName: String(input.firstName ?? ''),
+      lastName: (input.lastName as string | undefined) ?? undefined,
+      email: (input.email as string | undefined) ?? undefined,
+      phone: (input.phone as string | undefined) ?? undefined,
+      company: (input.company as string | undefined) ?? undefined,
+      role: (input.role as string | undefined) ?? undefined,
+      niche: (input.niche as string | undefined) ?? undefined,
+      notes: (input.notes as string | undefined) ?? undefined,
+      visibility: input.visibility as ContactInput['visibility'],
+      projectId: (input.projectId as string | null | undefined) ?? undefined,
+    },
+    existingContact: row.existingContact ? mapContact(row.existingContact) : undefined,
+    message: row.message,
+  }
+}
+
 export async function bulkImportContacts(
   workspaceId: string | undefined,
   contacts: ContactInput[],
+  allowDuplicates = false,
 ): Promise<BulkImportContactsResult> {
   // The backend inserts rows sequentially (several DB round trips each), so
   // the default 5s request timeout routinely aborts a real batch before the
@@ -353,9 +386,15 @@ export async function bulkImportContacts(
     createdCount: number
     duplicateCount: number
     failedCount: number
+    duplicates?: BulkImportSkippedRowPayload[]
+    failed?: BulkImportSkippedRowPayload[]
   }>>(
     '/contacts/bulk-import',
-    { workspace_id: workspaceId, contacts: contacts.map(contactInputBody) },
+    {
+      workspace_id: workspaceId,
+      contacts: contacts.map(contactInputBody),
+      allow_duplicates: allowDuplicates || undefined,
+    },
     authToken(),
     importTimeoutMs,
   )
@@ -365,10 +404,17 @@ export async function bulkImportContacts(
     createdCount: data.createdCount,
     duplicateCount: data.duplicateCount,
     failedCount: data.failedCount,
+    duplicates: (data.duplicates ?? []).map(mapSkippedRow),
+    failed: (data.failed ?? []).map(mapSkippedRow),
   }
 }
 
-const IMPORT_CHUNK_SIZE = 25
+// Raised from 25. At 25 a 2,000-contact import was 80 separate requests, which
+// both ate into the API's rate-limit budget and made the import needlessly slow
+// through round-trip latency alone. 100 still keeps each request well inside
+// its scaled timeout and the 1mb body limit, while cutting the request count
+// fourfold.
+const IMPORT_CHUNK_SIZE = 100
 
 /**
  * Splits a large import into fixed-size chunks and sends them sequentially,
@@ -382,17 +428,46 @@ export async function bulkImportContactsChunked(
   workspaceId: string | undefined,
   contacts: ContactInput[],
   onProgress?: (done: number, total: number) => void,
+  allowDuplicates = false,
 ): Promise<BulkImportContactsResult> {
   const total = contacts.length
-  const aggregate: BulkImportContactsResult = { created: [], createdCount: 0, duplicateCount: 0, failedCount: 0 }
+  const aggregate: BulkImportContactsResult = {
+    created: [],
+    createdCount: 0,
+    duplicateCount: 0,
+    failedCount: 0,
+    duplicates: [],
+    failed: [],
+  }
 
   for (let i = 0; i < contacts.length; i += IMPORT_CHUNK_SIZE) {
     const chunk = contacts.slice(i, i + IMPORT_CHUNK_SIZE)
-    const result = await bulkImportContacts(workspaceId, chunk)
-    aggregate.created.push(...result.created)
-    aggregate.createdCount += result.createdCount
-    aggregate.duplicateCount += result.duplicateCount
-    aggregate.failedCount += result.failedCount
+
+    // Each chunk is isolated. An unhandled throw here used to abandon the whole
+    // import and discard the aggregate - while every chunk already sent had
+    // been committed server-side. The user saw a flat "Import failed", and
+    // retrying the same file then reported all the committed rows as
+    // duplicates, which looked exactly like the import silently refusing to
+    // work. Recording the chunk as failed instead keeps the run going and
+    // reports honestly at the end.
+    try {
+      const result = await bulkImportContacts(workspaceId, chunk, allowDuplicates)
+      aggregate.created.push(...result.created)
+      aggregate.createdCount += result.createdCount
+      aggregate.duplicateCount += result.duplicateCount
+      aggregate.failedCount += result.failedCount
+      aggregate.duplicates.push(...result.duplicates)
+      aggregate.failed.push(...result.failed)
+    } catch (error) {
+      aggregate.failedCount += chunk.length
+      aggregate.failed.push(
+        ...chunk.map((contact) => ({
+          contact,
+          message: error instanceof Error ? error.message : 'Could not import this batch',
+        })),
+      )
+    }
+
     onProgress?.(Math.min(i + chunk.length, total), total)
   }
 
@@ -403,8 +478,14 @@ export async function bulkImportContactsChunked(
 // Projects
 // ---------------------------------------------------------------------------
 
-export async function fetchProjects(): Promise<Project[]> {
-  const { data } = await getJson<ApiEnvelope<ProjectRow[]>>('/projects', authToken())
+/**
+ * `workspaceId` scopes the list to one workspace. Omitting it returns every
+ * project the caller can see, across all their workspaces - which is what this
+ * always did, and why switching workspace in the UI did not re-scope the list.
+ */
+export async function fetchProjects(workspaceId?: string): Promise<Project[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<ProjectRow[]>>(`/projects${query}`, authToken())
   return data.map(mapProject)
 }
 
@@ -457,8 +538,9 @@ export async function updateProjectImage(projectId: string, image: string | null
 // Folders
 // ---------------------------------------------------------------------------
 
-export async function fetchFolders(): Promise<Folder[]> {
-  const { data } = await getJson<ApiEnvelope<FolderRow[]>>('/folders', authToken())
+export async function fetchFolders(workspaceId?: string): Promise<Folder[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<FolderRow[]>>(`/folders${query}`, authToken())
   return data.map(mapFolder)
 }
 
@@ -495,8 +577,9 @@ export async function detachProjectFromFolder(projectId: string, folderId: strin
 // Tasks
 // ---------------------------------------------------------------------------
 
-export async function fetchTasks(): Promise<Task[]> {
-  const { data } = await getJson<ApiEnvelope<TaskRow[]>>('/tasks', authToken())
+export async function fetchTasks(workspaceId?: string): Promise<Task[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<TaskRow[]>>(`/tasks${query}`, authToken())
   return data.map(mapTask)
 }
 
@@ -528,8 +611,9 @@ export async function createTask(input: Omit<Task, 'id' | 'createdAt'>): Promise
 // Todos
 // ---------------------------------------------------------------------------
 
-export async function fetchTodos(): Promise<Todo[]> {
-  const { data } = await getJson<ApiEnvelope<TodoRow[]>>('/todos', authToken())
+export async function fetchTodos(workspaceId?: string): Promise<Todo[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<TodoRow[]>>(`/todos${query}`, authToken())
   return data.map(mapTodo)
 }
 
@@ -544,8 +628,9 @@ export async function toggleTodo(todoId: string): Promise<void> {
 // Notes
 // ---------------------------------------------------------------------------
 
-export async function fetchNotes(): Promise<Note[]> {
-  const { notes } = await getJson<{ success: boolean; notes: NoteRow[] }>('/notes', authToken())
+export async function fetchNotes(workspaceId?: string): Promise<Note[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { notes } = await getJson<{ success: boolean; notes: NoteRow[] }>(`/notes${query}`, authToken())
   return notes.map(mapNote)
 }
 
@@ -591,8 +676,9 @@ export async function fetchMeetings(): Promise<Meeting[]> {
 // time uploadDocument is called (see src/lib/documentUpload.ts).
 // ---------------------------------------------------------------------------
 
-export async function fetchDocuments(): Promise<ProjectDocument[]> {
-  const { data } = await getJson<ApiEnvelope<DocumentRow[]>>('/documents', authToken())
+export async function fetchDocuments(workspaceId?: string): Promise<ProjectDocument[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<DocumentRow[]>>(`/documents${query}`, authToken())
   return data.map(mapDocument)
 }
 

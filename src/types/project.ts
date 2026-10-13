@@ -221,11 +221,25 @@ export const ContactInputSchema = z.object({
 })
 export type ContactInput = z.infer<typeof ContactInputSchema>
 
+/** A row the server declined to create, and what it collided with. */
+export interface BulkImportSkippedRow {
+  contact: ContactInput
+  /** Present for a duplicate: the existing contact it matched. */
+  existingContact?: Contact
+  /** Present for a failure: why it could not be imported. */
+  message?: string
+}
+
 export interface BulkImportContactsResult {
   created: Contact[]
   duplicateCount: number
   failedCount: number
   createdCount: number
+  // The rows themselves, not just the counts. The import UI could previously
+  // only report "N skipped as likely duplicates" and offer nothing to do about
+  // it, which made a flagged import a dead end.
+  duplicates: BulkImportSkippedRow[]
+  failed: BulkImportSkippedRow[]
 }
 
 export const ChatRoleSchema = z.enum(['user', 'assistant'])

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from './useAuth'
 import { idleActivityClock } from './useIdleActivity'
-import { fetchBackendMe } from '../lib/backendApi'
+import { fetchBackendMeWithPolicy } from '../lib/backendApi'
 import { SESSION_HEARTBEAT_MS, SESSION_TIMEOUT_MS, SESSION_WARNING_MS } from '../lib/constants'
 
 export type SessionPhase = 'active' | 'warning' | 'expired'
@@ -44,16 +44,28 @@ export function useSessionTimeout(): SessionTimeoutState {
   const lastHeartbeatRef = useRef(0)
   const expiredRef = useRef(false)
 
+  // The server's own inactivity window, once it has told us. SESSION_TIMEOUT_MS
+  // is only the bootstrap guess; believing a locally-held constant is what let
+  // the two sides drift (15 here against 4 there) and expire sessions out from
+  // under a UI that thought they were live.
+  const timeoutMsRef = useRef(SESSION_TIMEOUT_MS)
+
   const heartbeat = useCallback(() => {
     const token = backendSessionTokenRef.current
     if (!token) return
     lastHeartbeatRef.current = Date.now()
-    fetchBackendMe(token).catch(() => {
-      // Best-effort only — a missed heartbeat just means the backend's own
-      // sliding-window inactivity clock (SESSION_TIMEOUT_MS, kept in sync
-      // with the backend's config) may lapse slightly ahead of the
-      // client's; it doesn't affect the client-side timeout.
-    })
+    fetchBackendMeWithPolicy(token)
+      .then(({ session }) => {
+        if (session && session.inactivityTimeoutMinutes > 0) {
+          timeoutMsRef.current = session.inactivityTimeoutMinutes * 60 * 1000
+        }
+      })
+      .catch(() => {
+        // Best-effort. A 401 here is already handled a layer down, where the
+        // request transparently re-authenticates and retries, so a rejection
+        // at this point means the backend is genuinely unreachable - the
+        // client-side countdown carries on regardless.
+      })
   }, [])
 
   useEffect(() => {
@@ -62,13 +74,25 @@ export function useSessionTimeout(): SessionTimeoutState {
     const tick = () => {
       if (expiredRef.current) return
 
-      const remainingMs = SESSION_TIMEOUT_MS - idleActivityClock.getIdleMs()
+      const remainingMs = timeoutMsRef.current - idleActivityClock.getIdleMs()
 
       if (remainingMs <= 0) {
         expiredRef.current = true
         setPhase('expired')
         void expireSessionRef.current()
         return
+      }
+
+      // Heartbeat before branching on phase, so a due heartbeat is never
+      // skipped just because the countdown has reached its warning band. This
+      // also covers the case that broke contact import: browsers throttle
+      // timers in a hidden tab, so the interval below effectively stops while
+      // the user is in another tab, the server-side window lapses, and the
+      // session row is deleted. The visibilitychange listener re-ticks on
+      // return and this heartbeat revives the session (re-authenticating
+      // underneath if the row is already gone) before the user's next action.
+      if (Date.now() - lastHeartbeatRef.current > SESSION_HEARTBEAT_MS) {
+        heartbeat()
       }
 
       if (remainingMs <= SESSION_WARNING_MS) {
@@ -78,9 +102,6 @@ export function useSessionTimeout(): SessionTimeoutState {
       }
 
       setPhase('active')
-      if (Date.now() - lastHeartbeatRef.current > SESSION_HEARTBEAT_MS) {
-        heartbeat()
-      }
     }
 
     tick()

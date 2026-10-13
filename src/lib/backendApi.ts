@@ -2,10 +2,70 @@ export const API_BASE_URL = import.meta.env.VITE_BACKEND_API_BASE_URL || 'http:/
 
 const BACKEND_TIMEOUT_MS = 5000
 
+/**
+ * The session exchange gets its own, far longer budget. It is the one request
+ * that must not be treated as best-effort: the backend provisions the user row
+ * and their personal workspace during it, so a timeout here leaves the account
+ * half-created with no workspace at all.
+ *
+ * 5s was nowhere near enough in practice. A host that idles the instance out
+ * takes 30-60s to wake, and this backend also runs its migrations lazily on the
+ * first request, so the very first sign-in after a quiet period reliably
+ * exceeded the old timeout and aborted.
+ */
+const AUTH_TIMEOUT_MS = 45000
+
 function withTimeout(ms: number): { signal: AbortSignal; cancel: () => void } {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), ms)
   return { signal: controller.signal, cancel: () => clearTimeout(timeoutId) }
+}
+
+/** An HTTP failure that keeps its status, so callers can branch on 401. */
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
+/**
+ * Re-authenticates and returns a fresh backend session token, or null if that
+ * is not possible right now.
+ *
+ * Registered by AuthProvider rather than implemented here: it owns the Firebase
+ * user and the React state holding the token, so it is the only place that can
+ * both mint a new one and keep the UI in sync. Injecting it also keeps this
+ * module free of a firebase/auth import, and so free of an import cycle.
+ */
+type SessionRefresher = () => Promise<string | null>
+
+let sessionRefresher: SessionRefresher | null = null
+let inFlightRefresh: Promise<string | null> | null = null
+
+export function registerSessionRefresher(refresher: SessionRefresher | null): void {
+  sessionRefresher = refresher
+}
+
+/**
+ * Runs the registered refresher, collapsing concurrent callers onto one
+ * exchange. A page typically has several queries in flight, and a lapsed
+ * session fails them all at once - without this they would each mint a separate
+ * session and the last one to finish would win, invalidating the others.
+ */
+function refreshSessionOnce(): Promise<string | null> {
+  if (!sessionRefresher) return Promise.resolve(null)
+
+  if (!inFlightRefresh) {
+    inFlightRefresh = sessionRefresher().finally(() => {
+      inFlightRefresh = null
+    })
+  }
+
+  return inFlightRefresh
 }
 
 export interface BackendNotificationPreferences {
@@ -40,12 +100,12 @@ export type BackendSessionResult =
   | { status: 'ok'; sessionToken: string; user: BackendSessionUser }
   | { status: 'requiresTwoFactor'; userId: string }
 
-async function request<T>(
+async function sendOnce<T>(
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
   path: string,
   body: unknown,
-  sessionToken?: string,
-  timeoutMs: number = BACKEND_TIMEOUT_MS,
+  sessionToken: string | undefined,
+  timeoutMs: number,
 ): Promise<T> {
   const { signal, cancel } = withTimeout(timeoutMs)
   try {
@@ -62,12 +122,53 @@ async function request<T>(
     const payload = (await response.json().catch(() => ({}))) as { message?: string } & T
 
     if (!response.ok) {
-      throw new Error(payload.message || `Request failed (${response.status})`)
+      throw new ApiError(payload.message || `Request failed (${response.status})`, response.status)
     }
 
     return payload
   } finally {
     cancel()
+  }
+}
+
+/**
+ * Sends an authenticated request, re-authenticating once and retrying if the
+ * backend reports the session is gone.
+ *
+ * The backend expires sessions on a sliding inactivity window and *deletes* the
+ * row, so a token can stop working while still being a structurally valid JWT
+ * sitting in localStorage. Nothing used to notice: the only place that minted a
+ * session ran in an effect keyed on the Firebase user, which does not change
+ * when a request 401s. So the app wedged - every retry re-sent the same dead
+ * token and failed identically, and the user saw a permanent "please try again"
+ * with no way to recover but a reload. A long-running flow like contact import,
+ * where the user can sit on a review screen for minutes, hit this routinely.
+ */
+async function request<T>(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  path: string,
+  body: unknown,
+  sessionToken?: string,
+  timeoutMs: number = BACKEND_TIMEOUT_MS,
+  { recoverSession = true }: { recoverSession?: boolean } = {},
+): Promise<T> {
+  try {
+    return await sendOnce<T>(method, path, body, sessionToken, timeoutMs)
+  } catch (error) {
+    const isExpiredSession = error instanceof ApiError && error.status === 401
+    if (!isExpiredSession || !recoverSession || !sessionToken) {
+      throw error
+    }
+
+    const freshToken = await refreshSessionOnce()
+    if (!freshToken) {
+      throw error
+    }
+
+    // Deliberately only one retry, and only with a token we actually got back:
+    // if the replay 401s too, the failure is real and must surface rather than
+    // loop.
+    return sendOnce<T>(method, path, body, freshToken, timeoutMs)
   }
 }
 
@@ -125,10 +226,43 @@ function toSessionResult(payload: BackendSessionPayload): BackendSessionResult {
   return { status: 'ok', sessionToken: payload.sessionToken, user: payload.user }
 }
 
+/**
+ * Retries `attempt` on timeouts and network errors, with backoff. A 4xx is
+ * returned to the caller immediately - a rejected token or origin will be
+ * rejected just as fast the second time.
+ */
+async function withRetries<T>(attempt: () => Promise<T>, tries = 3): Promise<T> {
+  let lastError: unknown
+
+  for (let i = 0; i < tries; i += 1) {
+    try {
+      return await attempt()
+    } catch (error) {
+      const isClientError = error instanceof ApiError && error.status >= 400 && error.status < 500
+      if (isClientError || i === tries - 1) throw error
+      lastError = error
+      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** i))
+    }
+  }
+
+  throw lastError
+}
+
 // The backend treats signup and login identically (both upsert + issue a
 // session token, or signal that a 2FA code is needed first).
+//
+// Retried, and on the long AUTH_TIMEOUT_MS budget, because this call has a side
+// effect the rest of the app depends on: it is what creates the backend user
+// row and their personal workspace. When it was a single best-effort 5s attempt,
+// losing the race against a cold start left the user signed in to Firebase with
+// no workspace - and no way to make one, since the create-organization control
+// only renders once a workspace exists.
 export async function exchangeFirebaseSession(idToken: string): Promise<BackendSessionResult> {
-  const payload = await postJson<BackendSessionPayload>('/auth/login', { idToken })
+  const payload = await withRetries(() =>
+    request<BackendSessionPayload>('POST', '/auth/login', { idToken }, undefined, AUTH_TIMEOUT_MS, {
+      recoverSession: false,
+    }),
+  )
   return toSessionResult(payload)
 }
 
@@ -151,21 +285,36 @@ export async function logoutBackendSession(sessionToken: string): Promise<void> 
   }
 }
 
-export async function fetchBackendMe(sessionToken: string): Promise<BackendSessionUser> {
-  const { signal, cancel } = withTimeout(BACKEND_TIMEOUT_MS)
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
-      headers: { Authorization: `Bearer ${sessionToken}` },
-      signal,
-    })
-    const payload = (await response.json().catch(() => ({}))) as { message?: string; user?: BackendSessionUser }
-    if (!response.ok || !payload.user) {
-      throw new Error(payload.message || `Request failed (${response.status})`)
-    }
-    return payload.user
-  } finally {
-    cancel()
+/** Session policy the server owns and the client's idle timer follows. */
+export interface BackendSessionPolicy {
+  inactivityTimeoutMinutes: number
+}
+
+interface BackendMePayload {
+  user?: BackendSessionUser
+  session?: BackendSessionPolicy
+}
+
+/**
+ * Fetches the caller's profile and the server's session policy together.
+ *
+ * Routed through request() (it used to call fetch directly) so that it picks up
+ * the 401 recovery above - this doubles as the app's session heartbeat, which
+ * makes it the single most valuable place to re-authenticate automatically.
+ */
+export async function fetchBackendMeWithPolicy(
+  sessionToken: string,
+): Promise<{ user: BackendSessionUser; session: BackendSessionPolicy | null }> {
+  const payload = await request<BackendMePayload>('GET', '/auth/me', undefined, sessionToken)
+  if (!payload.user) {
+    throw new Error('Backend returned no user')
   }
+  return { user: payload.user, session: payload.session ?? null }
+}
+
+export async function fetchBackendMe(sessionToken: string): Promise<BackendSessionUser> {
+  const { user } = await fetchBackendMeWithPolicy(sessionToken)
+  return user
 }
 
 /** Partial profile update - only the fields present get written. Replaces the old Firestore users/{uid} document writes. */

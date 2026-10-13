@@ -22,7 +22,7 @@ import { useBulkImportContacts } from '../../hooks/useProjectsData'
 import { useProjects } from '../../hooks/useProjectsData'
 import { useWorkspace } from '../../hooks/useWorkspace'
 import { ImportProgressRing } from './ImportProgressRing'
-import type { ContactVisibility } from '../../types/project'
+import type { BulkImportContactsResult, ContactInput, ContactVisibility } from '../../types/project'
 
 interface ImportContactsModalProps {
   onClose: () => void
@@ -45,7 +45,7 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
   const [provider, setProvider] = useState<AiProvider>(getStoredAiProvider)
   const [projectId, setProjectId] = useState<string>('none')
   const [visibility, setVisibility] = useState<ContactVisibility>('private')
-  const [result, setResult] = useState<{ created: number; duplicates: number; failed: number } | null>(null)
+  const [result, setResult] = useState<BulkImportContactsResult | null>(null)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
 
   function handleProviderChange(next: AiProvider) {
@@ -112,27 +112,32 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
   const selectedRows = rows.filter((row) => row.selected)
   const allSelected = rows.length > 0 && selectedRows.length === rows.length
 
-  async function handleImport() {
-    if (selectedRows.length === 0) return
+  function toContactInput(row: ParsedContact): ContactInput {
+    return {
+      firstName: row.firstName,
+      lastName: row.lastName || undefined,
+      email: row.email || undefined,
+      phone: row.phone || undefined,
+      company: row.company || undefined,
+      role: row.role || undefined,
+      notes: row.notes || undefined,
+      projectId: projectId === 'none' ? null : projectId,
+      visibility,
+    }
+  }
 
-    setProgress({ done: 0, total: selectedRows.length })
+  async function runImport(contacts: ContactInput[], allowDuplicates = false) {
+    if (contacts.length === 0) return
+
+    setProgress({ done: 0, total: contacts.length })
     try {
       const outcome = await bulkImport.mutateAsync({
         workspaceId: activeWorkspace?.id,
-        contacts: selectedRows.map((row) => ({
-          firstName: row.firstName,
-          lastName: row.lastName || undefined,
-          email: row.email || undefined,
-          phone: row.phone || undefined,
-          company: row.company || undefined,
-          role: row.role || undefined,
-          notes: row.notes || undefined,
-          projectId: projectId === 'none' ? null : projectId,
-          visibility,
-        })),
+        contacts,
+        allowDuplicates,
         onProgress: (done, total) => setProgress({ done, total }),
       })
-      setResult({ created: outcome.createdCount, duplicates: outcome.duplicateCount, failed: outcome.failedCount })
+      setResult(outcome)
     } catch (err) {
       // Bare catches here made the last false "Import failed" report take a
       // full investigation to diagnose - log the real cause so next time it's
@@ -144,6 +149,23 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
     }
   }
 
+  function handleImport() {
+    return runImport(selectedRows.map(toContactInput))
+  }
+
+  /**
+   * Re-sends exactly the rows the server flagged, with the override set. This
+   * is the affordance the result screen used to lack entirely: it reported
+   * "N skipped as likely duplicates" and offered nothing to do about it, so a
+   * flagged import was simply stuck.
+   */
+  function handleImportDuplicatesAnyway() {
+    if (!result) return
+    const rows = result.duplicates.map((row) => row.contact)
+    setResult(null)
+    return runImport(rows, true)
+  }
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
@@ -152,18 +174,69 @@ export function ImportContactsModal({ onClose }: ImportContactsModalProps) {
         </DialogHeader>
 
         {result ? (
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <CheckCircle2 size={36} strokeWidth={1.7} className="text-emerald-500" />
-            <p className="text-sm font-medium text-slate-800">
-              Imported {result.created} contact{result.created === 1 ? '' : 's'}
-            </p>
-            <p className="text-sm text-slate-500">
-              {result.duplicates > 0 && `${result.duplicates} skipped as likely duplicates. `}
-              {result.failed > 0 && `${result.failed} couldn't be imported.`}
-            </p>
-            <Button type="button" onClick={onClose}>
-              Done
-            </Button>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <CheckCircle2 size={36} strokeWidth={1.7} className="text-emerald-500" />
+              <p className="text-sm font-medium text-slate-800">
+                Imported {result.createdCount} contact{result.createdCount === 1 ? '' : 's'}
+              </p>
+              {result.failedCount > 0 && (
+                <p className="text-sm text-slate-500">
+                  {result.failedCount} couldn&apos;t be imported.
+                </p>
+              )}
+            </div>
+
+            {result.duplicateCount > 0 && (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-slate-600">
+                  {result.duplicateCount} skipped as {result.duplicateCount === 1 ? 'a likely duplicate' : 'likely duplicates'}
+                  :
+                </p>
+                <div className="max-h-40 overflow-y-auto rounded-lg border border-line">
+                  {result.duplicates.map((row, index) => (
+                    <div key={index} className="border-b border-line px-3 py-2 last:border-b-0">
+                      <p className="truncate text-sm font-medium text-slate-800">
+                        {[row.contact.firstName, row.contact.lastName].filter(Boolean).join(' ') || '(no name)'}
+                      </p>
+                      <p className="truncate text-xs text-slate-400">
+                        {row.existingContact
+                          ? `Matches ${row.existingContact.contactName}${
+                              row.existingContact.email ? ` · ${row.existingContact.email}` : ''
+                            }`
+                          : [row.contact.email, row.contact.phone].filter(Boolean).join(' · ') || '—'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {result.failed.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="max-h-28 overflow-y-auto rounded-lg border border-line">
+                  {result.failed.map((row, index) => (
+                    <div key={index} className="border-b border-line px-3 py-2 last:border-b-0">
+                      <p className="truncate text-sm font-medium text-slate-800">
+                        {[row.contact.firstName, row.contact.lastName].filter(Boolean).join(' ') || '(no name)'}
+                      </p>
+                      <p className="truncate text-xs text-rose-500">{row.message || 'Could not be imported'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              {result.duplicateCount > 0 && (
+                <Button type="button" variant="ghost" onClick={handleImportDuplicatesAnyway}>
+                  Import {result.duplicateCount} anyway
+                </Button>
+              )}
+              <Button type="button" onClick={onClose}>
+                Done
+              </Button>
+            </div>
           </div>
         ) : bulkImport.isPending ? (
           <div className="flex flex-col items-center gap-3 py-8 text-center">

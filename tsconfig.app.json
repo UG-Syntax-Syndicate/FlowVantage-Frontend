@@ -1,5 +1,11 @@
 {
   "compilerOptions": {
+    /* Was off, which meant strictNullChecks was off: every
+       "this might be undefined" path - including the missing-workspace
+       states behind a recent production bug - was invisible to tsc.
+       Enabling it cost zero errors, so it was only ever absent by
+       omission. */
+    "strict": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
     "lib": ["ES2023", "DOM"],

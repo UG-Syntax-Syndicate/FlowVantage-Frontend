@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'motion/react'
 import { TASK_STATUS_ORDER, TASK_STATUS_META } from '../../types/statusMeta'
 import type { TaskStatus } from '../../types/project'
@@ -10,6 +11,7 @@ import { isTaskOverdue } from '../../lib/taskStats'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 import { EASE_PREMIUM, fadeInUp, staggerDelay } from '../../lib/motion'
+import { TaskDetailModal } from './TaskDetailModal'
 
 const MotionTableRow = motion.create(TableRow)
 
@@ -19,6 +21,11 @@ interface ListViewProps {
 
 export function ListView({ tasks }: ListViewProps) {
   const updateTaskStatus = useUpdateTaskStatus()
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+
+  // Looked up from `tasks` rather than held in state, so an edit made in the
+  // modal is reflected immediately instead of showing a stale copy.
+  const openTask = tasks.find((task) => task.id === openTaskId)
 
   return (
     <div className="h-full overflow-auto rounded-2xl border border-line bg-white shadow-[0px_10px_40px_10px_rgba(152,150,163,0.14)]">
@@ -39,7 +46,8 @@ export function ListView({ tasks }: ListViewProps) {
             return (
               <MotionTableRow
                 key={task.id}
-                className="border-t border-line hover:bg-slate-50/60"
+                onClick={() => setOpenTaskId(task.id)}
+                className="cursor-pointer border-t border-line hover:bg-slate-50/60"
                 initial="hidden"
                 animate="visible"
                 variants={fadeInUp}
@@ -64,7 +72,9 @@ export function ListView({ tasks }: ListViewProps) {
                 <TableCell className="px-5 py-3.5">
                   <PriorityBadge priority={task.priority} />
                 </TableCell>
-                <TableCell className="px-5 py-3.5">
+                {/* Stops the inline status change from also opening the row's
+                    detail modal. */}
+                <TableCell className="px-5 py-3.5" onClick={(event) => event.stopPropagation()}>
                   <Select
                     value={task.status}
                     onValueChange={(value) => updateTaskStatus.mutate({ taskId: task.id, status: value as TaskStatus })}
@@ -99,6 +109,8 @@ export function ListView({ tasks }: ListViewProps) {
           )}
         </TableBody>
       </Table>
+
+      {openTask && <TaskDetailModal task={openTask} onClose={() => setOpenTaskId(null)} />}
     </div>
   )
 }

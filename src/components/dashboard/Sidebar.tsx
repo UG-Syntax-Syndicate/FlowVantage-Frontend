@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { NAV_ITEMS } from './navItems'
 import { useAuth } from '../../hooks/useAuth'
 import { useProjects } from '../../hooks/useProjectsData'
+import { useUnreadMessageCounts } from '../../hooks/useCollaborationData'
 import { UserMenu } from './UserMenu'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { Avatar } from '../common/Avatar'
@@ -28,6 +29,8 @@ function isNavItemActive(pathname: string, to: string, end?: boolean) {
 export function Sidebar() {
   const { userProfile, currentUser } = useAuth()
   const { data: projects = [] } = useProjects()
+  // One request for every project's count, so the badges cost nothing per row.
+  const { data: unreadCounts = {} } = useUnreadMessageCounts()
   const { pathname } = useLocation()
   const topProjects = projects.slice(0, 4)
 
@@ -97,6 +100,14 @@ export function Sidebar() {
                         aria-hidden
                       />
                       <span className="truncate">{project.name}</span>
+                      {(unreadCounts[project.id] ?? 0) > 0 && (
+                        <span
+                          className="ml-auto shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white"
+                          aria-label={`${unreadCounts[project.id]} unread messages`}
+                        >
+                          {unreadCounts[project.id] > 99 ? '99+' : unreadCounts[project.id]}
+                        </span>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

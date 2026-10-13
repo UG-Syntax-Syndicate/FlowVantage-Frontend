@@ -9,6 +9,7 @@ import { AvatarStack } from '../dashboard/AvatarStack'
 import { PriorityBadge } from './StatusBadge'
 import { formatShortDate } from '../../lib/formatDate'
 import { EASE_PREMIUM, fadeInUp, staggerDelay } from '../../lib/motion'
+import { TaskDetailModal } from './TaskDetailModal'
 
 interface BoardViewProps {
   tasks: EnrichedTask[]
@@ -17,6 +18,11 @@ interface BoardViewProps {
 export function BoardView({ tasks }: BoardViewProps) {
   const updateTaskStatus = useUpdateTaskStatus()
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null)
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+
+  // Looked up from `tasks` so a status change made in the modal shows
+  // immediately rather than leaving a stale copy on screen.
+  const openTask = tasks.find((task) => task.id === openTaskId)
 
   function handleDrop(status: TaskStatus, event: DragEvent<HTMLDivElement>) {
     event.preventDefault()
@@ -75,6 +81,7 @@ export function BoardView({ tasks }: BoardViewProps) {
                     animate="visible"
                     variants={fadeInUp}
                     transition={{ duration: 0.3, delay: staggerDelay(i), ease: EASE_PREMIUM }}
+                    onClick={() => setOpenTaskId(task.id)}
                     className="rounded-xl border border-line bg-white p-3.5 shadow-[0px_10px_24px_4px_rgba(152,150,163,0.14)]"
                   >
                     <div className="mb-2 flex items-center gap-2 text-xs text-slate-400">
@@ -101,6 +108,8 @@ export function BoardView({ tasks }: BoardViewProps) {
           </div>
         )
       })}
+
+      {openTask && <TaskDetailModal task={openTask} onClose={() => setOpenTaskId(null)} />}
     </div>
   )
 }

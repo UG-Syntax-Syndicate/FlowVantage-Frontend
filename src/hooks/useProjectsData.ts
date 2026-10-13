@@ -44,21 +44,36 @@ function useAuditRecorder() {
   )
 }
 
+/**
+ * Projects in the active workspace.
+ *
+ * The workspace id is part of the query key, not just the request: without it
+ * React Query served one cache entry for every workspace, so switching
+ * workspace left the previous workspace's projects on screen until something
+ * else happened to invalidate them. `useContacts` below was already keyed this
+ * way - projects, tasks, folders, notes, todos and documents were not, which is
+ * the whole of bug C.
+ */
 export function useProjects() {
   const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
   return useQuery({
-    queryKey: queryKeys.projects,
-    queryFn: projectsApi.fetchProjects,
-    enabled: Boolean(backendSessionToken),
+    queryKey: [...queryKeys.projects, activeWorkspaceId],
+    queryFn: () => projectsApi.fetchProjects(activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
   })
 }
 
 export function useTasks() {
   const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
   return useQuery({
-    queryKey: queryKeys.tasks,
-    queryFn: projectsApi.fetchTasks,
-    enabled: Boolean(backendSessionToken),
+    queryKey: [...queryKeys.tasks, activeWorkspaceId],
+    // An arrow function, not a bare reference: React Query calls queryFn with a
+    // QueryFunctionContext, which would otherwise arrive as the workspaceId
+    // argument and serialise into ?workspace_id=[object Object].
+    queryFn: () => projectsApi.fetchTasks(activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
   })
 }
 
@@ -141,19 +156,24 @@ export function useBulkImportContacts() {
 
 export function useFolders() {
   const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
   return useQuery({
-    queryKey: queryKeys.folders,
-    queryFn: projectsApi.fetchFolders,
-    enabled: Boolean(backendSessionToken),
+    queryKey: [...queryKeys.folders, activeWorkspaceId],
+    queryFn: () => projectsApi.fetchFolders(activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
   })
 }
 
 export function useNotes() {
   const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
   return useQuery({
-    queryKey: queryKeys.notes,
-    queryFn: projectsApi.fetchNotes,
-    enabled: Boolean(backendSessionToken),
+    queryKey: [...queryKeys.notes, activeWorkspaceId],
+    // An arrow function, not a bare reference: React Query calls queryFn with a
+    // QueryFunctionContext, which would otherwise arrive as the workspaceId
+    // argument and serialise into ?workspace_id=[object Object].
+    queryFn: () => projectsApi.fetchNotes(activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
   })
 }
 
@@ -218,10 +238,14 @@ export function useToggleNotePinned() {
 
 export function useTodos() {
   const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
   return useQuery({
-    queryKey: queryKeys.todos,
-    queryFn: projectsApi.fetchTodos,
-    enabled: Boolean(backendSessionToken),
+    queryKey: [...queryKeys.todos, activeWorkspaceId],
+    // An arrow function, not a bare reference: React Query calls queryFn with a
+    // QueryFunctionContext, which would otherwise arrive as the workspaceId
+    // argument and serialise into ?workspace_id=[object Object].
+    queryFn: () => projectsApi.fetchTodos(activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
   })
 }
 
@@ -504,10 +528,14 @@ export function useCreateTask() {
 
 export function useDocuments() {
   const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
   return useQuery({
-    queryKey: queryKeys.documents,
-    queryFn: projectsApi.fetchDocuments,
-    enabled: Boolean(backendSessionToken),
+    queryKey: [...queryKeys.documents, activeWorkspaceId],
+    // An arrow function, not a bare reference: React Query calls queryFn with a
+    // QueryFunctionContext, which would otherwise arrive as the workspaceId
+    // argument and serialise into ?workspace_id=[object Object].
+    queryFn: () => projectsApi.fetchDocuments(activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
   })
 }
 

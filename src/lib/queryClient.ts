@@ -48,6 +48,17 @@ export const queryClient = new QueryClient({
   },
 })
 
+/**
+ * Convention: a *list* key is the base key plus the active workspace id
+ * (`[...queryKeys.projects, workspaceId]`), so switching workspace selects a
+ * different cache entry instead of reusing the previous workspace's rows.
+ * Invalidation still uses the bare base key, which React Query prefix-matches.
+ *
+ * Note `project(id)` produces the same *shape* as a scoped list key,
+ * `['projects', <string>]`. It currently has no callers; if you add one, give it
+ * a distinguishing segment (e.g. `['projects', 'detail', id]`) rather than
+ * relying on project and workspace ids never colliding.
+ */
 export const queryKeys = {
   projects: ['projects'] as const,
   project: (id: string) => ['projects', id] as const,

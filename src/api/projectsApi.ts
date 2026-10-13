@@ -478,8 +478,14 @@ export async function bulkImportContactsChunked(
 // Projects
 // ---------------------------------------------------------------------------
 
-export async function fetchProjects(): Promise<Project[]> {
-  const { data } = await getJson<ApiEnvelope<ProjectRow[]>>('/projects', authToken())
+/**
+ * `workspaceId` scopes the list to one workspace. Omitting it returns every
+ * project the caller can see, across all their workspaces - which is what this
+ * always did, and why switching workspace in the UI did not re-scope the list.
+ */
+export async function fetchProjects(workspaceId?: string): Promise<Project[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<ProjectRow[]>>(`/projects${query}`, authToken())
   return data.map(mapProject)
 }
 
@@ -532,8 +538,9 @@ export async function updateProjectImage(projectId: string, image: string | null
 // Folders
 // ---------------------------------------------------------------------------
 
-export async function fetchFolders(): Promise<Folder[]> {
-  const { data } = await getJson<ApiEnvelope<FolderRow[]>>('/folders', authToken())
+export async function fetchFolders(workspaceId?: string): Promise<Folder[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<FolderRow[]>>(`/folders${query}`, authToken())
   return data.map(mapFolder)
 }
 
@@ -570,8 +577,9 @@ export async function detachProjectFromFolder(projectId: string, folderId: strin
 // Tasks
 // ---------------------------------------------------------------------------
 
-export async function fetchTasks(): Promise<Task[]> {
-  const { data } = await getJson<ApiEnvelope<TaskRow[]>>('/tasks', authToken())
+export async function fetchTasks(workspaceId?: string): Promise<Task[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<TaskRow[]>>(`/tasks${query}`, authToken())
   return data.map(mapTask)
 }
 
@@ -603,8 +611,9 @@ export async function createTask(input: Omit<Task, 'id' | 'createdAt'>): Promise
 // Todos
 // ---------------------------------------------------------------------------
 
-export async function fetchTodos(): Promise<Todo[]> {
-  const { data } = await getJson<ApiEnvelope<TodoRow[]>>('/todos', authToken())
+export async function fetchTodos(workspaceId?: string): Promise<Todo[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<TodoRow[]>>(`/todos${query}`, authToken())
   return data.map(mapTodo)
 }
 
@@ -619,8 +628,9 @@ export async function toggleTodo(todoId: string): Promise<void> {
 // Notes
 // ---------------------------------------------------------------------------
 
-export async function fetchNotes(): Promise<Note[]> {
-  const { notes } = await getJson<{ success: boolean; notes: NoteRow[] }>('/notes', authToken())
+export async function fetchNotes(workspaceId?: string): Promise<Note[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { notes } = await getJson<{ success: boolean; notes: NoteRow[] }>(`/notes${query}`, authToken())
   return notes.map(mapNote)
 }
 
@@ -666,8 +676,9 @@ export async function fetchMeetings(): Promise<Meeting[]> {
 // time uploadDocument is called (see src/lib/documentUpload.ts).
 // ---------------------------------------------------------------------------
 
-export async function fetchDocuments(): Promise<ProjectDocument[]> {
-  const { data } = await getJson<ApiEnvelope<DocumentRow[]>>('/documents', authToken())
+export async function fetchDocuments(workspaceId?: string): Promise<ProjectDocument[]> {
+  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
+  const { data } = await getJson<ApiEnvelope<DocumentRow[]>>(`/documents${query}`, authToken())
   return data.map(mapDocument)
 }
 

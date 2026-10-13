@@ -57,6 +57,9 @@ const WorkspaceMembersTab = lazy(() =>
 const InviteAcceptPage = lazy(() =>
   import('./pages/InviteAcceptPage').then((m) => ({ default: m.InviteAcceptPage })),
 )
+const IntegrationsTab = lazy(() =>
+  import('./pages/dashboard/account/IntegrationsTab').then((m) => ({ default: m.IntegrationsTab })),
+)
 const InventoryPage = lazy(() => import('./pages/dashboard/InventoryPage').then((m) => ({ default: m.InventoryPage })))
 const ReportingPage = lazy(() => import('./pages/dashboard/ReportingPage').then((m) => ({ default: m.ReportingPage })))
 const ComingSoonPage = lazy(() =>
@@ -241,10 +244,7 @@ function App() {
               path="integrations"
               element={
                 <Suspense fallback={<RouteFallback />}>
-                  <ComingSoonPage
-                    title="Integrations"
-                    description="Connect third-party apps and integrations. Coming soon."
-                  />
+                  <IntegrationsTab />
                 </Suspense>
               }
             />

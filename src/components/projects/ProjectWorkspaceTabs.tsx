@@ -1,6 +1,7 @@
-import { Package } from 'lucide-react'
+import { MessageCircle, Package } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { ProjectInventoryPanel } from './ProjectInventoryPanel'
+import { ProjectWhatsAppPanel } from './ProjectWhatsAppPanel'
 
 interface ProjectWorkspaceTabsProps {
   projectId: string
@@ -24,10 +25,18 @@ export function ProjectWorkspaceTabs({ projectId }: ProjectWorkspaceTabsProps) {
             <Package size={14} strokeWidth={2} />
             Materials
           </TabsTrigger>
+          <TabsTrigger value="whatsapp">
+            <MessageCircle size={14} strokeWidth={2} />
+            WhatsApp
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="materials" className="mt-4">
           <ProjectInventoryPanel projectId={projectId} />
+        </TabsContent>
+
+        <TabsContent value="whatsapp" className="mt-4">
+          <ProjectWhatsAppPanel projectId={projectId} />
         </TabsContent>
       </Tabs>
     </div>

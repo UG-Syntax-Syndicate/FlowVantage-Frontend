@@ -6,6 +6,10 @@ export type AuditAction =
   | 'email_change_requested'
   | 'profile_updated'
   | 'notification_preferences_updated'
+  // Opting a phone number in to WhatsApp notifications is a consent decision,
+  // which is exactly the kind of thing an audit trail exists to record.
+  | 'whatsapp_number_verified'
+  | 'whatsapp_notifications_toggled'
   | 'data_exported'
   | 'account_deletion_initiated'
   | 'account_deleted'

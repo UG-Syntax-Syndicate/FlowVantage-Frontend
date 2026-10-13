@@ -9,6 +9,7 @@ import {
   Flag,
   Pencil,
   MoreHorizontal,
+  FileDown,
   Clock,
   Triangle,
   ImagePlus,
@@ -33,12 +34,15 @@ import { TodosPanel } from '../../components/projects/TodosPanel'
 import { NotesPanel } from '../../components/projects/NotesPanel'
 import { EmailsPanel } from '../../components/projects/EmailsPanel'
 import { DocumentsSection } from '../../components/projects/DocumentsSection'
+import { ProjectWorkspaceTabs } from '../../components/projects/ProjectWorkspaceTabs'
 import { ImageCropModal } from '../../components/projects/ImageCropModal'
 import { AvatarStack } from '../../components/dashboard/AvatarStack'
 import { ProjectStatusBadge, PriorityBadge } from '../../components/projects/StatusBadge'
 import { formatShortDate, formatDateTime, formatDuration } from '../../lib/formatDate'
 import { convertImageToWebp, validateImageFile } from '../../lib/images'
+import { useDownloadProjectReport } from '../../hooks/useReportingData'
 import { showToast } from '../../lib/toast'
+import type { ReportFormat } from '../../types/report'
 import { Skeleton } from '../../components/ui/skeleton'
 
 export function ProjectDetailPage() {
@@ -56,6 +60,7 @@ export function ProjectDetailPage() {
   const coverInputRef = useRef<HTMLInputElement>(null)
   const updateProjectImage = useUpdateProjectImage()
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null)
+  const downloadReport = useDownloadProjectReport()
 
   const project = projects.find((p) => p.id === projectId)
   const projectFolders = folders.filter((f) => project?.folderIds.includes(f.id))
@@ -87,6 +92,7 @@ export function ProjectDetailPage() {
   }
 
   const currentProjectId = project.id
+  const currentProjectName = project.name
 
   function handleTodosViewAll() {
     setTaskExpandSignal((s) => s + 1)
@@ -113,6 +119,19 @@ export function ProjectDetailPage() {
       showToast('success', 'Cover image updated')
     } catch {
       showToast('error', 'Could not update cover image')
+    }
+  }
+
+  async function exportReport(format: ReportFormat) {
+    try {
+      await downloadReport.mutateAsync({
+        projectId: currentProjectId,
+        format,
+        fallbackName: currentProjectName.replace(/[^a-z0-9]+/gi, '-').toLowerCase(),
+      })
+      showToast('success', `${format.toUpperCase()} report downloaded`)
+    } catch (error) {
+      showToast('error', error instanceof Error ? error.message : 'Could not generate this report')
     }
   }
 
@@ -148,9 +167,27 @@ export function ProjectDetailPage() {
           <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100" aria-label="Edit project">
             <Pencil size={16} />
           </button>
-          <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100" aria-label="More options">
-            <MoreHorizontal size={16} />
-          </button>
+          {/* Export lives here as well as on the Reporting page: this is where
+              someone looks for "give me this project as a document". */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="More options"
+              className="rounded-lg p-1.5 outline-none hover:bg-slate-100 disabled:opacity-60"
+              disabled={downloadReport.isPending}
+            >
+              <MoreHorizontal size={16} />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => exportReport('pdf')}>
+                <FileDown size={14} strokeWidth={2} />
+                Export report (PDF)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportReport('docx')}>
+                <FileDown size={14} strokeWidth={2} />
+                Export report (DOCX)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -340,6 +377,8 @@ export function ProjectDetailPage() {
               expandSignal={taskExpandSignal}
             />
           </div>
+
+          <ProjectWorkspaceTabs projectId={project.id} />
         </div>
 
         <aside className="flex w-full flex-col gap-4 lg:w-[300px] lg:shrink-0">

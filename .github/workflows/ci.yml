@@ -1,0 +1,50 @@
+# DCIT208 CI baseline for the FlowVantage web client.
+#
+# Runs the same targets a developer runs locally - make setup, make lint,
+# make test, make build - so a green check here means the contract in the
+# Makefile holds, not that a separate CI-only script passed.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: make setup
+        run: make setup
+
+      - name: make lint
+        run: make lint
+
+      - name: make test
+        run: make test
+
+      # Last, and deliberately not optional: `tsc -b && vite build` is where a
+      # type error surfaces, so a build that fails is a failed check rather
+      # than a warning after the tests have already gone green.
+      #
+      # No Firebase or API environment variables are set here. The bundle reads
+      # its VITE_* config at runtime from the hosting environment, so a build
+      # needs none of them, and CI should not hold copies of them.
+      - name: make build
+        run: make build
+
+      - name: Upload the built bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7

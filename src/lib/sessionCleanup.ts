@@ -2,6 +2,7 @@ import { queryClient } from './queryClient'
 import { clearBackendSessionToken } from './backendSession'
 import { clearActivity } from './sessionExpiry'
 import { clearPendingAuthRedirect } from './pendingAuthRedirect'
+import { clearPendingAccountType } from './pendingAccountType'
 
 /**
  * Wipes every piece of client-owned session state in one place, so logout and
@@ -13,5 +14,6 @@ export function clearAllClientSession(): void {
   clearBackendSessionToken() // localStorage: flowvantage.backendSessionToken
   clearActivity() // localStorage: flowvantage.lastActivityAt
   clearPendingAuthRedirect() // in-memory redirect hint
+  clearPendingAccountType() // sessionStorage: flowvantage.pendingAccountType
   queryClient.clear() // drop the previous user's cached projects/contacts/etc.
 }

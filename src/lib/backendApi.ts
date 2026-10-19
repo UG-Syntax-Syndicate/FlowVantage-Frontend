@@ -92,6 +92,29 @@ export interface BackendSessionUser {
   authProvider?: string
   twoFactorEnabled?: boolean
   notificationPreferences?: BackendNotificationPreferences
+  /**
+   * The extended profile. Present on GET and PATCH /auth/me, absent from the
+   * session-exchange response - the server serves these from a fresh database
+   * read rather than signing them into the session JWT, since every field in
+   * that token is re-sent on every single request.
+   */
+  dateOfBirth?: string | null
+  age?: number | null
+  nationality?: string | null
+  phone?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  city?: string | null
+  region?: string | null
+  postalCode?: string | null
+  country?: string | null
+  jobTitle?: string | null
+  company?: string | null
+  teamSize?: string | null
+  timezone?: string | null
+  locale?: string | null
+  profileCompletedAt?: string | null
+  createdAt?: string | null
 }
 
 interface BackendSessionPayload {
@@ -421,6 +444,26 @@ export interface BackendProfileUpdate {
   name?: string
   avatarUrl?: string | null
   notificationPreferences?: Partial<BackendNotificationPreferences>
+  dateOfBirth?: string | null
+  nationality?: string | null
+  phone?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  city?: string | null
+  region?: string | null
+  postalCode?: string | null
+  country?: string | null
+  jobTitle?: string | null
+  company?: string | null
+  teamSize?: string | null
+  timezone?: string | null
+  locale?: string | null
+  /**
+   * Send `true` to stamp "the wizard is done" with the server's clock, or
+   * `null` to clear it. The server ignores any timestamp sent here - this flag
+   * is what stops the wizard reappearing, so it is not a client's to backdate.
+   */
+  profileCompletedAt?: true | null
 }
 
 export async function updateBackendProfile(

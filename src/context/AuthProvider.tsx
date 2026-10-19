@@ -34,8 +34,33 @@ function mapBackendUserToProfile(user: BackendSessionUser): UserProfile {
     role: (user.role as UserProfile['role']) ?? 'owner',
     authProvider: (user.authProvider as UserProfile['authProvider']) ?? 'password',
     photoURL: user.picture,
-    createdAt: null,
+    // Now actually carried by GET /auth/me. This was hardcoded to null, a
+    // leftover from the Firestore era when the backend had no created_at to
+    // give.
+    createdAt: user.createdAt ?? null,
     notificationPreferences: user.notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES,
+
+    // The extended profile. Defaulted to null rather than left undefined,
+    // because the session-exchange response does not include these - the
+    // server serves them from a fresh read instead of inflating the session
+    // JWT with them - so a profile mapped from that payload must still have
+    // the shape every consumer expects.
+    dateOfBirth: user.dateOfBirth ?? null,
+    age: user.age ?? null,
+    nationality: user.nationality ?? null,
+    phone: user.phone ?? null,
+    addressLine1: user.addressLine1 ?? null,
+    addressLine2: user.addressLine2 ?? null,
+    city: user.city ?? null,
+    region: user.region ?? null,
+    postalCode: user.postalCode ?? null,
+    country: user.country ?? null,
+    jobTitle: user.jobTitle ?? null,
+    company: user.company ?? null,
+    teamSize: user.teamSize ?? null,
+    timezone: user.timezone ?? null,
+    locale: user.locale ?? null,
+    profileCompletedAt: user.profileCompletedAt ?? null,
   }
 }
 

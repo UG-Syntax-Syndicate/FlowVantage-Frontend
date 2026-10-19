@@ -12,6 +12,7 @@ import { markActivityNow } from '../../lib/sessionExpiry'
 import { signInWithGoogle, signInWithMicrosoft } from '../../lib/oauth'
 import { showToast } from '../../lib/toast'
 import { AuthLayout } from '../../components/auth/AuthLayout'
+import { AuthField } from '../../components/auth/AuthField'
 import { GoogleButton } from '../../components/auth/GoogleButton'
 import { MicrosoftButton } from '../../components/auth/MicrosoftButton'
 import { PasswordInput } from '../../components/auth/PasswordInput'
@@ -84,20 +85,14 @@ export function LoginPage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-slate-700">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            {...register('email')}
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent-400 focus:ring-2 focus:ring-accent-100"
-            placeholder="Example@email.com"
-          />
-          {errors.email && <p className="text-sm text-rose-600">{errors.email.message}</p>}
-        </div>
+        <AuthField
+          label="Email"
+          type="email"
+          autoComplete="email"
+          placeholder="Example@email.com"
+          error={errors.email?.message}
+          {...register('email')}
+        />
 
         <div className="space-y-2">
           <label htmlFor="password" className="text-sm font-medium text-slate-700">

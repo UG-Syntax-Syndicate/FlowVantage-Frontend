@@ -6,6 +6,9 @@ import * as aiApi from '../api/aiApi'
 import { useAuth } from './useAuth'
 import { useWorkspace } from './useWorkspace'
 import { logRecordChange } from '../lib/auditLog'
+import { celebrate } from '../lib/celebrate'
+import { showToast } from '../lib/toast'
+import { useMarkMilestone } from './useOnboarding'
 import type { RecordChangeAction } from '../types/audit'
 import type {
   ComposeEmailInput,
@@ -349,11 +352,39 @@ export function useToggleTodo() {
 export function useUpdateTaskStatus() {
   const queryClient = useQueryClient()
   const recordAudit = useAuditRecorder()
+  const markMilestone = useMarkMilestone()
   return useMutation({
     mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) =>
       projectsApi.updateTaskStatus(taskId, status),
     onSuccess: (_data, { taskId, status }) => {
       recordAudit('update', 'task', taskId, { status })
+
+      // The first completed task is worth celebrating, and this is the only
+      // place in the app where a task becomes done. New tasks are always
+      // created as 'todo', so '-> done' is the transition that counts.
+      //
+      // The server decides whether this was genuinely the first: it answers
+      // atomically, so two tabs completing tasks at the same moment produce one
+      // celebration rather than two. There is no per-user task counter and
+      // `tasks` has no completed_at, so this signal has to be derived here -
+      // but the once-only guarantee does not.
+      if (status !== 'done') return
+
+      markMilestone.mutate('firstTaskCompletedAt', {
+        onSuccess: ({ wasFirst }) => {
+          if (!wasFirst) return
+
+          const animated = celebrate()
+          showToast(
+            'success',
+            'First task complete! 🎉',
+            animated ? undefined : 'Nice work - that is the hard part over with.',
+          )
+        },
+        // Deliberately silent on failure. A celebration that could not be
+        // recorded must not turn a successful task update into an error toast.
+        onError: () => {},
+      })
     },
     onMutate: async ({ taskId, status }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.tasks })

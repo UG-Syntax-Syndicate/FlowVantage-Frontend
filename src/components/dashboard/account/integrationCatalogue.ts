@@ -32,6 +32,13 @@ export interface IntegrationPresentation {
 export const SELF_MANAGED_PROVIDERS = ['whatsapp', 'google_calendar'] as const
 
 export const INTEGRATION_PRESENTATION: Record<string, IntegrationPresentation> = {
+  google: {
+    id: 'google',
+    icon: 'google',
+    summary: 'One sign-in that covers Calendar, Gmail and Drive.',
+    detail:
+      'Sign in to Google once and approve Calendar, Gmail and Drive together. Google issues a single authorisation, so there is no reason to sign in to the same account three times — connecting here turns all three on.',
+  },
   whatsapp: {
     id: 'whatsapp',
     icon: 'whatsapp',
@@ -115,6 +122,7 @@ export const INTEGRATION_PRESENTATION: Record<string, IntegrationPresentation> =
 
 /** Display order on the index page: the ones that do something today, first. */
 export const INTEGRATION_ORDER = [
+  'google',
   'google_calendar',
   'whatsapp',
   'gmail',

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { CalendarCheck, RefreshCw, Unlink } from 'lucide-react'
 import { Button } from '../../ui/button'
 import { Skeleton } from '../../ui/skeleton'
 import { Alert } from '../../common/Alert'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
+import { ProviderSetupGuide } from './ProviderSetupGuide'
 import {
   useConnectGoogleCalendar,
   useDisconnectGoogleCalendar,
@@ -106,12 +107,11 @@ export function GoogleCalendarSection() {
       </div>
 
       {!configured ? (
-        <Alert variant="info">
-          This server has no Google OAuth credentials configured, so Google Calendar cannot be connected here. An
-          administrator needs to set <code className="font-mono text-xs">GOOGLE_CLIENT_ID</code>,{' '}
-          <code className="font-mono text-xs">GOOGLE_CLIENT_SECRET</code> and{' '}
-          <code className="font-mono text-xs">GOOGLE_REDIRECT_URI</code>.
-        </Alert>
+        <ProviderSetupGuide
+          providerId="google_calendar"
+          providerName="Google Calendar"
+          setup={status?.setup ?? null}
+        />
       ) : connected ? (
         <>
           <Alert variant="success">Connected. New and edited events sync to your Google Calendar automatically.</Alert>
@@ -140,6 +140,17 @@ export function GoogleCalendarSection() {
           <Button type="button" size="sm" onClick={handleConnect} disabled={connect.isPending}>
             {connect.isPending ? 'Redirecting…' : 'Connect Google Calendar'}
           </Button>
+
+          {/* The unified sign-in covers this and more in the same consent, so
+              it is worth offering - but calendar-only stays available for
+              anyone who does not want to grant mail access. */}
+          <p className="text-xs leading-relaxed text-slate-400">
+            Want Gmail and Drive as well?{' '}
+            <Link to="/dashboard/account/integrations/google" className="font-medium text-primary hover:underline">
+              Connect Google once
+            </Link>{' '}
+            and all three are authorised together.
+          </p>
         </div>
       )}
 

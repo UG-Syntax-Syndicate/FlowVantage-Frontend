@@ -105,6 +105,17 @@ export interface IntegrationResourceSupport {
   post: boolean
 }
 
+/**
+ * The facts needed to configure an OAuth provider, reported by the server.
+ * The redirect URI depends on the API's own public URL and must match the
+ * vendor's console exactly, so it is never derived in the frontend.
+ */
+export interface IntegrationSetup {
+  redirectUri: string | null
+  envVars: string[]
+  scopes: string[]
+}
+
 export interface IntegrationConnection {
   id: string
   name: string
@@ -127,4 +138,11 @@ export interface IntegrationConnection {
    * registry so the UI never keeps a second copy of it.
    */
   resources: Record<string, IntegrationResourceSupport> | null
+  /** Present for OAuth providers; null for credential-based ones. */
+  setup: IntegrationSetup | null
+  /**
+   * The provider whose sign-in backs this one — 'google' for Gmail and Drive,
+   * which share a single Google authorisation. Null when it owns its own.
+   */
+  tokenSource: string | null
 }

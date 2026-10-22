@@ -2,6 +2,7 @@ import { getJson, patchJson, postJsonAuthed, putJson } from '../lib/backendApi'
 import { readBackendSessionToken } from '../lib/backendSession'
 import type {
   IntegrationConnection,
+  IntegrationSetup,
   NotificationLogEntry,
   NotificationStatus,
   ProjectWhatsAppGroup,
@@ -197,15 +198,18 @@ export interface GoogleCalendarStatus {
    * `whatsappConfigured` already provides for WhatsApp.
    */
   configured: boolean
+  /** How to configure it, when it is not configured. Same shape as the catalogue's. */
+  setup: IntegrationSetup | null
 }
 
 export async function fetchGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
-  const { connected, configured } = await getJson<{
+  const { connected, configured, setup } = await getJson<{
     success: boolean
     connected: boolean
     configured: boolean
+    setup: IntegrationSetup | null
   }>('/calendar/google/status', authToken())
-  return { connected, configured }
+  return { connected, configured, setup: setup ?? null }
 }
 
 /**

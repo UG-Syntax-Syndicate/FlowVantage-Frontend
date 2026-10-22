@@ -8,6 +8,7 @@ import {
   Sparkles,
   Package,
   BarChart3,
+  Search,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -22,6 +23,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true, tourId: 'nav-dashboard' },
+  { to: '/dashboard/search', label: 'Search', icon: Search, tourId: 'nav-search' },
   { to: '/dashboard/projects', label: 'Projects', icon: FolderKanban, tourId: 'nav-projects' },
   { to: '/dashboard/contacts', label: 'Contacts', icon: Users, tourId: 'nav-contacts' },
   { to: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays, tourId: 'nav-calendar' },

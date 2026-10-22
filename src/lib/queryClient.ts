@@ -87,6 +87,7 @@ export const queryKeys = {
   projectMessages: (projectId: string) => ['projectMessages', projectId] as const,
   unreadMessages: ['unreadMessages'] as const,
   whatsappPreferences: ['whatsappPreferences'] as const,
+  googleCalendarStatus: ['googleCalendarStatus'] as const,
   projectWhatsappGroup: (projectId: string) => ['projectWhatsappGroup', projectId] as const,
   projectNotifications: (projectId: string) => ['projectNotifications', projectId] as const,
   workspaces: ['workspaces'] as const,

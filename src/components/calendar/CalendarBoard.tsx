@@ -4,13 +4,17 @@ import { CalendarToolbar } from './CalendarToolbar'
 import { MonthGrid } from './MonthGrid'
 import { CalendarTimeGrid } from './CalendarTimeGrid'
 import { EventDetailSheet } from './EventDetailSheet'
+import { MeetingFormModal } from './MeetingFormModal'
+import { ConfirmDialog } from '../common/ConfirmDialog'
 import type { CalendarViewMode } from './CalendarViewSwitcher'
 import type { CalendarColorMode } from './taskColor'
 import { TodoDetailModal } from '../projects/TodoDetailModal'
 import { Skeleton } from '../ui/skeleton'
-import { useToggleTodo, useUpdateTaskStatus } from '../../hooks/useProjectsData'
+import { useDeleteMeeting, useToggleTodo, useUpdateTaskStatus } from '../../hooks/useProjectsData'
 import { addDays, startOfWeek, toDateOnly } from '../../lib/calendarDate'
 import type { CalendarEvent, CalendarMeetingEvent, CalendarTaskEvent, CalendarTodoEvent } from '../../types/calendarEvent'
+import type { Meeting } from '../../types/project'
+import { showToast } from '../../lib/toast'
 
 const DEFAULT_VIEW_MODES: CalendarViewMode[] = ['month', 'week', 'day']
 
@@ -44,9 +48,12 @@ export function CalendarBoard({
   const [cursor, setCursor] = useState(() => new Date())
   const [selectedTaskOrMeeting, setSelectedTaskOrMeeting] = useState<CalendarTaskEvent | CalendarMeetingEvent | null>(null)
   const [selectedTodo, setSelectedTodo] = useState<CalendarTodoEvent | null>(null)
+  const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null)
+  const [deletingMeeting, setDeletingMeeting] = useState<Meeting | null>(null)
 
   const updateTaskStatus = useUpdateTaskStatus()
   const toggleTodo = useToggleTodo()
+  const deleteMeeting = useDeleteMeeting()
 
   useEffect(() => {
     if (!allowedViewModes.includes(viewMode)) setViewMode(allowedViewModes[0] ?? 'month')
@@ -110,6 +117,41 @@ export function CalendarBoard({
         onClose={() => setSelectedTaskOrMeeting(null)}
         onStatusChange={(taskId, status) => updateTaskStatus.mutate({ taskId, status })}
         statusUpdatePending={updateTaskStatus.isPending}
+        onEditMeeting={(event) => {
+          // The form replaces the sheet rather than opening behind it.
+          setSelectedTaskOrMeeting(null)
+          setEditingMeeting(event.meeting)
+        }}
+        onDeleteMeeting={(event) => {
+          setSelectedTaskOrMeeting(null)
+          setDeletingMeeting(event.meeting)
+        }}
+      />
+
+      {editingMeeting && <MeetingFormModal meeting={editingMeeting} onClose={() => setEditingMeeting(null)} />}
+
+      <ConfirmDialog
+        open={Boolean(deletingMeeting)}
+        title="Delete this event?"
+        description={
+          deletingMeeting
+            ? `"${deletingMeeting.title}" will be removed from your calendar, and from Google Calendar if it is linked.`
+            : ''
+        }
+        confirmLabel="Delete event"
+        danger
+        loading={deleteMeeting.isPending}
+        onCancel={() => setDeletingMeeting(null)}
+        onConfirm={async () => {
+          if (!deletingMeeting) return
+          try {
+            await deleteMeeting.mutateAsync(deletingMeeting.id)
+            showToast('success', 'Event deleted')
+            setDeletingMeeting(null)
+          } catch {
+            showToast('error', 'Could not delete this event')
+          }
+        }}
       />
 
       {selectedTodo && (

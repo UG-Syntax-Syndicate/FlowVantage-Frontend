@@ -74,3 +74,52 @@ export function useProjectNotifications(projectId: string | null) {
     refetchInterval: 15_000,
   })
 }
+
+// ---------------------------------------------------------------------------
+// Google Calendar
+// ---------------------------------------------------------------------------
+
+export function useGoogleCalendarStatus() {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.googleCalendarStatus,
+    queryFn: integrationsApi.fetchGoogleCalendarStatus,
+    enabled: Boolean(backendSessionToken),
+  })
+}
+
+/**
+ * Starts the OAuth dance by sending the browser to Google's consent screen.
+ *
+ * A full-page redirect rather than a popup: the backend's callback answers with
+ * a 302 back to the integrations page, which a popup could not hand back to the
+ * opener without extra postMessage plumbing.
+ */
+export function useConnectGoogleCalendar() {
+  return useMutation({
+    mutationFn: async () => {
+      const url = await integrationsApi.fetchGoogleCalendarAuthUrl()
+      window.location.assign(url)
+    },
+  })
+}
+
+export function useDisconnectGoogleCalendar() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: integrationsApi.disconnectGoogleCalendar,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.googleCalendarStatus })
+      // Events pulled from Google are no longer ours to show.
+      queryClient.invalidateQueries({ queryKey: queryKeys.meetings })
+    },
+  })
+}
+
+export function useSyncGoogleCalendar() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: integrationsApi.syncGoogleCalendar,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.meetings }),
+  })
+}

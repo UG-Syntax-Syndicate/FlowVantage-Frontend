@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ContactInputSchema, type ContactInput, type ContactVisibility } from '../../types/project'
-import { useCreateContact, useProjects } from '../../hooks/useProjectsData'
+import { ContactInputSchema, type Contact, type ContactInput, type ContactVisibility } from '../../types/project'
+import { useCreateContact, useProjects, useUpdateContact } from '../../hooks/useProjectsData'
 import { useWorkspace } from '../../hooks/useWorkspace'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
@@ -12,13 +12,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { showToast } from '../../lib/toast'
 
 interface AddContactModalProps {
+  /** Omit to add a new contact; pass one to edit it in place. */
+  contact?: Contact
   onClose: () => void
 }
 
-export function AddContactModal({ onClose }: AddContactModalProps) {
+/**
+ * The contact form, for both adding and editing. Contact stores a single
+ * `contactName` while the form collects first/last separately, so an edit
+ * splits it back apart on the first space - the same split the backend's
+ * first_name/last_name columns imply.
+ */
+export function AddContactModal({ contact, onClose }: AddContactModalProps) {
   const createContact = useCreateContact()
+  const updateContact = useUpdateContact()
   const { data: projects = [] } = useProjects()
   const { activeWorkspace } = useWorkspace()
+  const isEditing = Boolean(contact)
+  const isPending = createContact.isPending || updateContact.isPending
+
+  const [existingFirstName, ...existingLastNameParts] = (contact?.contactName ?? '').split(' ')
 
   const {
     register,
@@ -29,16 +42,17 @@ export function AddContactModal({ onClose }: AddContactModalProps) {
   } = useForm<ContactInput>({
     resolver: zodResolver(ContactInputSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      company: '',
-      role: '',
-      notes: '',
-      workspaceId: activeWorkspace?.id,
-      visibility: 'private',
-      projectId: null,
+      firstName: existingFirstName ?? '',
+      lastName: existingLastNameParts.join(' '),
+      email: contact?.email ?? '',
+      phone: contact?.phone ?? '',
+      company: contact?.company ?? '',
+      role: contact?.role ?? '',
+      niche: contact?.niche ?? '',
+      notes: contact?.notes ?? '',
+      workspaceId: contact?.workspaceId ?? activeWorkspace?.id,
+      visibility: contact?.visibility ?? 'private',
+      projectId: contact?.projectId ?? null,
     },
   })
 
@@ -47,11 +61,16 @@ export function AddContactModal({ onClose }: AddContactModalProps) {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await createContact.mutateAsync(values)
-      showToast('success', 'Contact added')
+      if (contact) {
+        await updateContact.mutateAsync({ contactId: contact.id, input: values })
+        showToast('success', 'Contact updated')
+      } else {
+        await createContact.mutateAsync(values)
+        showToast('success', 'Contact added')
+      }
       onClose()
     } catch {
-      showToast('error', 'Could not add this contact')
+      showToast('error', contact ? 'Could not save this contact' : 'Could not add this contact')
     }
   })
 
@@ -59,7 +78,7 @@ export function AddContactModal({ onClose }: AddContactModalProps) {
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add contact</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit contact' : 'Add contact'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3">
@@ -144,8 +163,8 @@ export function AddContactModal({ onClose }: AddContactModalProps) {
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" loading={createContact.isPending} disabled={createContact.isPending}>
-              {createContact.isPending ? 'Adding…' : 'Add Contact'}
+            <Button type="submit" loading={isPending} disabled={isPending}>
+              {isPending ? 'Saving…' : isEditing ? 'Save Changes' : 'Add Contact'}
             </Button>
           </div>
         </form>

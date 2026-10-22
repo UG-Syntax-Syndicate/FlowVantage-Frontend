@@ -1,11 +1,16 @@
-import { CalendarDays, Flag, FolderKanban, Users } from 'lucide-react'
+import { useState } from 'react'
+import { CalendarDays, Flag, FolderKanban, Pencil, Trash2, Users } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Separator } from '../ui/separator'
 import { AvatarStack } from '../dashboard/AvatarStack'
 import { PriorityBadge } from './StatusBadge'
 import { TaskCommentThread } from '../collaboration/TaskCommentThread'
-import { useUpdateTaskStatus } from '../../hooks/useProjectsData'
+import { useDeleteTask, useMembers, useUpdateTaskStatus } from '../../hooks/useProjectsData'
+import { CreateTaskModal } from './CreateTaskModal'
+import { ConfirmDialog } from '../common/ConfirmDialog'
+import { Button } from '../ui/button'
+import { showToast } from '../../lib/toast'
 import { TASK_STATUS_META, TASK_STATUS_ORDER } from '../../types/statusMeta'
 import { formatDateTime } from '../../lib/formatDate'
 import { isTaskOverdue } from '../../lib/taskStats'
@@ -36,7 +41,34 @@ function Field({ icon: Icon, label, children }: { icon: typeof CalendarDays; lab
  */
 export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const updateTaskStatus = useUpdateTaskStatus()
+  const deleteTask = useDeleteTask()
+  const { data: members = [] } = useMembers()
   const overdue = isTaskOverdue(task)
+  const [editing, setEditing] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  async function handleDelete() {
+    try {
+      await deleteTask.mutateAsync(task.id)
+      showToast('success', 'Task deleted')
+      // The task is gone, so the modal showing it has to close with it.
+      onClose()
+    } catch {
+      showToast('error', 'Could not delete this task')
+    }
+  }
+
+  // The edit form replaces this modal rather than stacking on top of it.
+  if (editing) {
+    return (
+      <CreateTaskModal
+        projectId={task.projectId}
+        members={members}
+        task={task}
+        onClose={() => setEditing(false)}
+      />
+    )
+  }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -90,9 +122,37 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           </div>
         </div>
 
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <Pencil size={14} strokeWidth={2} />
+            Edit task
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setConfirmingDelete(true)}
+            className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+          >
+            <Trash2 size={14} strokeWidth={2} />
+            Delete
+          </Button>
+        </div>
+
         <Separator />
 
         <TaskCommentThread taskId={task.id} projectId={task.projectId} />
+
+        <ConfirmDialog
+          open={confirmingDelete}
+          title="Delete this task?"
+          description={`"${task.title}" and its comments will be removed. This cannot be undone.`}
+          confirmLabel="Delete task"
+          danger
+          loading={deleteTask.isPending}
+          onCancel={() => setConfirmingDelete(false)}
+          onConfirm={handleDelete}
+        />
       </DialogContent>
     </Dialog>
   )

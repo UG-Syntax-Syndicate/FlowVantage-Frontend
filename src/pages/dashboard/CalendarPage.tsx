@@ -3,6 +3,9 @@ import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { CalendarBoard } from '../../components/calendar/CalendarBoard'
 import { CalendarFilterBar, ALL_PROJECTS } from '../../components/calendar/CalendarFilterBar'
 import { AddTaskFlow } from '../../components/calendar/AddTaskFlow'
+import { MeetingFormModal } from '../../components/calendar/MeetingFormModal'
+import { Button } from '../../components/ui/button'
+import { CalendarPlus } from 'lucide-react'
 import { useProjects, useMeetings, useTodos } from '../../hooks/useProjectsData'
 import { useEnrichedTasks } from '../../hooks/useEnrichedTasks'
 import { useWorkspaceMembers } from '../../hooks/useWorkspacesData'
@@ -19,6 +22,7 @@ export function CalendarPage() {
 
   const [projectFilter, setProjectFilter] = useState<string>(ALL_PROJECTS)
   const [memberFilter, setMemberFilter] = useState<Set<string>>(new Set())
+  const [addingEvent, setAddingEvent] = useState(false)
 
   const projectById = useMemo(() => new Map(allProjects.map((p) => [p.id, p])), [allProjects])
 
@@ -58,12 +62,25 @@ export function CalendarPage() {
           memberFilter={memberFilter}
           onMemberFilterChange={setMemberFilter}
         />
-        <AddTaskFlow projects={allProjects} />
+        <div className="flex items-center gap-2">
+          <Button type="button" size="sm" variant="outline" onClick={() => setAddingEvent(true)}>
+            <CalendarPlus size={14} strokeWidth={2} />
+            Add event
+          </Button>
+          <AddTaskFlow projects={allProjects} />
+        </div>
       </div>
 
       <div className="min-h-[600px] flex-1">
         <CalendarBoard events={events} isLoading={isLoading} />
       </div>
+
+      {addingEvent && (
+        <MeetingFormModal
+          defaultProjectId={projectFilter === ALL_PROJECTS ? null : projectFilter}
+          onClose={() => setAddingEvent(false)}
+        />
+      )}
     </div>
   )
 }

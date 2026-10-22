@@ -1,8 +1,7 @@
-import { ChevronRight, Mail } from 'lucide-react'
+import { ChevronRight, Mail, Pencil, Trash2 } from 'lucide-react'
 import type { Contact } from '../../types/project'
 import { CONTACT_STAGE_META, CONTACT_STATUS_META } from '../../types/statusMeta'
 import { Avatar } from '../common/Avatar'
-import { showToast } from '../../lib/toast'
 import { TableCell, TableRow } from '../ui/table'
 import { Checkbox } from '../ui/checkbox'
 
@@ -11,9 +10,12 @@ interface ContactRowProps {
   selected: boolean
   onToggleSelect: () => void
   onView: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onEmail: () => void
 }
 
-export function ContactRow({ contact, selected, onToggleSelect, onView }: ContactRowProps) {
+export function ContactRow({ contact, selected, onToggleSelect, onView, onEdit, onDelete, onEmail }: ContactRowProps) {
   const statusMeta = CONTACT_STATUS_META[contact.status]
   const stageMeta = CONTACT_STAGE_META[contact.stage]
 
@@ -52,13 +54,30 @@ export function ContactRow({ contact, selected, onToggleSelect, onView }: Contac
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => {
-              showToast('info', 'Emailing isn’t wired up yet')
-            }}
-            aria-label={`Email ${contact.contactName}`}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            onClick={onEmail}
+            // A contact with no email address has nothing to send to.
+            disabled={!contact.email}
+            aria-label={contact.email ? `Email ${contact.contactName}` : `${contact.contactName} has no email address`}
+            title={contact.email ? `Email ${contact.contactName}` : 'No email address on file'}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
           >
             <Mail size={15} strokeWidth={1.9} />
+          </button>
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${contact.contactName}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            <Pencil size={15} strokeWidth={1.9} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label={`Delete ${contact.contactName}`}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+          >
+            <Trash2 size={15} strokeWidth={1.9} />
           </button>
           <button
             type="button"

@@ -3,7 +3,36 @@ This is the frontend Repository for Flow Vantage, a centralized, web-based proje
 
 ## Authentication & account management
 
-This project includes a fully functional Firebase-powered authentication and account-management system: email/password + Google + Microsoft sign-in, email verification, password reset, inactivity session timeout, and an account settings page (profile/avatar, change email, change password, notification preferences, data export, account deletion). All other dashboard modules (Projects, Contacts, Calendar, Email, Notes, AI Assistant) are placeholder screens for now.
+This project includes a fully functional Firebase-powered authentication and account-management system: email/password + Google + Microsoft sign-in, email verification, password reset, inactivity session timeout, and an account settings page (profile/avatar, change email, change password, notification preferences, data export, account deletion).
+
+## Dashboard modules
+
+The dashboard modules are **not** placeholders — they read and write the `FlowVantage-Backend` API through `src/api/` (see the backend-integration section below). Each of the core modules supports full create/read/update/delete from the UI:
+
+| Module | Create | Read | Update | Delete |
+| --- | --- | --- | --- | --- |
+| Projects | ✅ `CreateProjectModal` | ✅ list, folders, detail page | ✅ `EditProjectModal`, plus inline status and cover image | ✅ from the project's ⋯ menu (confirm by typing the name) |
+| Tasks | ✅ `CreateTaskModal` | ✅ list, board, gantt, calendar | ✅ same modal in edit mode, plus inline status | ✅ from the task detail modal |
+| Todos | ✅ inline in `TodosPanel` | ✅ project panel and calendar | ✅ rename + done toggle | ✅ from the todo detail modal |
+| Contacts | ✅ `AddContactModal`, plus CSV/AI bulk import | ✅ table, detail modal | ✅ same modal in edit mode | ✅ from the row or the detail modal |
+| Notes | ✅ `NoteFormModal` with a Markdown editor | ✅ cards, view modal (rendered Markdown) | ✅ same modal, plus pin toggle | ✅ from the view modal |
+| Calendar events | ✅ "Add event" on the Calendar page | ✅ month/week/day views, event sheet | ✅ from the event sheet | ✅ from the event sheet |
+
+Notes support rich text: the editor writes Markdown (bold, italics, bulleted and numbered lists, links, with a preview toggle) and the view modal renders it. Plain-text notes written before this still render unchanged, because plain text is valid Markdown.
+
+Search (`/dashboard/search`) covers projects, tasks, contacts and notes. Projects, tasks and contacts are matched against the already-cached workspace data; notes go through the backend's `GET /notes/search`, so a note's body and tags are searched too, not just what its card shows.
+
+## Integrations
+
+Settings → Integrations lists every integration with its real state, never a Connect button with nothing behind it:
+
+- **Google Calendar** — connect, disconnect and sync-now. The two-way sync backend already existed but had no UI, so no account could be linked. If the server has no Google OAuth credentials the section says which env vars are missing instead of offering a button that would fail.
+- **WhatsApp** — notification preferences, phone verification and per-project groups.
+- **Catalogued, not yet built** — Gmail, Outlook, Yuki, PerfectView, Slack, Google Drive, Dropbox and Zoom. Each card expands to say what it would take. Both Dutch tools were checked against their vendor docs and are integrable: [Yuki](https://apideck.com/blog/how-to-integrate-with-the-yuki-api) exposes SOAP webservices at `api.yukiworks.nl/ws` behind a per-administration API key, and [PerfectView CRM Online](https://brixxs.com/faq/hoe-kan-ik-een-api-koppeling-maken-met-perfectview/) a REST API keyed by API key + Database ID + User ID. Neither uses OAuth, so both need an encrypted-credentials form rather than a Connect redirect — `src/config/token-encryption.js` in the backend already does that job for Google's tokens.
+
+Email composed in the app is stored against the workspace rather than sent, because no mailbox provider is connected yet; the Email page and the composer both say so and link here.
+
+Still outstanding: Outlook/Gmail mailbox connection and email auto-matching, "Join meeting" rooms (waiting on the Zoom integration), the AI summary/reminder features, project timeline/milestones, project archiving, contact tagging, and GDPR export/deletion. Language and Billing settings are deliberate "coming soon" screens.
 
 ### Local setup
 
@@ -14,9 +43,9 @@ This project includes a fully functional Firebase-powered authentication and acc
 
 No new environment variables are required beyond the 6 already listed in `.env.example` — Firestore and Storage use the same Firebase app config as Auth.
 
-### Backend integration (optional)
+### Backend integration
 
-This frontend can pair with the sibling `FlowVantage-Backend` repo (Express + SQLite + Firebase Admin): after every Firebase sign-in, `src/context/AuthProvider.tsx` exchanges the Firebase ID token for a backend session token via `POST /api/v1/auth/login` (`src/lib/backendApi.ts`), and `UserMenu` best-effort calls `POST /api/v1/auth/logout` on sign-out. This is intentionally **non-blocking** — if the backend isn't running or isn't deployed, auth and account management keep working entirely through Firebase, with only a console warning logged.
+This frontend pairs with the sibling `FlowVantage-Backend` repo (Express + Postgres + Firebase Admin): after every Firebase sign-in, `src/context/AuthProvider.tsx` exchanges the Firebase ID token for a backend session token via `POST /api/v1/auth/login` (`src/lib/backendApi.ts`), and `UserMenu` best-effort calls `POST /api/v1/auth/logout` on sign-out. This is intentionally **non-blocking** — if the backend isn't running or isn't deployed, auth and account management keep working entirely through Firebase, with only a console warning logged.
 
 To use it locally:
 1. Run `FlowVantage-Backend` (`npm install && npm run dev`) with its `FIREBASE_PROJECT_ID` set to the **same** Firebase project as this frontend's `VITE_FIREBASE_PROJECT_ID`, and its `CLIENT_ORIGIN` set to `http://localhost:5173`.

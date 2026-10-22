@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ListChecks, ListTodo } from 'lucide-react'
-import { useProjects, useTodos, useToggleTodo, useUpdateTaskStatus } from '../../hooks/useProjectsData'
+import { ListChecks, ListTodo, Plus } from 'lucide-react'
+import { useCreateTodo, useProjects, useTodos, useToggleTodo, useUpdateTaskStatus } from '../../hooks/useProjectsData'
 import { useEnrichedTasks } from '../../hooks/useEnrichedTasks'
 import { TodoDetailModal } from './TodoDetailModal'
 import { buildTodoListItems } from '../../lib/todoListItems'
@@ -20,11 +20,26 @@ export function TodosPanel({ projectId, onViewAll }: TodosPanelProps) {
   const { tasks } = useEnrichedTasks()
   const toggleTodo = useToggleTodo()
   const updateTaskStatus = useUpdateTaskStatus()
+  const createTodo = useCreateTodo()
   const [viewingTodoId, setViewingTodoId] = useState<string | null>(null)
+  const [newTodoTitle, setNewTodoTitle] = useState('')
 
   const items = buildTodoListItems(todos, tasks, projectId)
   const viewingTodo = todos.find((t) => t.id === viewingTodoId) ?? null
   const projectById = new Map(projects.map((p) => [p.id, p]))
+
+  async function handleAddTodo() {
+    const title = newTodoTitle.trim()
+    // Todos belong to a project, so the panel can only add one when it is
+    // scoped to a project - on the dashboard it stays read-only.
+    if (!title || !projectId) return
+    try {
+      await createTodo.mutateAsync({ projectId, title })
+      setNewTodoTitle('')
+    } catch {
+      showToast('error', 'Could not add this todo')
+    }
+  }
 
   function handleAdvanceTask(taskId: string) {
     const nextStatus = TASK_STATUS_ORDER[TASK_STATUS_ORDER.indexOf('todo') + 1]
@@ -123,6 +138,32 @@ export function TodosPanel({ projectId, onViewAll }: TodosPanelProps) {
         })}
         {items.length === 0 && <p className="py-4 text-center text-xs text-slate-400">No todos yet.</p>}
       </div>
+
+      {projectId && (
+        <div className="flex items-center gap-1.5 border-t border-line pt-3">
+          <input
+            value={newTodoTitle}
+            onChange={(event) => setNewTodoTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                void handleAddTodo()
+              }
+            }}
+            placeholder="Add a todo…"
+            className="min-w-0 flex-1 rounded-lg border border-input px-2.5 py-1.5 text-sm outline-none placeholder:text-slate-400"
+          />
+          <button
+            type="button"
+            onClick={() => void handleAddTodo()}
+            disabled={!newTodoTitle.trim() || createTodo.isPending}
+            aria-label="Add todo"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white hover:brightness-95 disabled:opacity-40"
+          >
+            <Plus size={15} strokeWidth={2} />
+          </button>
+        </div>
+      )}
 
       {viewingTodo && (
         <TodoDetailModal

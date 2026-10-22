@@ -14,15 +14,19 @@ import type {
   ComposeEmailInput,
   ContactInput,
   CreateFolderInput,
-  CreateMeetingInput,
   CreateProjectInput,
   CreateTaskInput,
+  CreateTodoInput,
   EmailFolder,
+  MeetingInput,
   NoteInput,
   Project,
   ProjectStatus,
   TaskStatus,
   UpdateFolderInput,
+  UpdateProjectInput,
+  UpdateTaskInput,
+  UpdateTodoInput,
   UploadDocumentInput,
 } from '../types/project'
 
@@ -178,6 +182,24 @@ export function useNotes() {
     // argument and serialise into ?workspace_id=[object Object].
     queryFn: () => projectsApi.fetchNotes(activeWorkspaceId ?? undefined),
     enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId),
+  })
+}
+
+/**
+ * Server-side note search (backend NOTE-04). Unlike useNotes, this does not
+ * load the whole list and filter it in the browser - it asks the server, which
+ * matches content and tags too, not just what a card happens to show.
+ *
+ * Disabled for a blank query so an empty search box costs nothing.
+ */
+export function useNoteSearch(query: string) {
+  const { backendSessionToken } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
+  const trimmed = query.trim()
+  return useQuery({
+    queryKey: [...queryKeys.notes, 'search', activeWorkspaceId, trimmed],
+    queryFn: () => projectsApi.searchNotes(trimmed, activeWorkspaceId ?? undefined),
+    enabled: Boolean(backendSessionToken) && Boolean(activeWorkspaceId) && trimmed.length > 0,
   })
 }
 
@@ -466,6 +488,52 @@ export function useUpdateProjectImage() {
   })
 }
 
+/**
+ * General project edit, for the fields the status/image shortcuts above don't
+ * cover. Not optimistic: an edit form stays open until the server answers, so
+ * there is no stale frame to paper over.
+ */
+export function useUpdateProject() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: ({ projectId, input }: { projectId: string; input: UpdateProjectInput }) =>
+      projectsApi.updateProject(projectId, input),
+    onSuccess: (project, { projectId, input }) => {
+      recordAudit('update', 'project', projectId, { fields: Object.keys(input) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects })
+      queryClient.invalidateQueries({ queryKey: queryKeys.project(project.id) })
+    },
+  })
+}
+
+/**
+ * Deleting a project cascades on the server to its tasks, todos, notes and
+ * documents, so every one of those caches has to be dropped too - otherwise the
+ * dashboard keeps counting work that no longer exists.
+ */
+export function useDeleteProject() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (projectId: string) => projectsApi.deleteProject(projectId),
+    onSuccess: (_data, projectId) => {
+      recordAudit('delete', 'project', projectId)
+      for (const key of [
+        queryKeys.projects,
+        queryKeys.tasks,
+        queryKeys.todos,
+        queryKeys.notes,
+        queryKeys.documents,
+        queryKeys.folders,
+        queryKeys.meetings,
+      ]) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
+    },
+  })
+}
+
 export function useCreateProject() {
   const queryClient = useQueryClient()
   const recordAudit = useAuditRecorder()
@@ -558,13 +626,114 @@ export function useCreateTask() {
   })
 }
 
+/**
+ * Full task edit. The status-only shortcut above stays optimistic because it
+ * fires from a drag or a checkbox; this one runs behind a form, so it waits.
+ */
+export function useUpdateTask() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: ({ taskId, input }: { taskId: string; input: UpdateTaskInput }) =>
+      projectsApi.updateTask(taskId, input),
+    onSuccess: (_task, { taskId, input }) => {
+      recordAudit('update', 'task', taskId, { fields: Object.keys(input) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
+    },
+  })
+}
+
+export function useDeleteTask() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (taskId: string) => projectsApi.deleteTask(taskId),
+    onSuccess: (_data, taskId) => {
+      recordAudit('delete', 'task', taskId)
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
+      // Comments hang off the task and go with it.
+      queryClient.removeQueries({ queryKey: queryKeys.taskComments(taskId) })
+    },
+  })
+}
+
+export function useCreateTodo() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (input: CreateTodoInput) => projectsApi.createTodo(input),
+    onSuccess: (todo) => {
+      recordAudit('create', 'todo', todo.id, { projectId: todo.projectId })
+      queryClient.invalidateQueries({ queryKey: queryKeys.todos })
+    },
+  })
+}
+
+/**
+ * Edits a todo's title/tags/due date. The done flag has its own optimistic
+ * toggle above - this is the form path.
+ */
+export function useUpdateTodo() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: ({ todoId, input }: { todoId: string; input: UpdateTodoInput }) =>
+      projectsApi.updateTodo(todoId, input),
+    onSuccess: (_todo, { todoId, input }) => {
+      recordAudit('update', 'todo', todoId, { fields: Object.keys(input) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.todos })
+    },
+  })
+}
+
+export function useDeleteTodo() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (todoId: string) => projectsApi.deleteTodo(todoId),
+    onSuccess: (_data, todoId) => {
+      recordAudit('delete', 'todo', todoId)
+      queryClient.invalidateQueries({ queryKey: queryKeys.todos })
+    },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Calendar events ("meetings")
+// ---------------------------------------------------------------------------
+
 export function useCreateMeeting() {
   const queryClient = useQueryClient()
   const recordAudit = useAuditRecorder()
   return useMutation({
-    mutationFn: (input: CreateMeetingInput) => projectsApi.createMeeting(input),
+    mutationFn: (input: MeetingInput) => projectsApi.createMeeting(input),
     onSuccess: (meeting) => {
       recordAudit('create', 'meeting', meeting.id, { projectId: meeting.projectId })
+      queryClient.invalidateQueries({ queryKey: queryKeys.meetings })
+    },
+  })
+}
+
+export function useUpdateMeeting() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: ({ meetingId, input }: { meetingId: string; input: MeetingInput }) =>
+      projectsApi.updateMeeting(meetingId, input),
+    onSuccess: (_meeting, { meetingId, input }) => {
+      recordAudit('update', 'meeting', meetingId, { fields: Object.keys(input) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.meetings })
+    },
+  })
+}
+
+export function useDeleteMeeting() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (meetingId: string) => projectsApi.deleteMeeting(meetingId),
+    onSuccess: (_data, meetingId) => {
+      recordAudit('delete', 'meeting', meetingId)
       queryClient.invalidateQueries({ queryKey: queryKeys.meetings })
     },
   })

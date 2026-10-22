@@ -9,13 +9,14 @@ import type {
   Contact,
   ContactInput,
   CreateFolderInput,
-  CreateMeetingInput,
   CreateProjectInput,
   CreateTaskInput,
+  CreateTodoInput,
   Email,
   EmailFolder,
   Folder,
   Meeting,
+  MeetingInput,
   Member,
   Note,
   NoteInput,
@@ -26,16 +27,22 @@ import type {
   ProjectStatus,
   Todo,
   UpdateFolderInput,
+  UpdateProjectInput,
+  UpdateTaskInput,
+  UpdateTodoInput,
   UploadDocumentInput,
 } from '../types/project'
 import { emitProjectsChanged } from './mockRealtimeBus'
 import { destroyCloudinaryAsset } from '../lib/cloudinaryUpload'
 
 /**
- * REAL DATA LAYER (except Email/AI Assistant, deliberately still mock — see
- * below). Every function mirrors the shape the mock layer used to have
- * (async, same inputs/outputs), so src/hooks/useProjectsData.ts and every
+ * REAL DATA LAYER. Every function mirrors the shape the mock layer used to
+ * have (async, same inputs/outputs), so src/hooks/useProjectsData.ts and every
  * component that consumes it stay untouched.
+ *
+ * The "except Email/AI Assistant, still mock" note that used to live here was
+ * stale: emails go through /emails and the assistant through /ai-assistant
+ * (src/api/aiApi.ts). Nothing in this file returns fabricated data.
  */
 
 function authToken(): string {
@@ -539,6 +546,23 @@ export async function updateProjectImage(projectId: string, image: string | null
   emitProjectsChanged()
 }
 
+/**
+ * General project edit. Only the fields present in `input` are sent, so the
+ * backend keeps the rest untouched - the narrower updateProjectStatus /
+ * updateProjectImage above stay as they are because their call sites only ever
+ * change that one field.
+ */
+export async function updateProject(projectId: string, input: UpdateProjectInput): Promise<Project> {
+  const { data } = await patchJson<ApiEnvelope<ProjectRow>>(`/projects/${projectId}`, input, authToken())
+  emitProjectsChanged()
+  return mapProject(data)
+}
+
+export async function deleteProject(projectId: string): Promise<void> {
+  await deleteJson(`/projects/${projectId}`, authToken())
+  emitProjectsChanged()
+}
+
 // ---------------------------------------------------------------------------
 // Folders
 // ---------------------------------------------------------------------------
@@ -614,6 +638,18 @@ export async function createTask(
   return mapTask(data)
 }
 
+/** Full task edit. Only the fields present in `input` are sent. */
+export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<Task> {
+  const { data } = await patchJson<ApiEnvelope<TaskRow>>(`/tasks/${taskId}`, input, authToken())
+  emitProjectsChanged()
+  return mapTask(data)
+}
+
+export async function deleteTask(taskId: string): Promise<void> {
+  await deleteJson(`/tasks/${taskId}`, authToken())
+  emitProjectsChanged()
+}
+
 // ---------------------------------------------------------------------------
 // Todos
 // ---------------------------------------------------------------------------
@@ -631,6 +667,23 @@ export async function toggleTodo(todoId: string): Promise<void> {
   emitProjectsChanged()
 }
 
+export async function createTodo(input: CreateTodoInput): Promise<Todo> {
+  const { data } = await postJsonAuthed<ApiEnvelope<TodoRow>>('/todos', input, authToken())
+  emitProjectsChanged()
+  return mapTodo(data)
+}
+
+export async function updateTodo(todoId: string, input: UpdateTodoInput): Promise<Todo> {
+  const { data } = await patchJson<ApiEnvelope<TodoRow>>(`/todos/${todoId}`, input, authToken())
+  emitProjectsChanged()
+  return mapTodo(data)
+}
+
+export async function deleteTodo(todoId: string): Promise<void> {
+  await deleteJson(`/todos/${todoId}`, authToken())
+  emitProjectsChanged()
+}
+
 // ---------------------------------------------------------------------------
 // Notes
 // ---------------------------------------------------------------------------
@@ -638,6 +691,24 @@ export async function toggleTodo(todoId: string): Promise<void> {
 export async function fetchNotes(workspaceId?: string): Promise<Note[]> {
   const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
   const { notes } = await getJson<{ success: boolean; notes: NoteRow[] }>(`/notes${query}`, authToken())
+  return notes.map(mapNote)
+}
+
+/**
+ * Server-side note search (backend NOTE-04): matches title, content and tags,
+ * and respects the same visibility and workspace scoping as fetchNotes. The
+ * Notes page filters its already-loaded list client-side; this is for searching
+ * across everything without loading it all.
+ */
+export async function searchNotes(query: string, workspaceId?: string): Promise<Note[]> {
+  const trimmed = query.trim()
+  if (!trimmed) return []
+  const params = new URLSearchParams({ q: trimmed })
+  if (workspaceId) params.set('workspace_id', workspaceId)
+  const { notes } = await getJson<{ success: boolean; notes: NoteRow[] }>(
+    `/notes/search?${params.toString()}`,
+    authToken(),
+  )
   return notes.map(mapNote)
 }
 
@@ -678,21 +749,45 @@ export async function fetchMeetings(): Promise<Meeting[]> {
   return events.map(mapMeeting)
 }
 
-export async function createMeeting(input: CreateMeetingInput): Promise<Meeting> {
-  const { event } = await postJsonAuthed<{ success: boolean; event: CalendarEventRow; syncedToGoogle: boolean }>(
-    '/calendar',
-    {
-      title: input.title,
-      startTime: input.startTime,
-      endTime: input.endTime,
-      location: input.location ?? undefined,
-      description: input.description,
-      projectId: input.projectId,
-    },
-    authToken(),
-  )
+/**
+ * Calendar events are the one module whose responses are not wrapped in the
+ * { success, data } envelope - they return { success, event } (and the push to
+ * Google is best-effort, reported back as `syncedToGoogle`, which the UI does
+ * not currently surface).
+ */
+interface CalendarEventEnvelope {
+  success: boolean
+  event: CalendarEventRow
+  syncedToGoogle: boolean
+}
+
+/** The wire body for both create and update - the backend PATCH replaces rather than merges. */
+function meetingBody(input: MeetingInput) {
+  return {
+    title: input.title,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    location: input.location ?? undefined,
+    description: input.description ?? undefined,
+    projectId: input.projectId ?? null,
+  }
+}
+
+export async function createMeeting(input: MeetingInput): Promise<Meeting> {
+  const { event } = await postJsonAuthed<CalendarEventEnvelope>('/calendar', meetingBody(input), authToken())
   emitProjectsChanged()
   return mapMeeting(event)
+}
+
+export async function updateMeeting(meetingId: string, input: MeetingInput): Promise<Meeting> {
+  const { event } = await patchJson<CalendarEventEnvelope>(`/calendar/${meetingId}`, meetingBody(input), authToken())
+  emitProjectsChanged()
+  return mapMeeting(event)
+}
+
+export async function deleteMeeting(meetingId: string): Promise<void> {
+  await deleteJson(`/calendar/${meetingId}`, authToken())
+  emitProjectsChanged()
 }
 
 // ---------------------------------------------------------------------------

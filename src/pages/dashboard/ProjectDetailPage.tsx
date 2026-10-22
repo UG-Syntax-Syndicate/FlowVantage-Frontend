@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react'
-import { Link, Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   ChevronRight,
   Calendar,
@@ -15,10 +15,12 @@ import {
   ImagePlus,
   Loader2,
   Plus,
+  Trash2,
   X,
 } from 'lucide-react'
 import {
   useAttachProjectToFolder,
+  useDeleteProject,
   useDetachProjectFromFolder,
   useFolders,
   useMeetings,
@@ -36,6 +38,8 @@ import { EmailsPanel } from '../../components/projects/EmailsPanel'
 import { DocumentsSection } from '../../components/projects/DocumentsSection'
 import { ProjectWorkspaceTabs } from '../../components/projects/ProjectWorkspaceTabs'
 import { ImageCropModal } from '../../components/projects/ImageCropModal'
+import { EditProjectModal } from '../../components/projects/EditProjectModal'
+import { ConfirmDialog } from '../../components/common/ConfirmDialog'
 import { AvatarStack } from '../../components/dashboard/AvatarStack'
 import { ProjectStatusBadge, PriorityBadge } from '../../components/projects/StatusBadge'
 import { formatShortDate, formatDateTime, formatDuration } from '../../lib/formatDate'
@@ -61,6 +65,10 @@ export function ProjectDetailPage() {
   const updateProjectImage = useUpdateProjectImage()
   const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null)
   const downloadReport = useDownloadProjectReport()
+  const deleteProject = useDeleteProject()
+  const navigate = useNavigate()
+  const [editing, setEditing] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const project = projects.find((p) => p.id === projectId)
   const projectFolders = folders.filter((f) => project?.folderIds.includes(f.id))
@@ -164,7 +172,12 @@ export function ProjectDetailPage() {
           <span className="font-medium text-slate-900">{project.category}</span>
         </nav>
         <div className="flex items-center gap-2 text-slate-400">
-          <button type="button" className="rounded-lg p-1.5 hover:bg-slate-100" aria-label="Edit project">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="rounded-lg p-1.5 hover:bg-slate-100"
+            aria-label="Edit project"
+          >
             <Pencil size={16} />
           </button>
           {/* Export lives here as well as on the Reporting page: this is where
@@ -185,6 +198,13 @@ export function ProjectDetailPage() {
               <DropdownMenuItem onClick={() => exportReport('docx')}>
                 <FileDown size={14} strokeWidth={2} />
                 Export report (DOCX)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setConfirmingDelete(true)}
+                className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
+              >
+                <Trash2 size={14} strokeWidth={2} />
+                Delete project
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -395,6 +415,29 @@ export function ProjectDetailPage() {
           onCropped={handleCoverCropped}
         />
       )}
+
+      {editing && <EditProjectModal project={project} onClose={() => setEditing(false)} />}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete this project?"
+        description={`Deleting "${project.name}" also deletes its tasks, todos, notes and documents. This cannot be undone.`}
+        confirmLabel="Delete project"
+        confirmationPhrase={project.name}
+        danger
+        loading={deleteProject.isPending}
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={async () => {
+          try {
+            await deleteProject.mutateAsync(project.id)
+            showToast('success', 'Project deleted')
+            // This page is about to render a project that no longer exists.
+            navigate('/dashboard/projects')
+          } catch {
+            showToast('error', 'Could not delete this project')
+          }
+        }}
+      />
     </div>
   )
 }

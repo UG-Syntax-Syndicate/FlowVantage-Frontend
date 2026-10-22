@@ -2,8 +2,8 @@ import { useState, type KeyboardEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X } from 'lucide-react'
-import { CreateTaskInputSchema, type CreateTaskInput, type Member } from '../../types/project'
-import { useCreateTask } from '../../hooks/useProjectsData'
+import { CreateTaskInputSchema, type CreateTaskInput, type Member, type Task } from '../../types/project'
+import { useCreateTask, useUpdateTask } from '../../hooks/useProjectsData'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -18,14 +18,30 @@ import { TimeZoneCombobox } from '../common/TimeZoneCombobox'
 import { showToast } from '../../lib/toast'
 import { getBrowserTimeZone, zonedDateTimeToUtcIso } from '../../lib/timezone'
 
+/** Reads an ISO string back as a local `hh:mm`, for reopening a timed task. */
+function localTime(iso: string): string {
+  const date = new Date(iso)
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 interface CreateTaskModalProps {
   projectId: string
   members: Member[]
+  /** Omit to create a task; pass one to edit it in place. */
+  task?: Task
   onClose: () => void
 }
 
-export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModalProps) {
+/**
+ * The task form, for both creating and editing. The fields are the same either
+ * way; only `status` is absent, because it is edited inline from the board, the
+ * list and the task detail modal rather than here.
+ */
+export function CreateTaskModal({ projectId, members, task, onClose }: CreateTaskModalProps) {
   const createTask = useCreateTask()
+  const updateTask = useUpdateTask()
+  const isEditing = Boolean(task)
+  const isPending = createTask.isPending || updateTask.isPending
 
   const {
     register,
@@ -36,12 +52,12 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
   } = useForm<CreateTaskInput>({
     resolver: zodResolver(CreateTaskInputSchema),
     defaultValues: {
-      title: '',
-      priority: 'medium',
-      assigneeId: members[0]?.id ?? '',
-      tags: [],
-      startDate: new Date().toISOString(),
-      dueDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      title: task?.title ?? '',
+      priority: task?.priority ?? 'medium',
+      assigneeId: task?.assigneeIds[0] ?? members[0]?.id ?? '',
+      tags: task?.tags ?? [],
+      startDate: task?.startDate ?? new Date().toISOString(),
+      dueDate: task?.dueDate ?? new Date(Date.now() + 7 * 86_400_000).toISOString(),
     },
   })
 
@@ -52,9 +68,17 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
 
   const [startDateStr, setStartDateStr] = useState(watch('startDate').slice(0, 10))
   const [dueDateStr, setDueDateStr] = useState(watch('dueDate').slice(0, 10))
-  const [timed, setTimed] = useState(false)
-  const [startTimeStr, setStartTimeStr] = useState('09:00')
-  const [dueTimeStr, setDueTimeStr] = useState('10:00')
+  // An existing task counts as timed if either end is not local midnight -
+  // otherwise reopening a scheduled task would silently flatten it to all-day.
+  const [timed, setTimed] = useState(() => {
+    if (!task) return false
+    return [task.startDate, task.dueDate].some((iso) => {
+      const date = new Date(iso)
+      return date.getHours() !== 0 || date.getMinutes() !== 0
+    })
+  })
+  const [startTimeStr, setStartTimeStr] = useState(() => (task ? localTime(task.startDate) : '09:00'))
+  const [dueTimeStr, setDueTimeStr] = useState(() => (task ? localTime(task.dueDate) : '10:00'))
   const [timeZone, setTimeZone] = useState(getBrowserTimeZone)
 
   function commitDates(nextStartDateStr: string, nextDueDateStr: string, nextTimed: boolean, nextStartTimeStr: string, nextDueTimeStr: string, nextTimeZone: string) {
@@ -95,11 +119,16 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await createTask.mutateAsync({ projectId, input: values })
-      showToast('success', 'Task added')
+      if (task) {
+        await updateTask.mutateAsync({ taskId: task.id, input: values })
+        showToast('success', 'Task updated')
+      } else {
+        await createTask.mutateAsync({ projectId, input: values })
+        showToast('success', 'Task added')
+      }
       onClose()
     } catch {
-      showToast('error', 'Could not add task')
+      showToast('error', task ? 'Could not save this task' : 'Could not add task')
     }
   })
 
@@ -133,7 +162,7 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New task</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit task' : 'New task'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div>
@@ -255,8 +284,8 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" loading={createTask.isPending} disabled={createTask.isPending}>
-              {createTask.isPending ? 'Adding…' : 'Add task'}
+            <Button type="submit" loading={isPending} disabled={isPending}>
+              {isPending ? 'Saving…' : isEditing ? 'Save Changes' : 'Add task'}
             </Button>
           </div>
         </form>

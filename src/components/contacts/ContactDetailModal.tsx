@@ -1,4 +1,4 @@
-import { Mail } from 'lucide-react'
+import { Mail, Pencil, Trash2 } from 'lucide-react'
 import type { Contact } from '../../types/project'
 import { CONTACT_STAGE_META, CONTACT_STATUS_META } from '../../types/statusMeta'
 import { formatShortDate } from '../../lib/formatDate'
@@ -8,9 +8,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 interface ContactDetailModalProps {
   contact: Contact
   onClose: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onEmail: () => void
 }
 
-export function ContactDetailModal({ contact, onClose }: ContactDetailModalProps) {
+export function ContactDetailModal({ contact, onClose, onEdit, onDelete, onEmail }: ContactDetailModalProps) {
   const statusMeta = CONTACT_STATUS_META[contact.status]
   const stageMeta = CONTACT_STAGE_META[contact.stage]
 
@@ -62,13 +65,37 @@ export function ContactDetailModal({ contact, onClose }: ContactDetailModalProps
           </div>
         </div>
 
-        <a
-          href={`mailto:${contact.email}`}
-          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3.5 py-2.5 text-sm font-medium text-white hover:brightness-95"
-        >
-          <Mail size={15} strokeWidth={2} />
-          Email {contact.contactName.split(' ')[0]}
-        </a>
+        <div className="flex items-center gap-2">
+          {/* Composes in-app rather than handing off to a mailto: link, so the
+              message is saved against this workspace's email list. */}
+          <button
+            type="button"
+            onClick={onEmail}
+            disabled={!contact.email}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3.5 py-2.5 text-sm font-medium text-white hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Mail size={15} strokeWidth={2} />
+            {contact.email ? `Email ${contact.contactName.split(' ')[0]}` : 'No email address'}
+          </button>
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label="Edit contact"
+            title="Edit contact"
+            className="flex items-center justify-center rounded-lg border border-line px-3 py-2.5 text-slate-600 hover:bg-slate-50"
+          >
+            <Pencil size={15} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="Delete contact"
+            title="Delete contact"
+            className="flex items-center justify-center rounded-lg border border-line px-3 py-2.5 text-rose-600 hover:bg-rose-50"
+          >
+            <Trash2 size={15} strokeWidth={2} />
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   )

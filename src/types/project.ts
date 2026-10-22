@@ -72,6 +72,24 @@ export const CreateProjectInputSchema = ProjectSchema.pick({
 })
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>
 
+/**
+ * The fields a project edit form may change. Everything is optional - the
+ * backend PATCH keeps any field that isn't sent.
+ */
+export const UpdateProjectInputSchema = ProjectSchema.pick({
+  name: true,
+  description: true,
+  tagline: true,
+  status: true,
+  category: true,
+  priority: true,
+  tags: true,
+  startDate: true,
+  dueDate: true,
+  visibility: true,
+}).partial()
+export type UpdateProjectInput = z.infer<typeof UpdateProjectInputSchema>
+
 export const FolderIconSchema = z.enum(['users', 'handshake', 'user', 'heart', 'sparkles', 'megaphone'])
 export type FolderIcon = z.infer<typeof FolderIconSchema>
 
@@ -106,6 +124,14 @@ export const CreateTaskInputSchema = z.object({
 })
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>
 
+/** The fields a task edit form may change. */
+// Mirrors CreateTaskInputSchema's single assigneeId rather than TaskSchema's
+// assigneeIds array, for the same reason: the backend stores one assignee.
+export const UpdateTaskInputSchema = CreateTaskInputSchema.extend({
+  status: TaskStatusSchema,
+}).partial()
+export type UpdateTaskInput = z.infer<typeof UpdateTaskInputSchema>
+
 export const TodoSchema = z.object({
   id: z.string(),
   projectId: z.string(),
@@ -116,6 +142,20 @@ export const TodoSchema = z.object({
   createdAt: z.string(),
 })
 export type Todo = z.infer<typeof TodoSchema>
+
+export const CreateTodoInputSchema = TodoSchema.pick({ projectId: true, title: true }).extend({
+  tags: z.array(z.string()).optional(),
+  dueDate: z.string().optional(),
+})
+export type CreateTodoInput = z.infer<typeof CreateTodoInputSchema>
+
+export const UpdateTodoInputSchema = TodoSchema.pick({
+  title: true,
+  done: true,
+  tags: true,
+  dueDate: true,
+}).partial()
+export type UpdateTodoInput = z.infer<typeof UpdateTodoInputSchema>
 
 export const NoteColorSchema = z.enum(['blue', 'green', 'purple', 'yellow', 'red', 'gray'])
 export type NoteColor = z.infer<typeof NoteColorSchema>
@@ -269,15 +309,31 @@ export const MeetingSchema = z.object({
 })
 export type Meeting = z.infer<typeof MeetingSchema>
 
-// A standalone object rather than MeetingSchema.pick(): create-input wants
-// location/projectId optional-and-nullable, while the read shape has them as
-// plain nullable (always present once the row exists).
-export const CreateMeetingInputSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  location: z.string().nullable().optional(),
-  startTime: z.string(),
-  endTime: z.string(),
-  projectId: z.string().optional(),
-  description: z.string().optional(),
-})
-export type CreateMeetingInput = z.infer<typeof CreateMeetingInputSchema>
+/**
+ * A calendar event as the form collects it, for both create and update.
+ *
+ * A standalone object rather than MeetingSchema.pick(): the form wants
+ * location/projectId optional-and-nullable, while the read shape has them as
+ * plain nullable (always present once the row exists).
+ */
+export const MeetingInputSchema = z
+  .object({
+    title: z.string().trim().min(1, 'Give the event a title').max(200, 'Title is too long'),
+    startTime: z.string().min(1, 'Pick a start time'),
+    endTime: z.string().min(1, 'Pick an end time'),
+    location: z.string().max(200, 'Location is too long').nullable().optional(),
+    description: z.string().max(2000, 'Description is too long').nullable().optional(),
+    projectId: z.string().nullable().optional(),
+  })
+  .refine((input) => new Date(input.endTime) >= new Date(input.startTime), {
+    message: 'The event cannot end before it starts',
+    path: ['endTime'],
+  })
+export type MeetingInput = z.infer<typeof MeetingInputSchema>
+
+/**
+ * The create-only alias kept for CreateProjectModal's kickoff meeting, which
+ * predates the standalone event form. Same shape - update needs every field
+ * too, because the backend PATCH replaces rather than merges.
+ */
+export type CreateMeetingInput = MeetingInput

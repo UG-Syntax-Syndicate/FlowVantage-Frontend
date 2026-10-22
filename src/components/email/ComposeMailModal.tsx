@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ComposeEmailInputSchema, type ComposeEmailInput } from '../../types/project'
 import { useComposeEmail } from '../../hooks/useProjectsData'
+import { Link } from 'react-router-dom'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -10,10 +11,14 @@ import { Label } from '../ui/label'
 import { showToast } from '../../lib/toast'
 
 interface ComposeMailModalProps {
+  /** Prefills the recipient, e.g. when composing from a contact. */
+  defaultTo?: string
+  /** Shown above the form when the recipient came from a contact. */
+  contactName?: string
   onClose: () => void
 }
 
-export function ComposeMailModal({ onClose }: ComposeMailModalProps) {
+export function ComposeMailModal({ defaultTo, contactName, onClose }: ComposeMailModalProps) {
   const composeEmail = useComposeEmail()
 
   const {
@@ -22,7 +27,7 @@ export function ComposeMailModal({ onClose }: ComposeMailModalProps) {
     formState: { errors },
   } = useForm<ComposeEmailInput>({
     resolver: zodResolver(ComposeEmailInputSchema),
-    defaultValues: { to: '', subject: '', snippet: '' },
+    defaultValues: { to: defaultTo ?? '', subject: '', snippet: '' },
   })
 
   const onSubmit = handleSubmit(async (values) => {
@@ -39,7 +44,7 @@ export function ComposeMailModal({ onClose }: ComposeMailModalProps) {
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New Mail</DialogTitle>
+          <DialogTitle>{contactName ? `Email ${contactName}` : 'New Mail'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <div>
@@ -59,8 +64,18 @@ export function ComposeMailModal({ onClose }: ComposeMailModalProps) {
             <Textarea {...register('snippet')} rows={4} className="mt-1 resize-none" placeholder="Write your message…" />
           </div>
 
-          <p className="text-xs text-slate-400">
-            Sending isn&apos;t wired up yet — this saves to Drafts so you can see the flow end-to-end.
+          {/* Honest about where this goes: no mailbox is connected, so there is
+              nothing to send through yet. The link is the actionable half. */}
+          <p className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-500">
+            This saves to Drafts. To send for real, connect a mailbox under{' '}
+            <Link
+              to="/dashboard/account/integrations"
+              onClick={onClose}
+              className="font-medium text-primary hover:underline"
+            >
+              Settings → Integrations
+            </Link>
+            .
           </p>
 
           <div className="mt-1 flex justify-end gap-2">

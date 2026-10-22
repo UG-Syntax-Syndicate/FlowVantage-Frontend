@@ -6,7 +6,7 @@ import { NOTE_COLORS, NOTE_COLOR_ORDER } from '../../lib/noteColors'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Textarea } from '../ui/textarea'
+import { RichTextEditor } from './RichTextEditor'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { showToast } from '../../lib/toast'
@@ -72,7 +72,14 @@ export function NoteFormModal({ note, onClose }: NoteFormModalProps) {
 
           <div>
             <Label>Note</Label>
-            <Textarea {...register('body')} rows={6} className="mt-1 resize-none" placeholder="Write your note…" />
+            <div className="mt-1">
+              <RichTextEditor
+                value={watch('body') ?? ''}
+                onChange={(value) => setValue('body', value, { shouldDirty: true, shouldValidate: true })}
+                placeholder="Write your note…"
+              />
+            </div>
+            {errors.body && <p className="mt-1 text-xs text-rose-600">{errors.body.message}</p>}
           </div>
 
           <div>

@@ -5,6 +5,7 @@ import { ContactRow } from '../../components/contacts/ContactRow'
 import { ContactDetailModal } from '../../components/contacts/ContactDetailModal'
 import { ImportContactsModal } from '../../components/contacts/ImportContactsModal'
 import { AddContactModal } from '../../components/contacts/AddContactModal'
+import { ComposeMailModal } from '../../components/email/ComposeMailModal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +19,9 @@ import { Button } from '../../components/ui/button'
 import { TableRowsSkeleton } from '../../components/common/skeletons/TableRowsSkeleton'
 import { Pagination, type PageSize } from '../../components/common/Pagination'
 import { ALL_PROJECTS, ProjectFilterSelect } from '../../components/common/ProjectFilterSelect'
-import { useContacts } from '../../hooks/useProjectsData'
+import { useContacts, useDeleteContact } from '../../hooks/useProjectsData'
+import { ConfirmDialog } from '../../components/common/ConfirmDialog'
+import { showToast } from '../../lib/toast'
 import type { Contact } from '../../types/project'
 
 type SortField = 'company' | 'contactName' | 'phone' | 'email' | 'status'
@@ -34,6 +37,7 @@ const COLUMNS: { key: SortField; label: string }[] = [
 
 export function ContactsPage() {
   const { data: contacts = [], isLoading } = useContacts()
+  const deleteContact = useDeleteContact()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [nicheFilter, setNicheFilter] = useState<string>('All niches')
@@ -45,7 +49,9 @@ export function ContactsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [viewingContactId, setViewingContactId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
-  const [adding, setAdding] = useState(false)
+  const [editingContact, setEditingContact] = useState<Contact | 'new' | null>(null)
+  const [deletingContact, setDeletingContact] = useState<Contact | null>(null)
+  const [emailingContact, setEmailingContact] = useState<Contact | null>(null)
 
   const niches = useMemo(() => ['All niches', ...Array.from(new Set(contacts.map((c) => c.niche))).sort()], [contacts])
 
@@ -118,7 +124,7 @@ export function ContactsPage() {
         onSearchChange={(value) => updateFilters(() => setSearchQuery(value))}
         actions={
           <div className="flex items-center gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => setAdding(true)}>
+            <Button type="button" size="sm" variant="outline" onClick={() => setEditingContact('new')}>
               <UserPlus size={14} strokeWidth={2} />
               Add Contact
             </Button>
@@ -192,6 +198,9 @@ export function ContactsPage() {
                     selected={selectedIds.has(contact.id)}
                     onToggleSelect={() => toggleSelectOne(contact.id)}
                     onView={() => setViewingContactId(contact.id)}
+                    onEdit={() => setEditingContact(contact)}
+                    onDelete={() => setDeletingContact(contact)}
+                    onEmail={() => setEmailingContact(contact)}
                   />
                 ))
               )}
@@ -211,9 +220,68 @@ export function ContactsPage() {
         />
       </div>
 
-      {viewingContact && <ContactDetailModal contact={viewingContact} onClose={() => setViewingContactId(null)} />}
+      {viewingContact && (
+        <ContactDetailModal
+          contact={viewingContact}
+          onClose={() => setViewingContactId(null)}
+          onEdit={() => {
+            setEditingContact(viewingContact)
+            setViewingContactId(null)
+          }}
+          onDelete={() => {
+            setDeletingContact(viewingContact)
+            setViewingContactId(null)
+          }}
+          onEmail={() => {
+            setEmailingContact(viewingContact)
+            setViewingContactId(null)
+          }}
+        />
+      )}
       {importing && <ImportContactsModal onClose={() => setImporting(false)} />}
-      {adding && <AddContactModal onClose={() => setAdding(false)} />}
+      {emailingContact && (
+        <ComposeMailModal
+          defaultTo={emailingContact.email}
+          contactName={emailingContact.contactName}
+          onClose={() => setEmailingContact(null)}
+        />
+      )}
+      {editingContact && (
+        <AddContactModal
+          contact={editingContact === 'new' ? undefined : editingContact}
+          onClose={() => setEditingContact(null)}
+        />
+      )}
+
+      <ConfirmDialog
+        open={Boolean(deletingContact)}
+        title="Delete this contact?"
+        description={
+          deletingContact
+            ? `${deletingContact.contactName} will be removed from your contacts. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete contact"
+        danger
+        loading={deleteContact.isPending}
+        onCancel={() => setDeletingContact(null)}
+        onConfirm={async () => {
+          if (!deletingContact) return
+          try {
+            await deleteContact.mutateAsync(deletingContact.id)
+            showToast('success', 'Contact deleted')
+            // Drop it from the selection too, or the count keeps counting it.
+            setSelectedIds((prev) => {
+              const next = new Set(prev)
+              next.delete(deletingContact.id)
+              return next
+            })
+            setDeletingContact(null)
+          } catch {
+            showToast('error', 'Could not delete this contact')
+          }
+        }}
+      />
     </div>
   )
 }

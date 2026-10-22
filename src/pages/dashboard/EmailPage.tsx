@@ -25,6 +25,7 @@ import {
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { MailRow } from '../../components/email/MailRow'
 import { ComposeMailModal } from '../../components/email/ComposeMailModal'
+import { MailboxNotice } from '../../components/email/MailboxNotice'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import type { Email, EmailFolder } from '../../types/project'
 import { showToast } from '../../lib/toast'
@@ -108,6 +109,8 @@ export function EmailPage() {
   return (
     <div className="flex flex-col gap-6 p-6 sm:p-8">
       <PageHeaderBar title={`Welcome Back, ${userProfile?.name?.split(' ')[0] ?? 'there'}!`} showUserMeta />
+
+      <MailboxNotice />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-xl font-semibold text-slate-900">

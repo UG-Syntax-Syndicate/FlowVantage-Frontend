@@ -177,3 +177,56 @@ export async function fetchProjectNotifications(projectId: string, limit = 50): 
   )
   return data.map(mapLogEntry)
 }
+
+// ---------------------------------------------------------------------------
+// Google Calendar: OAuth link/unlink and a manual pull.
+//
+// These live under /calendar rather than /integrations because the backend
+// groups them with the calendar module, but they are integration settings as
+// far as the user is concerned, so the client for them belongs here.
+// ---------------------------------------------------------------------------
+
+export interface GoogleCalendarStatus {
+  /** Whether this user has linked a Google account. */
+  connected: boolean
+  /**
+   * Whether the server has Google OAuth credentials at all. False means
+   * connecting is impossible on this deployment, so the UI explains instead of
+   * offering a Connect button that would 503 - the same contract
+   * `whatsappConfigured` already provides for WhatsApp.
+   */
+  configured: boolean
+}
+
+export async function fetchGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
+  const { connected, configured } = await getJson<{
+    success: boolean
+    connected: boolean
+    configured: boolean
+  }>('/calendar/google/status', authToken())
+  return { connected, configured }
+}
+
+/**
+ * Returns the Google consent URL to send the browser to. The backend carries
+ * the user id in the OAuth `state` and redirects back to
+ * /dashboard/account/integrations?googleCalendar=<status> when it is done.
+ */
+export async function fetchGoogleCalendarAuthUrl(): Promise<string> {
+  const { url } = await getJson<{ success: boolean; url: string }>('/calendar/google/connect', authToken())
+  return url
+}
+
+export async function disconnectGoogleCalendar(): Promise<void> {
+  await postJsonAuthed('/calendar/google/disconnect', {}, authToken())
+}
+
+/** Pulls changes made in Google since the last sync. Returns how many events were applied. */
+export async function syncGoogleCalendar(): Promise<{ applied: number; fullResync: boolean }> {
+  const result = await postJsonAuthed<{ success: boolean; applied: number; fullResync: boolean }>(
+    '/calendar/sync',
+    {},
+    authToken(),
+  )
+  return { applied: result.applied, fullResync: result.fullResync }
+}

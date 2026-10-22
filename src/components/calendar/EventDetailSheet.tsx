@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { CalendarDays, ChevronDown, Clock, MapPin, Video } from 'lucide-react'
+import { CalendarDays, ChevronDown, Clock, MapPin, Pencil, Trash2, Video } from 'lucide-react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../animate-ui/components/radix/sheet'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu'
 import { TaskStatusBadge, PriorityBadge } from '../projects/StatusBadge'
@@ -18,6 +18,9 @@ interface EventDetailSheetProps {
   onClose: () => void
   onStatusChange: (taskId: string, status: TaskStatus) => void
   statusUpdatePending?: boolean
+  /** Omit both to show a meeting read-only, as the dashboard's mini calendar does. */
+  onEditMeeting?: (event: CalendarMeetingEvent) => void
+  onDeleteMeeting?: (event: CalendarMeetingEvent) => void
 }
 
 function durationLabel(startIso: string, endIso: string): string {
@@ -35,7 +38,15 @@ function namesSummary(names: string[]): string {
   return `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
 }
 
-export function EventDetailSheet({ event, colorMode, onClose, onStatusChange, statusUpdatePending }: EventDetailSheetProps) {
+export function EventDetailSheet({
+  event,
+  colorMode,
+  onClose,
+  onStatusChange,
+  statusUpdatePending,
+  onEditMeeting,
+  onDeleteMeeting,
+}: EventDetailSheetProps) {
   const navigate = useNavigate()
 
   const accentColor =
@@ -181,6 +192,31 @@ export function EventDetailSheet({ event, colorMode, onClose, onStatusChange, st
                   <Video size={16} strokeWidth={2} />
                   Join meeting
                 </button>
+
+                {(onEditMeeting || onDeleteMeeting) && (
+                  <div className="flex items-center gap-2 border-t border-line pt-4">
+                    {onEditMeeting && (
+                      <button
+                        type="button"
+                        onClick={() => onEditMeeting(event)}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-line py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        <Pencil size={14} strokeWidth={2} />
+                        Edit
+                      </button>
+                    )}
+                    {onDeleteMeeting && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteMeeting(event)}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-line py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
+                      >
+                        <Trash2 size={14} strokeWidth={2} />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}

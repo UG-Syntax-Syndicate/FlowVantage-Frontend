@@ -3,6 +3,7 @@ import type { Note } from '../../types/project'
 import { NOTE_COLORS } from '../../lib/noteColors'
 import { formatDateTime } from '../../lib/formatDate'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
+import { RichText } from './RichText'
 
 interface ViewNoteModalProps {
   note: Note
@@ -67,9 +68,9 @@ export function ViewNoteModal({ note, projectName, onClose, onEdit, onDelete }: 
           )}
         </div>
 
-        <p className="max-h-[50vh] overflow-y-auto text-sm leading-relaxed whitespace-pre-line text-slate-600">
-          {note.body}
-        </p>
+        <div className="max-h-[50vh] overflow-y-auto text-slate-600 [&_p]:whitespace-pre-line">
+          <RichText>{note.body}</RichText>
+        </div>
       </DialogContent>
     </Dialog>
   )

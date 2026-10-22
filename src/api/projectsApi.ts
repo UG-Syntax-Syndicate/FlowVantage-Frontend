@@ -350,6 +350,30 @@ export async function deleteContact(contactId: string): Promise<void> {
   emitProjectsChanged()
 }
 
+export interface BulkDeleteContactsResult {
+  deleted: number
+  /** Ids that were not the caller's to delete, or had already gone. */
+  skipped: number
+}
+
+/**
+ * Deletes several contacts in one request.
+ *
+ * One call rather than N: deleting fifty contacts one at a time means fifty
+ * round trips, fifty audit entries and a partially-applied result if the tab
+ * is closed halfway. The server checks ownership per id and reports how many
+ * it actually removed.
+ */
+export async function bulkDeleteContacts(contactIds: string[]): Promise<BulkDeleteContactsResult> {
+  const { data } = await postJsonAuthed<ApiEnvelope<BulkDeleteContactsResult>>(
+    '/contacts/bulk-delete',
+    { ids: contactIds },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return data
+}
+
 interface BulkImportSkippedRowPayload {
   input: Record<string, unknown>
   existingContact?: ContactRow

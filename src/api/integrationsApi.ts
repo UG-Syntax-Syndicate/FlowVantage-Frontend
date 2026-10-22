@@ -324,3 +324,13 @@ export async function writeProviderData<T>(
   )
   return data
 }
+
+/** Forgets this user's WhatsApp number, its verification and event choices. */
+export async function disconnectWhatsApp(): Promise<WhatsAppPreferences> {
+  const { data } = await postJsonAuthed<ApiEnvelope<WhatsAppPreferences>>(
+    '/integrations/whatsapp/disconnect',
+    {},
+    authToken(),
+  )
+  return data
+}

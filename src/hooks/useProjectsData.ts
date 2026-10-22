@@ -141,6 +141,18 @@ export function useDeleteContact() {
   })
 }
 
+export function useBulkDeleteContacts() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (contactIds: string[]) => projectsApi.bulkDeleteContacts(contactIds),
+    onSuccess: (result, contactIds) => {
+      recordAudit('delete', 'contact', undefined, { count: result.deleted, requested: contactIds.length })
+      queryClient.invalidateQueries({ queryKey: queryKeys.contacts })
+    },
+  })
+}
+
 export function useBulkImportContacts() {
   const queryClient = useQueryClient()
   return useMutation({

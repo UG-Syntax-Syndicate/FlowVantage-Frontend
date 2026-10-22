@@ -1,21 +1,22 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { X } from 'lucide-react'
-import { CreateTaskInputSchema, type CreateTaskInput, type Member, type Priority } from '../../types/project'
+import { CreateTaskInputSchema, type CreateTaskInput, type Member } from '../../types/project'
 import { useCreateTask } from '../../hooks/useProjectsData'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
+import { Switch } from '../ui/switch'
+import { Badge } from '../ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { PriorityToggleGroup } from '../common/PriorityToggleGroup'
+import { DatePickerField } from '../common/DatePickerField'
+import { DateTimeInputRow } from '../common/DateTimeInputRow'
+import { TimeZoneCombobox } from '../common/TimeZoneCombobox'
 import { showToast } from '../../lib/toast'
-
-const PRIORITY_OPTIONS: Priority[] = ['low', 'medium', 'high', 'urgent']
-
-/** Combines a `yyyy-mm-dd` date with an optional `hh:mm` time into an ISO string; no time = local midnight (all-day). */
-function combineDateTime(dateStr: string, timeStr: string): string {
-  return new Date(`${dateStr}T${timeStr || '00:00'}:00`).toISOString()
-}
+import { getBrowserTimeZone, zonedDateTimeToUtcIso } from '../../lib/timezone'
 
 interface CreateTaskModalProps {
   projectId: string
@@ -37,7 +38,7 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
     defaultValues: {
       title: '',
       priority: 'medium',
-      assigneeIds: members[0] ? [members[0].id] : [],
+      assigneeId: members[0]?.id ?? '',
       tags: [],
       startDate: new Date().toISOString(),
       dueDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
@@ -45,7 +46,7 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
   })
 
   const selectedPriority = watch('priority')
-  const selectedAssigneeIds = watch('assigneeIds')
+  const selectedAssigneeId = watch('assigneeId')
   const selectedTags = watch('tags')
   const [tagDraft, setTagDraft] = useState('')
 
@@ -54,14 +55,43 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
   const [timed, setTimed] = useState(false)
   const [startTimeStr, setStartTimeStr] = useState('09:00')
   const [dueTimeStr, setDueTimeStr] = useState('10:00')
+  const [timeZone, setTimeZone] = useState(getBrowserTimeZone)
 
-  useEffect(() => {
-    setValue('startDate', combineDateTime(startDateStr, timed ? startTimeStr : ''))
-  }, [startDateStr, startTimeStr, timed, setValue])
+  function commitDates(nextStartDateStr: string, nextDueDateStr: string, nextTimed: boolean, nextStartTimeStr: string, nextDueTimeStr: string, nextTimeZone: string) {
+    setValue(
+      'startDate',
+      nextTimed ? zonedDateTimeToUtcIso(nextStartDateStr, nextStartTimeStr, nextTimeZone) : new Date(`${nextStartDateStr}T00:00:00`).toISOString(),
+    )
+    setValue(
+      'dueDate',
+      nextTimed ? zonedDateTimeToUtcIso(nextDueDateStr, nextDueTimeStr, nextTimeZone) : new Date(`${nextDueDateStr}T00:00:00`).toISOString(),
+    )
+  }
 
-  useEffect(() => {
-    setValue('dueDate', combineDateTime(dueDateStr, timed ? dueTimeStr : ''))
-  }, [dueDateStr, dueTimeStr, timed, setValue])
+  function updateStartDate(dateStr: string) {
+    setStartDateStr(dateStr)
+    commitDates(dateStr, dueDateStr, timed, startTimeStr, dueTimeStr, timeZone)
+  }
+  function updateDueDate(dateStr: string) {
+    setDueDateStr(dateStr)
+    commitDates(startDateStr, dateStr, timed, startTimeStr, dueTimeStr, timeZone)
+  }
+  function updateTimed(next: boolean) {
+    setTimed(next)
+    commitDates(startDateStr, dueDateStr, next, startTimeStr, dueTimeStr, timeZone)
+  }
+  function updateStartTime(timeStr: string) {
+    setStartTimeStr(timeStr)
+    commitDates(startDateStr, dueDateStr, timed, timeStr, dueTimeStr, timeZone)
+  }
+  function updateDueTime(timeStr: string) {
+    setDueTimeStr(timeStr)
+    commitDates(startDateStr, dueDateStr, timed, startTimeStr, timeStr, timeZone)
+  }
+  function updateTimeZone(next: string) {
+    setTimeZone(next)
+    commitDates(startDateStr, dueDateStr, timed, startTimeStr, dueTimeStr, next)
+  }
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -72,13 +102,6 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
       showToast('error', 'Could not add task')
     }
   })
-
-  function toggleAssignee(id: string) {
-    const next = selectedAssigneeIds.includes(id)
-      ? selectedAssigneeIds.filter((assigneeId) => assigneeId !== id)
-      : [...selectedAssigneeIds, id]
-    setValue('assigneeIds', next)
-  }
 
   function addTag() {
     const tag = tagDraft.trim()
@@ -121,42 +144,26 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
 
           <div>
             <Label>Priority</Label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {PRIORITY_OPTIONS.map((priority) => (
-                <button
-                  key={priority}
-                  type="button"
-                  onClick={() => setValue('priority', priority)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition ${
-                    selectedPriority === priority
-                      ? 'border-primary bg-accent-50 text-primary'
-                      : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  {priority}
-                </button>
-              ))}
+            <div className="mt-2">
+              <PriorityToggleGroup value={selectedPriority} onChange={(next) => setValue('priority', next)} />
             </div>
           </div>
 
           <div>
-            <Label>Assignees</Label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {members.map((member) => (
-                <button
-                  type="button"
-                  key={member.id}
-                  onClick={() => toggleAssignee(member.id)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                    selectedAssigneeIds.includes(member.id)
-                      ? 'border-primary bg-accent-50 text-primary'
-                      : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  {member.name}
-                </button>
-              ))}
-            </div>
+            <Label>Assignee</Label>
+            <Select value={selectedAssigneeId} onValueChange={(next) => setValue('assigneeId', next)}>
+              <SelectTrigger className="mt-1 w-full">
+                <SelectValue placeholder="Choose an assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.assigneeId && <p className="mt-1 text-xs text-rose-600">{errors.assigneeId.message}</p>}
           </div>
 
           <div>
@@ -166,10 +173,7 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-input px-2 py-1.5">
               {selectedTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="flex items-center gap-1 rounded-full bg-accent-50 py-1 pr-1 pl-2.5 text-xs font-medium text-primary"
-                >
+                <Badge key={tag} variant="secondary" className="gap-1 py-1 pr-1 pl-2.5">
                   {tag}
                   <button
                     type="button"
@@ -179,7 +183,7 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
                   >
                     <X size={11} />
                   </button>
-                </span>
+                </Badge>
               ))}
               <input
                 value={tagDraft}
@@ -192,37 +196,58 @@ export function CreateTaskModal({ projectId, members, onClose }: CreateTaskModal
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Start date</Label>
-              <Input type="date" value={startDateStr} onChange={(e) => setStartDateStr(e.target.value)} className="mt-1" />
+          {!timed && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Start date</Label>
+                <div className="mt-1">
+                  <DatePickerField value={new Date(`${startDateStr}T00:00:00`).toISOString()} onChange={(iso) => updateStartDate(iso.slice(0, 10))} />
+                </div>
+              </div>
+              <div>
+                <Label>Due date</Label>
+                <div className="mt-1">
+                  <DatePickerField
+                    value={new Date(`${dueDateStr}T00:00:00`).toISOString()}
+                    onChange={(iso) => updateDueDate(iso.slice(0, 10))}
+                    minDate={new Date(`${startDateStr}T00:00:00`).toISOString()}
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <Label>Due date</Label>
-              <Input type="date" value={dueDateStr} onChange={(e) => setDueDateStr(e.target.value)} className="mt-1" />
-            </div>
-          </div>
+          )}
 
-          <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
-            <input
-              type="checkbox"
-              checked={timed}
-              onChange={(e) => setTimed(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary/40"
-            />
-            Schedule at a specific time (shows on the calendar like a meeting)
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-input p-3">
+            <span>
+              <span className="block text-sm font-medium">Schedule at a specific time</span>
+              <span className="block text-xs text-slate-400">Shows on the calendar like a meeting.</span>
+            </span>
+            <Switch checked={timed} onCheckedChange={updateTimed} />
           </label>
 
           {timed && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-3">
               <div>
-                <Label>Start time</Label>
-                <Input type="time" value={startTimeStr} onChange={(e) => setStartTimeStr(e.target.value)} className="mt-1" />
+                <Label>Timezone</Label>
+                <div className="mt-1">
+                  <TimeZoneCombobox value={timeZone} onChange={updateTimeZone} />
+                </div>
               </div>
-              <div>
-                <Label>Due time</Label>
-                <Input type="time" value={dueTimeStr} onChange={(e) => setDueTimeStr(e.target.value)} className="mt-1" />
-              </div>
+              <DateTimeInputRow
+                label="Start"
+                dateValue={new Date(`${startDateStr}T00:00:00`).toISOString()}
+                timeValue={startTimeStr}
+                onDateChange={(iso) => updateStartDate(iso.slice(0, 10))}
+                onTimeChange={updateStartTime}
+              />
+              <DateTimeInputRow
+                label="Due"
+                dateValue={new Date(`${dueDateStr}T00:00:00`).toISOString()}
+                timeValue={dueTimeStr}
+                onDateChange={(iso) => updateDueDate(iso.slice(0, 10))}
+                onTimeChange={updateDueTime}
+                minDate={new Date(`${startDateStr}T00:00:00`).toISOString()}
+              />
             </div>
           )}
 

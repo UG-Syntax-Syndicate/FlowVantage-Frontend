@@ -14,6 +14,7 @@ import type {
   ComposeEmailInput,
   ContactInput,
   CreateFolderInput,
+  CreateMeetingInput,
   CreateProjectInput,
   CreateTaskInput,
   EmailFolder,
@@ -553,6 +554,18 @@ export function useCreateTask() {
     onSuccess: (task) => {
       recordAudit('create', 'task', task.id, { projectId: task.projectId })
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
+    },
+  })
+}
+
+export function useCreateMeeting() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (input: CreateMeetingInput) => projectsApi.createMeeting(input),
+    onSuccess: (meeting) => {
+      recordAudit('create', 'meeting', meeting.id, { projectId: meeting.projectId })
+      queryClient.invalidateQueries({ queryKey: queryKeys.meetings })
     },
   })
 }

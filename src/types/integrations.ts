@@ -99,6 +99,12 @@ export interface IntegrationCredentialField {
   help?: string
 }
 
+/** Which verbs a provider's resource supports, as its adapter reports them. */
+export interface IntegrationResourceSupport {
+  get: boolean
+  post: boolean
+}
+
 export interface IntegrationConnection {
   id: string
   name: string
@@ -115,4 +121,10 @@ export interface IntegrationConnection {
   accountLabel: string | null
   connectedAt: string | null
   credentialFields: IntegrationCredentialField[] | null
+  /**
+   * What this provider can read and write once connected, keyed by resource
+   * name (`messages`, `files`, `contacts`…). Comes from the backend's adapter
+   * registry so the UI never keeps a second copy of it.
+   */
+  resources: Record<string, IntegrationResourceSupport> | null
 }

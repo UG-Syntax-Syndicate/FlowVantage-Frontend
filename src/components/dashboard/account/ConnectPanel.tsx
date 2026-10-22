@@ -1,20 +1,18 @@
 import { useState } from 'react'
 import { Check, Loader2, Unlink } from 'lucide-react'
 import { Button } from '../../ui/button'
-import { Input } from '../../ui/input'
-import { Label } from '../../ui/label'
 import { Alert } from '../../common/Alert'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
-import {
-  useDisconnectConnection,
-  useSaveConnectionCredentials,
-  useStartConnection,
-} from '../../../hooks/useIntegrationsData'
+import { CredentialConnectModal } from './CredentialConnectModal'
+import { ConnectionCapabilities } from './ConnectionCapabilities'
+import { useDisconnectConnection, useStartConnection } from '../../../hooks/useIntegrationsData'
 import type { IntegrationConnection } from '../../../types/integrations'
+import type { IntegrationIconName } from './IntegrationIcon'
 import { showToast } from '../../../lib/toast'
 
 interface ConnectPanelProps {
   connection: IntegrationConnection
+  icon: IntegrationIconName
 }
 
 /**
@@ -26,13 +24,11 @@ interface ConnectPanelProps {
  * anyone to. Both end in the same place - a connection stored encrypted,
  * shown here as "Connected".
  */
-export function ConnectPanel({ connection }: ConnectPanelProps) {
+export function ConnectPanel({ connection, icon }: ConnectPanelProps) {
   const startConnection = useStartConnection()
-  const saveCredentials = useSaveConnectionCredentials(connection.id)
   const disconnect = useDisconnectConnection(connection.id)
   const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
-  const [credentials, setCredentials] = useState<Record<string, string>>({})
-  const [formError, setFormError] = useState<string | null>(null)
+  const [credentialModalOpen, setCredentialModalOpen] = useState(false)
 
   async function handleConnect() {
     try {
@@ -40,19 +36,6 @@ export function ConnectPanel({ connection }: ConnectPanelProps) {
       // On success the browser navigates away, so nothing runs after this.
     } catch {
       showToast('error', `Could not start the ${connection.name} sign-in`)
-    }
-  }
-
-  async function handleSaveCredentials(event: React.FormEvent) {
-    event.preventDefault()
-    setFormError(null)
-    try {
-      await saveCredentials.mutateAsync(credentials)
-      setCredentials({})
-      showToast('success', `${connection.name} connected`)
-    } catch (error) {
-      // The server names the missing field, which is more useful than a toast.
-      setFormError(error instanceof Error ? error.message : 'Could not save these credentials')
     }
   }
 
@@ -75,6 +58,8 @@ export function ConnectPanel({ connection }: ConnectPanelProps) {
             Connected{connection.accountLabel ? ` as ${connection.accountLabel}` : ''}.
           </span>
         </Alert>
+
+        {connection.resources && <ConnectionCapabilities resources={connection.resources} />}
 
         <div>
           <Button
@@ -114,36 +99,23 @@ export function ConnectPanel({ connection }: ConnectPanelProps) {
 
   if (connection.kind === 'api_key' && connection.credentialFields) {
     return (
-      <form onSubmit={handleSaveCredentials} className="flex flex-col gap-4">
+      <div className="flex flex-col items-start gap-3">
         <p className="text-sm text-slate-500">
           {connection.name} does not offer a sign-in for other apps, so it is connected with credentials from your{' '}
-          {connection.name} account instead. They are encrypted before they are stored, and never shown again.
+          {connection.name} account. The next step walks you through finding them.
         </p>
+        <Button type="button" onClick={() => setCredentialModalOpen(true)}>
+          Connect {connection.name}
+        </Button>
 
-        {connection.credentialFields.map((field) => (
-          <div key={field.name}>
-            <Label>{field.label}</Label>
-            <Input
-              type={field.secret ? 'password' : 'text'}
-              value={credentials[field.name] ?? ''}
-              onChange={(event) =>
-                setCredentials((current) => ({ ...current, [field.name]: event.target.value }))
-              }
-              className="mt-1"
-              autoComplete="off"
-            />
-            {field.help && <p className="mt-1 text-xs text-slate-400">Find this in {field.help}</p>}
-          </div>
-        ))}
-
-        {formError && <p className="text-sm text-rose-600">{formError}</p>}
-
-        <div>
-          <Button type="submit" size="sm" loading={saveCredentials.isPending} disabled={saveCredentials.isPending}>
-            {saveCredentials.isPending ? 'Connecting…' : `Connect ${connection.name}`}
-          </Button>
-        </div>
-      </form>
+        {credentialModalOpen && (
+          <CredentialConnectModal
+            connection={connection}
+            icon={icon}
+            onClose={() => setCredentialModalOpen(false)}
+          />
+        )}
+      </div>
     )
   }
 

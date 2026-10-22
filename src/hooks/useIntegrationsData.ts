@@ -182,3 +182,35 @@ export function useDisconnectConnection(provider: string) {
     },
   })
 }
+
+/**
+ * Reads a resource from a connected provider.
+ *
+ * Deliberately generic: every provider is reached the same way, so a feature
+ * that needs Gmail messages or Slack channels does not need its own hook.
+ */
+export function useProviderData<T>(
+  provider: string,
+  resource: string,
+  params: Record<string, string | number> = {},
+  options: { enabled?: boolean } = {},
+) {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: ['providerData', provider, resource, params],
+    queryFn: () => integrationsApi.readProviderData<T>(provider, resource, params),
+    enabled: Boolean(backendSessionToken) && Boolean(provider) && (options.enabled ?? true),
+  })
+}
+
+/** Writes to a connected provider — sending a mail, posting a message, uploading a file. */
+export function useWriteProviderData<T>(provider: string, resource: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: unknown) => integrationsApi.writeProviderData<T>(provider, resource, body),
+    onSuccess: () => {
+      // A write usually changes what a read of the same resource returns.
+      queryClient.invalidateQueries({ queryKey: ['providerData', provider, resource] })
+    },
+  })
+}

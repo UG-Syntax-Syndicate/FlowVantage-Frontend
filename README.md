@@ -37,7 +37,11 @@ WhatsApp and Google Calendar keep their own pages with their own settings (phone
 
 The server needs `<PROVIDER>_CLIENT_ID` / `_CLIENT_SECRET` for each OAuth provider before it can be offered — see the backend's `.env.example`. Yuki and PerfectView need nothing, since users supply their own credentials.
 
-Connecting a provider stores the authorisation today; the feature each one powers (sending mail through Gmail, posting to Slack, picking files from Drive) follows, and each page says so rather than implying the work is finished.
+For Yuki and PerfectView, Connect opens a dialog with the vendor's own navigation steps beside the fields — both hide their credentials behind a role-gated menu most users have never opened, so the hard part is finding the screen, not pasting the key.
+
+Once connected, a provider's page lists what the connection allows (read messages, send messages, upload files, push invoices…). That list comes from the backend's adapter registry, so it cannot claim an operation the server has no code for.
+
+Reading and writing goes through one generic client — `readProviderData(provider, resource, params)` and `writeProviderData(provider, resource, body)` in `src/api/integrationsApi.ts`, with `useProviderData` / `useWriteProviderData` hooks. Every provider is reached the same way, so a feature needing Gmail messages or Slack channels does not need its own client. The in-app features that will use it (sending project mail through a connected mailbox, posting activity to Slack, attaching from Drive) are the next step.
 
 Email composed in the app is stored against the workspace rather than sent, because no mailbox is connected for sending yet; the Email page and the composer both say so and link here.
 

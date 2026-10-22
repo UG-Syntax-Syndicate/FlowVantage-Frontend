@@ -102,7 +102,7 @@ export function IntegrationDetailPage() {
               <Skeleton className="h-9 w-44" />
             </div>
           ) : connection ? (
-            <ConnectPanel connection={connection} />
+            <ConnectPanel connection={connection} icon={presentation.icon} />
           ) : (
             <p className="text-sm text-slate-500">This integration could not be loaded. Please try again.</p>
           )}

@@ -283,3 +283,40 @@ export async function disconnectConnection(provider: string): Promise<Integratio
   )
   return data
 }
+
+// ---------------------------------------------------------------------------
+// Provider data: the same two calls for every integration.
+//
+// Which resources exist is reported by fetchConnections(), so callers do not
+// hardcode a second copy of the backend's adapter registry.
+// ---------------------------------------------------------------------------
+
+/** Reads a resource, e.g. readProviderData('gmail', 'messages', { limit: 10 }). */
+export async function readProviderData<T>(
+  provider: string,
+  resource: string,
+  params: Record<string, string | number> = {},
+): Promise<T> {
+  const query = new URLSearchParams(
+    Object.entries(params).map(([key, value]) => [key, String(value)]),
+  ).toString()
+  const { data } = await getJson<ApiEnvelope<T>>(
+    `/integrations/connections/${provider}/data/${resource}${query ? `?${query}` : ''}`,
+    authToken(),
+  )
+  return data
+}
+
+/** Writes a resource, e.g. writeProviderData('slack', 'messages', { channel, text }). */
+export async function writeProviderData<T>(
+  provider: string,
+  resource: string,
+  body: unknown,
+): Promise<T> {
+  const { data } = await postJsonAuthed<ApiEnvelope<T>>(
+    `/integrations/connections/${provider}/data/${resource}`,
+    body,
+    authToken(),
+  )
+  return data
+}

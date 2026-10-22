@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Check, Loader2, Unlink } from 'lucide-react'
+import { ArrowRight, Check, Loader2, Unlink } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button } from '../../ui/button'
 import { Alert } from '../../common/Alert'
 import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { CredentialConnectModal } from './CredentialConnectModal'
 import { ConnectionCapabilities } from './ConnectionCapabilities'
+import { ProviderSetupGuide } from './ProviderSetupGuide'
 import { useDisconnectConnection, useStartConnection } from '../../../hooks/useIntegrationsData'
 import type { IntegrationConnection } from '../../../types/integrations'
 import type { IntegrationIconName } from './IntegrationIcon'
@@ -88,12 +90,36 @@ export function ConnectPanel({ connection, icon }: ConnectPanelProps) {
     )
   }
 
-  if (!connection.configured) {
+  // Gmail and Drive do not have their own sign-in: one Google authorisation
+  // covers them. Rather than a second Connect button that starts the same
+  // flow, point at the Google page so it is clear there is one connection.
+  if (connection.tokenSource) {
     return (
-      <Alert variant="info">
-        {connection.name} is not available on this server yet — it needs {connection.name} app credentials in the
-        server configuration before anyone can connect. Ask whoever administers your FlowVantage deployment.
-      </Alert>
+      <div className="flex flex-col gap-3">
+        <Alert variant="info">
+          {connection.name} is part of your Google account. Connecting Google once covers Calendar, Gmail and Drive
+          together.
+        </Alert>
+        <Link
+          to={`/dashboard/account/integrations/${connection.tokenSource}`}
+          className="flex w-fit items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white hover:brightness-95"
+        >
+          Connect Google
+          <ArrowRight size={14} strokeWidth={2} />
+        </Link>
+      </div>
+    )
+  }
+
+  if (!connection.configured) {
+    // Not a dead end: show exactly how to create the credentials, and the
+    // redirect URI this server expects.
+    return (
+      <ProviderSetupGuide
+        providerId={connection.id}
+        providerName={connection.name}
+        setup={connection.setup}
+      />
     )
   }
 

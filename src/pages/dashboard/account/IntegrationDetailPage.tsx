@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Plug } from 'lucide-react'
 import { Card, CardContent } from '../../../components/ui/card'
+import { Button } from '../../../components/ui/button'
 import { Skeleton } from '../../../components/ui/skeleton'
 import { EmptyState } from '../../../components/common/EmptyState'
 import { Alert } from '../../../components/common/Alert'
@@ -45,7 +46,7 @@ export function IntegrationDetailPage() {
   const isSelfManaged = provider === 'whatsapp' || provider === 'google_calendar'
 
   // Only the generic providers have a connections row to fetch.
-  const { data: connection, isLoading } = useConnection(isSelfManaged ? '' : provider)
+  const { data: connection, isLoading, isError, error, refetch } = useConnection(isSelfManaged ? '' : provider)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const callbackStatus = searchParams.get('connection')
@@ -104,7 +105,24 @@ export function IntegrationDetailPage() {
           ) : connection ? (
             <ConnectPanel connection={connection} icon={presentation.icon} />
           ) : (
-            <p className="text-sm text-slate-500">This integration could not be loaded. Please try again.</p>
+            // Say what actually went wrong. The previous "could not be loaded,
+            // please try again" was the same message whether the API was
+            // unreachable, the session had lapsed, or the server was running a
+            // build without this endpoint - and retrying fixes none of those.
+            <div className="flex flex-col items-start gap-3">
+              <Alert variant="error">
+                {isError && error instanceof Error
+                  ? error.message
+                  : 'This integration could not be loaded.'}
+              </Alert>
+              <p className="text-sm text-slate-500">
+                If this keeps happening, check that the FlowVantage API is running and up to date — integrations need
+                a server build that includes the connections endpoints.
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+                Try again
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>

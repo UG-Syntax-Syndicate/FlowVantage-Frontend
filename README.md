@@ -30,12 +30,14 @@ Connection state always comes from the server, never from a hand-maintained list
 
 Connecting works one of two ways, decided by the vendor:
 
-- **Sign in at the vendor** (Gmail, Outlook, Slack, Google Drive, Dropbox, Zoom, Google Calendar) — you are sent to their own login, approve access, and come straight back. FlowVantage never sees your password.
+- **Sign in at the vendor** (Google, Outlook, Slack, Dropbox, Zoom) — you are sent to their own login, approve access, and come straight back. FlowVantage never sees your password.
+
+  **Google is one sign-in for Calendar, Gmail and Drive.** Google issues a single authorisation per app per user, so connecting Google once turns on all three; the Gmail and Drive tiles are backed by that connection rather than asking you to sign in to the same account again. Unticking a product on Google's consent screen just leaves that tile disconnected.
 - **Paste credentials** (Yuki, PerfectView) — neither offers a sign-in for third-party apps, so each takes the API credentials it does issue. They are encrypted before storage and never shown again.
 
 WhatsApp and Google Calendar keep their own pages with their own settings (phone verification, sync-now) because both have more state than "connected or not".
 
-The server needs `<PROVIDER>_CLIENT_ID` / `_CLIENT_SECRET` for each OAuth provider before it can be offered — see the backend's `.env.example`. Yuki and PerfectView need nothing, since users supply their own credentials.
+When a provider has no credentials on the server, its page does not dead-end: it shows how to create them in that vendor's console, and the exact redirect URI to register — read from the server, so it matches what the API will actually send. The backend's `docs/integrations-setup.md` covers the same ground outside the app. Yuki and PerfectView need nothing from the server, since users supply their own credentials.
 
 For Yuki and PerfectView, Connect opens a dialog with the vendor's own navigation steps beside the fields — both hide their credentials behind a role-gated menu most users have never opened, so the hard part is finding the screen, not pasting the key.
 

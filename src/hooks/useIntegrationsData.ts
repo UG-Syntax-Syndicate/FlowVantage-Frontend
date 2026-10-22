@@ -123,3 +123,94 @@ export function useSyncGoogleCalendar() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.meetings }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Third-party connections
+// ---------------------------------------------------------------------------
+
+export function useConnections() {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.integrationConnections,
+    queryFn: integrationsApi.fetchConnections,
+    enabled: Boolean(backendSessionToken),
+  })
+}
+
+export function useConnection(provider: string) {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.integrationConnection(provider),
+    queryFn: () => integrationsApi.fetchConnection(provider),
+    enabled: Boolean(backendSessionToken) && Boolean(provider),
+  })
+}
+
+/**
+ * Sends the browser to the vendor's sign-in page.
+ *
+ * A full-page navigation rather than a popup: the vendor redirects back to the
+ * backend, which 302s to this provider's settings page, and a popup could not
+ * hand that outcome to the opener without extra postMessage plumbing.
+ */
+export function useStartConnection() {
+  return useMutation({
+    mutationFn: async (provider: string) => {
+      const url = await integrationsApi.startConnection(provider)
+      window.location.assign(url)
+    },
+  })
+}
+
+export function useSaveConnectionCredentials(provider: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (credentials: Record<string, string>) =>
+      integrationsApi.saveConnectionCredentials(provider, credentials),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrationConnections })
+    },
+  })
+}
+
+export function useDisconnectConnection(provider: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => integrationsApi.disconnectConnection(provider),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrationConnections })
+    },
+  })
+}
+
+/**
+ * Reads a resource from a connected provider.
+ *
+ * Deliberately generic: every provider is reached the same way, so a feature
+ * that needs Gmail messages or Slack channels does not need its own hook.
+ */
+export function useProviderData<T>(
+  provider: string,
+  resource: string,
+  params: Record<string, string | number> = {},
+  options: { enabled?: boolean } = {},
+) {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: ['providerData', provider, resource, params],
+    queryFn: () => integrationsApi.readProviderData<T>(provider, resource, params),
+    enabled: Boolean(backendSessionToken) && Boolean(provider) && (options.enabled ?? true),
+  })
+}
+
+/** Writes to a connected provider — sending a mail, posting a message, uploading a file. */
+export function useWriteProviderData<T>(provider: string, resource: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: unknown) => integrationsApi.writeProviderData<T>(provider, resource, body),
+    onSuccess: () => {
+      // A write usually changes what a read of the same resource returns.
+      queryClient.invalidateQueries({ queryKey: ['providerData', provider, resource] })
+    },
+  })
+}

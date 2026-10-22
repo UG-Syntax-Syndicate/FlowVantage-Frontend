@@ -24,13 +24,26 @@ Search (`/dashboard/search`) covers projects, tasks, contacts and notes. Project
 
 ## Integrations
 
-Settings → Integrations lists every integration with its real state, never a Connect button with nothing behind it:
+Settings → Integrations is a grid of tiles. Clicking one opens that integration's own page, where connecting is a single button — no expanding panels, and no inline configuration that makes one integration look different from the rest.
 
-- **Google Calendar** — connect, disconnect and sync-now. The two-way sync backend already existed but had no UI, so no account could be linked. If the server has no Google OAuth credentials the section says which env vars are missing instead of offering a button that would fail.
-- **WhatsApp** — notification preferences, phone verification and per-project groups.
-- **Catalogued, not yet built** — Gmail, Outlook, Yuki, PerfectView, Slack, Google Drive, Dropbox and Zoom. Each card expands to say what it would take. Both Dutch tools were checked against their vendor docs and are integrable: [Yuki](https://apideck.com/blog/how-to-integrate-with-the-yuki-api) exposes SOAP webservices at `api.yukiworks.nl/ws` behind a per-administration API key, and [PerfectView CRM Online](https://brixxs.com/faq/hoe-kan-ik-een-api-koppeling-maken-met-perfectview/) a REST API keyed by API key + Database ID + User ID. Neither uses OAuth, so both need an encrypted-credentials form rather than a Connect redirect — `src/config/token-encryption.js` in the backend already does that job for Google's tokens.
+Connection state always comes from the server, never from a hand-maintained list in the frontend, so a tile cannot claim something untrue. Each one shows **Connected**, **Not connected**, or **Unavailable on this server** — the last meaning the deployment has no vendor credentials, which the page explains instead of offering a button that would fail.
 
-Email composed in the app is stored against the workspace rather than sent, because no mailbox provider is connected yet; the Email page and the composer both say so and link here.
+Connecting works one of two ways, decided by the vendor:
+
+- **Sign in at the vendor** (Gmail, Outlook, Slack, Google Drive, Dropbox, Zoom, Google Calendar) — you are sent to their own login, approve access, and come straight back. FlowVantage never sees your password.
+- **Paste credentials** (Yuki, PerfectView) — neither offers a sign-in for third-party apps, so each takes the API credentials it does issue. They are encrypted before storage and never shown again.
+
+WhatsApp and Google Calendar keep their own pages with their own settings (phone verification, sync-now) because both have more state than "connected or not".
+
+The server needs `<PROVIDER>_CLIENT_ID` / `_CLIENT_SECRET` for each OAuth provider before it can be offered — see the backend's `.env.example`. Yuki and PerfectView need nothing, since users supply their own credentials.
+
+For Yuki and PerfectView, Connect opens a dialog with the vendor's own navigation steps beside the fields — both hide their credentials behind a role-gated menu most users have never opened, so the hard part is finding the screen, not pasting the key.
+
+Once connected, a provider's page lists what the connection allows (read messages, send messages, upload files, push invoices…). That list comes from the backend's adapter registry, so it cannot claim an operation the server has no code for.
+
+Reading and writing goes through one generic client — `readProviderData(provider, resource, params)` and `writeProviderData(provider, resource, body)` in `src/api/integrationsApi.ts`, with `useProviderData` / `useWriteProviderData` hooks. Every provider is reached the same way, so a feature needing Gmail messages or Slack channels does not need its own client. The in-app features that will use it (sending project mail through a connected mailbox, posting activity to Slack, attaching from Drive) are the next step.
+
+Email composed in the app is stored against the workspace rather than sent, because no mailbox is connected for sending yet; the Email page and the composer both say so and link here.
 
 Still outstanding: Outlook/Gmail mailbox connection and email auto-matching, "Join meeting" rooms (waiting on the Zoom integration), the AI summary/reminder features, project timeline/milestones, project archiving, contact tagging, and GDPR export/deletion. Language and Billing settings are deliberate "coming soon" screens.
 

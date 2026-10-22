@@ -1,160 +1,149 @@
-import { useState } from 'react'
-import { Check, ChevronDown } from 'lucide-react'
-import { Card, CardContent } from '../../../components/ui/card'
-import { WhatsAppSection } from '../../../components/dashboard/account/WhatsAppSection'
-import { GoogleCalendarSection } from '../../../components/dashboard/account/GoogleCalendarSection'
+import { Link } from 'react-router-dom'
+import { Check, ChevronRight } from 'lucide-react'
 import { IntegrationIcon } from '../../../components/dashboard/account/IntegrationIcon'
 import {
-  INTEGRATION_CATALOGUE,
-  type IntegrationDefinition,
+  INTEGRATION_ORDER,
+  INTEGRATION_PRESENTATION,
 } from '../../../components/dashboard/account/integrationCatalogue'
-import { useGoogleCalendarStatus, useWhatsAppPreferences } from '../../../hooks/useIntegrationsData'
+import { useConnections, useGoogleCalendarStatus, useWhatsAppPreferences } from '../../../hooks/useIntegrationsData'
+import { Skeleton } from '../../../components/ui/skeleton'
 
 /**
- * Account settings → Integrations.
+ * Account settings → Integrations: the index.
  *
- * Two halves. The configurable ones (WhatsApp, Google Calendar) get a full
- * section each, because they have real backends and real settings. Everything
- * else is a catalogue card that says plainly that it is not connectable yet and
- * what it needs — the alternative, a Connect button that does nothing, is worse
- * than an honest "not yet".
+ * Every tile is a link to that integration's own page, where connecting is a
+ * single button. Nothing is configured inline any more - the previous version
+ * put WhatsApp's whole verification flow on this page, which made the one
+ * integration with real settings look different from all the others.
  *
- * Per-project configuration deliberately does not live here: linking a WhatsApp
- * group to a project is project configuration, not a user preference, so it
- * sits on the project itself. This page is only the things that belong to *you*.
+ * Connection state comes from the server, never from a hand-maintained list
+ * here, so a tile cannot claim something that is not true.
  */
+function StateBadge({ connected, configured }: { connected: boolean; configured: boolean }) {
+  if (connected) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+        <Check size={11} strokeWidth={2.5} />
+        Connected
+      </span>
+    )
+  }
+  if (!configured) {
+    return (
+      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500">
+        Unavailable on this server
+      </span>
+    )
+  }
+  return (
+    <span className="rounded-full bg-accent-50 px-2.5 py-1 text-[11px] font-medium text-accent-700">Not connected</span>
+  )
+}
 
-function PlannedCard({ integration }: { integration: IntegrationDefinition }) {
-  const [open, setOpen] = useState(false)
+export function IntegrationsTab() {
+  const { data: connections = [], isLoading } = useConnections()
+  const { data: googleStatus } = useGoogleCalendarStatus()
+  const { data: whatsAppPreferences } = useWhatsAppPreferences()
+
+  // WhatsApp and Google Calendar keep their own modules, so their state comes
+  // from their own endpoints rather than the connections catalogue.
+  const stateById = new Map(connections.map((connection) => [connection.id, connection]))
+
+  function stateFor(id: string): { connected: boolean; configured: boolean; accountLabel: string | null } {
+    if (id === 'google_calendar') {
+      return {
+        connected: Boolean(googleStatus?.connected),
+        configured: Boolean(googleStatus?.configured),
+        accountLabel: null,
+      }
+    }
+    if (id === 'whatsapp') {
+      return {
+        connected: Boolean(whatsAppPreferences?.verified && whatsAppPreferences?.enabled),
+        configured: whatsAppPreferences?.whatsappConfigured ?? true,
+        accountLabel: whatsAppPreferences?.phone ?? null,
+      }
+    }
+    const connection = stateById.get(id)
+    return {
+      connected: Boolean(connection?.connected),
+      configured: Boolean(connection?.configured),
+      accountLabel: connection?.accountLabel ?? null,
+    }
+  }
+
+  const connectedCount = INTEGRATION_ORDER.filter((id) => stateFor(id).connected).length
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-line bg-white p-4">
-      <div className="flex items-start gap-3">
-        <IntegrationIcon name={integration.icon} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-slate-900">{integration.name}</h3>
-            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
-              {integration.category}
-            </span>
-          </div>
-          <p className="mt-1 text-xs leading-relaxed text-slate-500">{integration.description}</p>
+    <div className="flex flex-col gap-5">
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">Integrations</h2>
+        <p className="mt-0.5 text-sm text-slate-500">
+          Connect the tools you already use. Choose one to set it up —{' '}
+          {isLoading ? 'checking what is connected…' : `${connectedCount} connected.`}
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {Array.from({ length: 6 }, (_, index) => (
+            <Skeleton key={index} className="h-[104px] rounded-2xl" />
+          ))}
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {INTEGRATION_ORDER.map((id) => {
+            const presentation = INTEGRATION_PRESENTATION[id]
+            if (!presentation) return null
+            const state = stateFor(id)
 
-      <div className="flex items-center justify-between gap-2">
-        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
-          Not connected yet
-        </span>
-        {integration.note && (
-          <button
-            type="button"
-            onClick={() => setOpen((current) => !current)}
-            aria-expanded={open}
-            className="flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-slate-700"
-          >
-            What it needs
-            <ChevronDown size={12} strokeWidth={2} className={open ? 'rotate-180 transition' : 'transition'} />
-          </button>
-        )}
-      </div>
-
-      {open && integration.note && (
-        <p className="rounded-lg bg-slate-50 p-2.5 text-[11px] leading-relaxed text-slate-500">{integration.note}</p>
+            return (
+              <Link
+                key={id}
+                to={`/dashboard/account/integrations/${id}`}
+                className="group flex items-start gap-3 rounded-2xl border border-line bg-white p-4 transition hover:border-slate-300 hover:bg-slate-50/60"
+              >
+                <IntegrationIcon name={presentation.icon} />
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-semibold text-slate-900">
+                    {INTEGRATION_LABELS[id] ?? id}
+                  </h3>
+                  <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{presentation.summary}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <StateBadge connected={state.connected} configured={state.configured} />
+                    {state.connected && state.accountLabel && (
+                      <span className="truncate text-[11px] text-slate-400">{state.accountLabel}</span>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight
+                  size={16}
+                  strokeWidth={2}
+                  className="mt-0.5 shrink-0 text-slate-300 transition group-hover:text-slate-500"
+                />
+              </Link>
+            )
+          })}
+        </div>
       )}
     </div>
   )
 }
 
-function ConnectedSummaryCard({
-  integration,
-  connected,
-}: {
-  integration: IntegrationDefinition
-  connected: boolean
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-2xl border border-line bg-white p-4">
-      <IntegrationIcon name={integration.icon} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h3 className="truncate text-sm font-semibold text-slate-900">{integration.name}</h3>
-          <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
-            {integration.category}
-          </span>
-        </div>
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">{integration.description}</p>
-        <span
-          className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${
-            connected ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-          }`}
-        >
-          {connected && <Check size={11} strokeWidth={2.5} />}
-          {connected ? 'Connected' : 'Available — set up below'}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-export function IntegrationsTab() {
-  const { data: googleStatus } = useGoogleCalendarStatus()
-  const { data: whatsAppPreferences } = useWhatsAppPreferences()
-
-  const whatsAppConnected = Boolean(whatsAppPreferences?.verified && whatsAppPreferences?.enabled)
-
-  const available = INTEGRATION_CATALOGUE.filter((item) => item.status === 'available')
-  const planned = INTEGRATION_CATALOGUE.filter((item) => item.status === 'planned')
-
-  const connectedById: Record<string, boolean> = {
-    whatsapp: whatsAppConnected,
-    'google-calendar': Boolean(googleStatus?.connected),
-  }
-
-  return (
-    <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-slate-900">Your integrations</h2>
-          <p className="mt-0.5 text-sm text-slate-500">Connected tools and the ones you can set up right now.</p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {available.map((integration) => (
-            <ConnectedSummaryCard
-              key={integration.id}
-              integration={integration}
-              connected={connectedById[integration.id] ?? false}
-            />
-          ))}
-        </div>
-      </section>
-
-      <Card>
-        <CardContent>
-          <GoogleCalendarSection />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent>
-          <WhatsAppSection />
-        </CardContent>
-      </Card>
-
-      <section className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-slate-900">Available to build</h2>
-          <p className="mt-0.5 text-sm text-slate-500">
-            These have been checked against each vendor's API. None is wired up yet — expand a card to see what it
-            would take.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {planned.map((integration) => (
-            <PlannedCard key={integration.id} integration={integration} />
-          ))}
-        </div>
-      </section>
-    </div>
-  )
+/**
+ * Display names. The connections endpoint carries these for the providers it
+ * owns, but WhatsApp and Google Calendar are not in it, and a tile should not
+ * wait on a request to know what to call itself.
+ */
+const INTEGRATION_LABELS: Record<string, string> = {
+  whatsapp: 'WhatsApp',
+  google_calendar: 'Google Calendar',
+  gmail: 'Gmail',
+  outlook: 'Outlook',
+  slack: 'Slack',
+  google_drive: 'Google Drive',
+  dropbox: 'Dropbox',
+  zoom: 'Zoom',
+  yuki: 'Yuki',
+  perfectview: 'PerfectView',
 }

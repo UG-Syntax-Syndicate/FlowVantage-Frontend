@@ -82,3 +82,49 @@ export interface NotificationLogEntry {
   sentAt: string | null
   summary: string | null
 }
+
+// ---------------------------------------------------------------------------
+// Third-party connections
+// ---------------------------------------------------------------------------
+
+/** How a provider is connected: a vendor sign-in, or credentials the user pastes. */
+export type IntegrationKind = 'oauth' | 'api_key'
+
+/** One field an api_key provider needs, as the backend's provider registry describes it. */
+export interface IntegrationCredentialField {
+  name: string
+  label: string
+  /** Rendered as a password field and never echoed back from the server. */
+  secret: boolean
+  help?: string
+}
+
+/** Which verbs a provider's resource supports, as its adapter reports them. */
+export interface IntegrationResourceSupport {
+  get: boolean
+  post: boolean
+}
+
+export interface IntegrationConnection {
+  id: string
+  name: string
+  kind: IntegrationKind
+  category: string
+  /**
+   * Whether this *server* can complete a connection at all — i.e. whether the
+   * vendor credentials are present in its environment. False means the Connect
+   * button would 503, so the UI explains instead of offering it.
+   */
+  configured: boolean
+  /** Whether this *user* has connected it. */
+  connected: boolean
+  accountLabel: string | null
+  connectedAt: string | null
+  credentialFields: IntegrationCredentialField[] | null
+  /**
+   * What this provider can read and write once connected, keyed by resource
+   * name (`messages`, `files`, `contacts`…). Comes from the backend's adapter
+   * registry so the UI never keeps a second copy of it.
+   */
+  resources: Record<string, IntegrationResourceSupport> | null
+}

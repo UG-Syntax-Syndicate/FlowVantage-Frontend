@@ -88,6 +88,8 @@ export const queryKeys = {
   unreadMessages: ['unreadMessages'] as const,
   whatsappPreferences: ['whatsappPreferences'] as const,
   googleCalendarStatus: ['googleCalendarStatus'] as const,
+  integrationConnections: ['integrationConnections'] as const,
+  integrationConnection: (provider: string) => ['integrationConnections', provider] as const,
   projectWhatsappGroup: (projectId: string) => ['projectWhatsappGroup', projectId] as const,
   projectNotifications: (projectId: string) => ['projectNotifications', projectId] as const,
   workspaces: ['workspaces'] as const,

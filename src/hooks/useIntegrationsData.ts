@@ -123,3 +123,62 @@ export function useSyncGoogleCalendar() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.meetings }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Third-party connections
+// ---------------------------------------------------------------------------
+
+export function useConnections() {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.integrationConnections,
+    queryFn: integrationsApi.fetchConnections,
+    enabled: Boolean(backendSessionToken),
+  })
+}
+
+export function useConnection(provider: string) {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.integrationConnection(provider),
+    queryFn: () => integrationsApi.fetchConnection(provider),
+    enabled: Boolean(backendSessionToken) && Boolean(provider),
+  })
+}
+
+/**
+ * Sends the browser to the vendor's sign-in page.
+ *
+ * A full-page navigation rather than a popup: the vendor redirects back to the
+ * backend, which 302s to this provider's settings page, and a popup could not
+ * hand that outcome to the opener without extra postMessage plumbing.
+ */
+export function useStartConnection() {
+  return useMutation({
+    mutationFn: async (provider: string) => {
+      const url = await integrationsApi.startConnection(provider)
+      window.location.assign(url)
+    },
+  })
+}
+
+export function useSaveConnectionCredentials(provider: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (credentials: Record<string, string>) =>
+      integrationsApi.saveConnectionCredentials(provider, credentials),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrationConnections })
+    },
+  })
+}
+
+export function useDisconnectConnection(provider: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => integrationsApi.disconnectConnection(provider),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.integrationConnections })
+    },
+  })
+}

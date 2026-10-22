@@ -1,6 +1,7 @@
-import { getJson, patchJson, postJsonAuthed } from '../lib/backendApi'
+import { getJson, patchJson, postJsonAuthed, putJson } from '../lib/backendApi'
 import { readBackendSessionToken } from '../lib/backendSession'
 import type {
+  IntegrationConnection,
   NotificationLogEntry,
   NotificationStatus,
   ProjectWhatsAppGroup,
@@ -229,4 +230,56 @@ export async function syncGoogleCalendar(): Promise<{ applied: number; fullResyn
     authToken(),
   )
   return { applied: result.applied, fullResync: result.fullResync }
+}
+
+// ---------------------------------------------------------------------------
+// Third-party connections (OAuth sign-in, or stored credentials)
+// ---------------------------------------------------------------------------
+
+export async function fetchConnections(): Promise<IntegrationConnection[]> {
+  const { data } = await getJson<ApiEnvelope<IntegrationConnection[]>>('/integrations/connections', authToken())
+  return data
+}
+
+export async function fetchConnection(provider: string): Promise<IntegrationConnection> {
+  const { data } = await getJson<ApiEnvelope<IntegrationConnection>>(
+    `/integrations/connections/${provider}`,
+    authToken(),
+  )
+  return data
+}
+
+/**
+ * Asks the backend for the vendor's consent URL. The backend returns it rather
+ * than redirecting, so an unconfigured provider comes back as a readable 503
+ * instead of a dead-end redirect.
+ */
+export async function startConnection(provider: string): Promise<string> {
+  const { url } = await postJsonAuthed<{ success: boolean; url: string }>(
+    `/integrations/connections/${provider}/connect`,
+    {},
+    authToken(),
+  )
+  return url
+}
+
+export async function saveConnectionCredentials(
+  provider: string,
+  credentials: Record<string, string>,
+): Promise<IntegrationConnection> {
+  const { data } = await putJson<ApiEnvelope<IntegrationConnection>>(
+    `/integrations/connections/${provider}/credentials`,
+    credentials,
+    authToken(),
+  )
+  return data
+}
+
+export async function disconnectConnection(provider: string): Promise<IntegrationConnection> {
+  const { data } = await postJsonAuthed<ApiEnvelope<IntegrationConnection>>(
+    `/integrations/connections/${provider}/disconnect`,
+    {},
+    authToken(),
+  )
+  return data
 }

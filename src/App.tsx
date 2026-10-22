@@ -60,6 +60,9 @@ const InviteAcceptPage = lazy(() =>
 const IntegrationsTab = lazy(() =>
   import('./pages/dashboard/account/IntegrationsTab').then((m) => ({ default: m.IntegrationsTab })),
 )
+const IntegrationDetailPage = lazy(() =>
+  import('./pages/dashboard/account/IntegrationDetailPage').then((m) => ({ default: m.IntegrationDetailPage })),
+)
 const InventoryPage = lazy(() => import('./pages/dashboard/InventoryPage').then((m) => ({ default: m.InventoryPage })))
 const ReportingPage = lazy(() => import('./pages/dashboard/ReportingPage').then((m) => ({ default: m.ReportingPage })))
 const ComingSoonPage = lazy(() =>
@@ -245,6 +248,16 @@ function App() {
               element={
                 <Suspense fallback={<RouteFallback />}>
                   <IntegrationsTab />
+                </Suspense>
+              }
+            />
+            {/* Each integration gets its own page, so setting one up is a
+                place you navigate to rather than a panel that expands. */}
+            <Route
+              path="integrations/:provider"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <IntegrationDetailPage />
                 </Suspense>
               }
             />

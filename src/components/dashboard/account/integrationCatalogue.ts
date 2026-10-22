@@ -1,116 +1,128 @@
 import type { IntegrationIconName } from './IntegrationIcon'
 
 /**
- * The integrations catalogue.
+ * Presentation for each integration: its icon and the words describing it.
  *
- * `status` is the honest state of each one, not a wish:
- *  - 'available'  the backend implements it end to end and the card can act.
- *  - 'planned'    researched, and the auth model is known, but no backend yet.
+ * Connection *state* is never stored here - that comes from the backend
+ * (`GET /integrations/connections`), because only the server knows whether it
+ * holds the vendor credentials and whether this user has signed in. Keeping a
+ * hand-maintained "status" here was how the page previously claimed things
+ * that were not true.
  *
- * A planned card never offers a Connect button, because there is nothing behind
- * it. `note` says what it would take, so the page documents the backlog instead
- * of implying the feature already works.
+ * Keys match the backend's provider ids exactly, so the two cannot drift.
  */
-export type IntegrationStatus = 'available' | 'planned'
-
-export interface IntegrationDefinition {
+export interface IntegrationPresentation {
   id: string
-  name: string
   icon: IntegrationIconName
-  category: 'Messaging' | 'Email' | 'Calendar' | 'Files' | 'Finance' | 'CRM'
-  description: string
-  status: IntegrationStatus
-  /** For planned entries: how it would authenticate, from the vendor's own docs. */
-  note?: string
+  /** One line on the card. */
+  summary: string
+  /** What connecting actually gets you, on the detail page. */
+  detail: string
+  /** Shown while a provider has no backend feature behind it yet. */
+  comingSoon?: string
 }
 
-export const INTEGRATION_CATALOGUE: IntegrationDefinition[] = [
-  {
+/**
+ * The two integrations that predate the generic connection framework and keep
+ * their own modules: WhatsApp has its own preferences and verification flow,
+ * and Google Calendar its own sync tokens and event mapping. They are
+ * presented identically to the rest, but their pages render their own
+ * sections rather than the generic connect panel.
+ */
+export const SELF_MANAGED_PROVIDERS = ['whatsapp', 'google_calendar'] as const
+
+export const INTEGRATION_PRESENTATION: Record<string, IntegrationPresentation> = {
+  whatsapp: {
     id: 'whatsapp',
-    name: 'WhatsApp',
     icon: 'whatsapp',
-    category: 'Messaging',
-    description: 'Send task and project notifications to your phone, and link a group per project.',
-    status: 'available',
+    summary: 'Get task and project notifications on your phone.',
+    detail:
+      'Verify a phone number once, then choose which project events are worth a message. A project can also be linked to a group chat.',
   },
-  {
-    id: 'google-calendar',
-    name: 'Google Calendar',
+  google_calendar: {
+    id: 'google_calendar',
     icon: 'google-calendar',
-    category: 'Calendar',
-    description: 'Two-way sync: events created here appear in Google, and changes there sync back.',
-    status: 'available',
+    summary: 'Two-way sync between FlowVantage events and Google Calendar.',
+    detail:
+      'Events you create here are pushed to Google, and changes made in Google are pulled back when you sync. Your existing Google events show up on the FlowVantage calendar.',
   },
-  {
+  gmail: {
     id: 'gmail',
-    name: 'Gmail',
     icon: 'gmail',
-    category: 'Email',
-    description: 'Connect a mailbox so project email is sent and received for real, not saved as a local draft.',
-    status: 'planned',
-    note: 'Needs a Gmail API OAuth flow (gmail.send + gmail.readonly) and token storage, like the Google Calendar link already has.',
+    summary: 'Send and receive project email from your Gmail account.',
+    detail:
+      'Connecting lets FlowVantage send mail as you and read replies, so a message composed here actually leaves your mailbox instead of being saved as a draft.',
+    comingSoon:
+      'Connecting stores the authorisation now. Sending through it arrives with the mailbox work - the composer still saves to Drafts until then.',
   },
-  {
+  outlook: {
     id: 'outlook',
-    name: 'Outlook',
     icon: 'outlook',
-    category: 'Email',
-    description: 'The same mailbox connection for Microsoft 365 and Outlook.com accounts.',
-    status: 'planned',
-    note: 'Needs Microsoft Graph OAuth (Mail.Send + Mail.Read). Calendar sync could ride on the same token.',
+    summary: 'The same mailbox connection for Microsoft 365 and Outlook.com.',
+    detail:
+      'Connecting lets FlowVantage send mail as you and read replies, through Microsoft Graph, for Microsoft 365 and Outlook.com accounts alike.',
+    comingSoon:
+      'Connecting stores the authorisation now. Sending through it arrives with the mailbox work - the composer still saves to Drafts until then.',
   },
-  {
-    id: 'yuki',
-    name: 'Yuki',
-    icon: 'yuki',
-    category: 'Finance',
-    description: 'Push invoices and journal entries to Yuki bookkeeping, and read back GL accounts.',
-    status: 'planned',
-    note: 'Integrable: Yuki exposes SOAP webservices at api.yukiworks.nl/ws (Sales.asmx, Accounting.asmx, AccountingInfo.asmx), authenticated with a per-administration API key from Settings → API keys. No OAuth, so this needs an encrypted key field rather than a Connect redirect.',
-  },
-  {
-    id: 'perfectview',
-    name: 'PerfectView',
-    icon: 'perfectview',
-    category: 'CRM',
-    description: 'Sync contacts and companies with PerfectView CRM Online.',
-    status: 'planned',
-    note: 'Integrable: PerfectView CRM Online has a REST API authenticated with an API key plus Database ID and User ID, from Settings → Connectors → API. Also needs an encrypted-credentials form rather than OAuth.',
-  },
-  {
+  slack: {
     id: 'slack',
-    name: 'Slack',
     icon: 'slack',
-    category: 'Messaging',
-    description: 'Post project activity into a Slack channel, alongside the WhatsApp notifications.',
-    status: 'planned',
-    note: 'Needs a Slack app with an incoming-webhook or chat:write scope; the notification outbox that already drives WhatsApp could fan out to it.',
+    summary: 'Post project activity into a Slack channel.',
+    detail:
+      'The same notifications WhatsApp can deliver, posted into a channel instead - useful when the team already lives in Slack.',
+    comingSoon: 'Connecting stores the authorisation now. Choosing a channel to post into arrives with the Slack delivery work.',
   },
-  {
-    id: 'google-drive',
-    name: 'Google Drive',
+  google_drive: {
+    id: 'google_drive',
     icon: 'google-drive',
-    category: 'Files',
-    description: 'Attach files straight from Drive instead of re-uploading them.',
-    status: 'planned',
-    note: 'Needs Drive API OAuth (drive.file). Documents currently upload to Cloudinary.',
+    summary: 'Attach files straight from Drive instead of re-uploading them.',
+    detail:
+      'Pick a file from your Drive when attaching to a project, rather than downloading it and uploading it again.',
+    comingSoon: 'Connecting stores the authorisation now. The file picker arrives with the Drive attachment work.',
   },
-  {
+  dropbox: {
     id: 'dropbox',
-    name: 'Dropbox',
     icon: 'dropbox',
-    category: 'Files',
-    description: 'The same file picker for teams that keep documents in Dropbox.',
-    status: 'planned',
-    note: 'Needs Dropbox OAuth and the chooser SDK.',
+    summary: 'The same file picker for teams that keep documents in Dropbox.',
+    detail: 'Pick a file from Dropbox when attaching to a project, rather than downloading and re-uploading it.',
+    comingSoon: 'Connecting stores the authorisation now. The file picker arrives with the Dropbox attachment work.',
   },
-  {
+  zoom: {
     id: 'zoom',
-    name: 'Zoom',
     icon: 'zoom',
-    category: 'Calendar',
-    description: 'Generate a meeting link when you schedule a calendar event.',
-    status: 'planned',
-    note: 'Needs Zoom OAuth (meeting:write) — this is what the event sheet’s "Join meeting" button is waiting on.',
+    summary: 'Generate a meeting link when you schedule an event.',
+    detail:
+      'Scheduling a calendar event can create the Zoom meeting at the same time, so the join link is on the event from the start.',
+    comingSoon: 'Connecting stores the authorisation now. Generating links on events arrives with the Zoom meeting work.',
   },
+  yuki: {
+    id: 'yuki',
+    icon: 'yuki',
+    summary: 'Push invoices and journal entries to Yuki bookkeeping.',
+    detail:
+      'Yuki has no sign-in flow for third-party apps, so this is connected with an API key from your Yuki administration instead. The key is encrypted before it is stored.',
+    comingSoon: 'Your credentials are stored now. Pushing invoices and reading GL accounts arrives with the bookkeeping work.',
+  },
+  perfectview: {
+    id: 'perfectview',
+    icon: 'perfectview',
+    summary: 'Sync contacts and companies with PerfectView CRM Online.',
+    detail:
+      'PerfectView authenticates with an API key rather than a sign-in, so it is connected with credentials from your PerfectView account. They are encrypted before they are stored.',
+    comingSoon: 'Your credentials are stored now. Syncing contacts both ways arrives with the CRM work.',
+  },
+}
+
+/** Display order on the index page: the ones that do something today, first. */
+export const INTEGRATION_ORDER = [
+  'google_calendar',
+  'whatsapp',
+  'gmail',
+  'outlook',
+  'slack',
+  'google_drive',
+  'dropbox',
+  'zoom',
+  'yuki',
+  'perfectview',
 ]

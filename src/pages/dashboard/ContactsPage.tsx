@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronLeft, ChevronRight, ArrowUpDown, Upload, UserPlus } from 'lucide-react'
+import { ChevronDown, ArrowUpDown, Upload, UserPlus } from 'lucide-react'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { ContactRow } from '../../components/contacts/ContactRow'
 import { ContactDetailModal } from '../../components/contacts/ContactDetailModal'
@@ -16,15 +16,13 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../compon
 import { Checkbox } from '../../components/ui/checkbox'
 import { Button } from '../../components/ui/button'
 import { TableRowsSkeleton } from '../../components/common/skeletons/TableRowsSkeleton'
-import { useContacts, useProjects } from '../../hooks/useProjectsData'
+import { Pagination, type PageSize } from '../../components/common/Pagination'
+import { ALL_PROJECTS, ProjectFilterSelect } from '../../components/common/ProjectFilterSelect'
+import { useContacts } from '../../hooks/useProjectsData'
 import type { Contact } from '../../types/project'
-
-const ALL_PROJECTS = 'All projects'
 
 type SortField = 'company' | 'contactName' | 'phone' | 'email' | 'status'
 type SortDir = 'asc' | 'desc'
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
 
 const COLUMNS: { key: SortField; label: string }[] = [
   { key: 'company', label: 'Company' },
@@ -34,30 +32,15 @@ const COLUMNS: { key: SortField; label: string }[] = [
   { key: 'status', label: 'Status' },
 ]
 
-function buildPageList(current: number, total: number): (number | 'ellipsis')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-  const pages = new Set([1, 2, total - 1, total, current - 1, current, current + 1])
-  const sorted = [...pages].filter((p) => p >= 1 && p <= total).sort((a, b) => a - b)
-  const result: (number | 'ellipsis')[] = []
-  let prev = 0
-  for (const p of sorted) {
-    if (prev && p - prev > 1) result.push('ellipsis')
-    result.push(p)
-    prev = p
-  }
-  return result
-}
-
 export function ContactsPage() {
   const { data: contacts = [], isLoading } = useContacts()
-  const { data: projects = [] } = useProjects()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [nicheFilter, setNicheFilter] = useState<string>('All niches')
   const [projectFilter, setProjectFilter] = useState<string>(ALL_PROJECTS)
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10)
+  const [pageSize, setPageSize] = useState<PageSize>(10)
   const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [viewingContactId, setViewingContactId] = useState<string | null>(null)
@@ -65,7 +48,6 @@ export function ContactsPage() {
   const [adding, setAdding] = useState(false)
 
   const niches = useMemo(() => ['All niches', ...Array.from(new Set(contacts.map((c) => c.niche))).sort()], [contacts])
-  const projectNameById = useMemo(() => new Map(projects.map((p) => [p.id, p.name])), [projects])
 
   const filtered = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
@@ -86,7 +68,6 @@ export function ContactsPage() {
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
   const currentPage = Math.min(page, totalPages)
   const pageItems = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  const pageList = buildPageList(currentPage, totalPages)
 
   const allOnPageSelected = pageItems.length > 0 && pageItems.every((c) => selectedIds.has(c.id))
 
@@ -168,27 +149,10 @@ export function ContactsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-1.5 text-sm font-medium text-slate-500 outline-none hover:text-slate-700">
-                {projectFilter === ALL_PROJECTS ? ALL_PROJECTS : projectNameById.get(projectFilter) ?? ALL_PROJECTS}
-                <ChevronDown size={14} strokeWidth={2} className="text-slate-400" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48">
-                <DropdownMenuRadioGroup
-                  value={projectFilter}
-                  onValueChange={(value) => updateFilters(() => setProjectFilter(value))}
-                >
-                  <DropdownMenuRadioItem value={ALL_PROJECTS} className="px-2 py-1.5">
-                    {ALL_PROJECTS}
-                  </DropdownMenuRadioItem>
-                  {projects.map((project) => (
-                    <DropdownMenuRadioItem key={project.id} value={project.id} className="px-2 py-1.5">
-                      {project.name}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ProjectFilterSelect
+              value={projectFilter}
+              onChange={(value) => updateFilters(() => setProjectFilter(value))}
+            />
           </div>
           <span className="text-xs text-slate-400">{sorted.length} contacts</span>
         </div>
@@ -238,61 +202,13 @@ export function ContactsPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
-          <div className="flex items-center gap-1.5">
-            {PAGE_SIZE_OPTIONS.map((size) => (
-              <button
-                key={size}
-                type="button"
-                onClick={() => updateFilters(() => setPageSize(size))}
-                className={`rounded-lg px-2.5 py-1.5 text-xs font-medium ${
-                  pageSize === size ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100'
-                }`}
-              >
-                {size} rows
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <ChevronLeft size={14} />
-              Previous
-            </button>
-            {pageList.map((p, i) =>
-              p === 'ellipsis' ? (
-                <span key={`e${i}`} className="px-1.5 text-xs text-slate-400">
-                  …
-                </span>
-              ) : (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPage(p)}
-                  className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium ${
-                    p === currentPage ? 'bg-primary text-white' : 'text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  {p}
-                </button>
-              ),
-            )}
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Next
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
+        <Pagination
+          page={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => updateFilters(() => setPageSize(size))}
+        />
       </div>
 
       {viewingContact && <ContactDetailModal contact={viewingContact} onClose={() => setViewingContactId(null)} />}

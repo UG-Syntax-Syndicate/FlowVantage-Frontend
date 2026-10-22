@@ -1,13 +1,13 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Lock, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { NAV_ITEMS } from './navItems'
 import { useAuth } from '../../hooks/useAuth'
 import { useProjects } from '../../hooks/useProjectsData'
+import { useUnreadMessageCounts } from '../../hooks/useCollaborationData'
 import { UserMenu } from './UserMenu'
 import { WorkspaceSwitcher } from './WorkspaceSwitcher'
 import { Avatar } from '../common/Avatar'
 import { getUserAvatarUrl } from '../../lib/avatars'
-import { Tooltip, TooltipContent, TooltipTrigger } from '../animate-ui/components/animate/tooltip'
 import {
   Sidebar as SidebarRoot,
   SidebarContent,
@@ -29,6 +29,8 @@ function isNavItemActive(pathname: string, to: string, end?: boolean) {
 export function Sidebar() {
   const { userProfile, currentUser } = useAuth()
   const { data: projects = [] } = useProjects()
+  // One request for every project's count, so the badges cost nothing per row.
+  const { data: unreadCounts = {} } = useUnreadMessageCounts()
   const { pathname } = useLocation()
   const topProjects = projects.slice(0, 4)
 
@@ -53,38 +55,28 @@ export function Sidebar() {
       <SidebarContent className="gap-0 px-[14px]">
         <SidebarGroup className="p-0">
           <SidebarMenu className="gap-1.5">
-            {NAV_ITEMS.map((item) =>
-              item.locked ? (
-                <SidebarMenuItem key={item.to}>
-                  <Tooltip side="right">
-                    <TooltipTrigger asChild>
-                      <SidebarMenuButton
-                        aria-disabled="true"
-                        className="h-auto cursor-not-allowed rounded-[10px] px-3 py-2.5 text-[15px] font-medium text-[#9896a3]/50 hover:bg-transparent hover:text-[#9896a3]/50"
-                      >
-                        <item.icon size={19} strokeWidth={1.9} />
-                        {item.label}
-                        <Lock size={14} strokeWidth={2} className="ml-auto shrink-0 opacity-70" />
-                      </SidebarMenuButton>
-                    </TooltipTrigger>
-                    <TooltipContent>Coming soon</TooltipContent>
-                  </Tooltip>
-                </SidebarMenuItem>
-              ) : (
-                <SidebarMenuItem key={item.to}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isNavItemActive(pathname, item.to, item.end)}
-                    className="h-auto rounded-[10px] px-3 py-2.5 text-[15px] font-medium text-[#9896a3] hover:bg-rail-hover hover:text-white data-[active=true]:bg-primary data-[active=true]:font-medium data-[active=true]:text-white"
-                  >
-                    <Link to={item.to}>
-                      <item.icon size={19} strokeWidth={1.9} />
-                      {item.label}
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ),
-            )}
+            {/* Every nav entry is a real link now. The `locked` branch that
+                rendered Inventory and Reporting as disabled with a "Coming
+                soon" tooltip is gone - both have full backends and pages, and
+                a dead feature flag is how the stale "no backend endpoint yet"
+                comment survived as long as it did. */}
+            {NAV_ITEMS.map((item) => (
+              <SidebarMenuItem key={item.to}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isNavItemActive(pathname, item.to, item.end)}
+                  className="h-auto rounded-[10px] px-3 py-2.5 text-[15px] font-medium text-[#9896a3] hover:bg-rail-hover hover:text-white data-[active=true]:bg-primary data-[active=true]:font-medium data-[active=true]:text-white"
+                >
+                  {/* data-tour, not a Radix data-slot or :nth-child: the
+                      onboarding tour needs a selector that survives a nav
+                      reorder. */}
+                  <Link to={item.to} data-tour={item.tourId}>
+                    <item.icon size={19} strokeWidth={1.9} />
+                    {item.label}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
 
@@ -108,6 +100,14 @@ export function Sidebar() {
                         aria-hidden
                       />
                       <span className="truncate">{project.name}</span>
+                      {(unreadCounts[project.id] ?? 0) > 0 && (
+                        <span
+                          className="ml-auto shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] leading-none font-semibold text-white"
+                          aria-label={`${unreadCounts[project.id]} unread messages`}
+                        >
+                          {unreadCounts[project.id] > 99 ? '99+' : unreadCounts[project.id]}
+                        </span>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

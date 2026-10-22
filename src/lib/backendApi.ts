@@ -15,6 +15,13 @@ const BACKEND_TIMEOUT_MS = 5000
  */
 const AUTH_TIMEOUT_MS = 45000
 
+/**
+ * Downloads get their own budget for the same reason the session exchange does:
+ * a generated report is a dozen queries plus document layout, which is nowhere
+ * near a 5s request.
+ */
+const DOWNLOAD_TIMEOUT_MS = 60000
+
 function withTimeout(ms: number): { signal: AbortSignal; cancel: () => void } {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), ms)
@@ -85,6 +92,29 @@ export interface BackendSessionUser {
   authProvider?: string
   twoFactorEnabled?: boolean
   notificationPreferences?: BackendNotificationPreferences
+  /**
+   * The extended profile. Present on GET and PATCH /auth/me, absent from the
+   * session-exchange response - the server serves these from a fresh database
+   * read rather than signing them into the session JWT, since every field in
+   * that token is re-sent on every single request.
+   */
+  dateOfBirth?: string | null
+  age?: number | null
+  nationality?: string | null
+  phone?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  city?: string | null
+  region?: string | null
+  postalCode?: string | null
+  country?: string | null
+  jobTitle?: string | null
+  company?: string | null
+  teamSize?: string | null
+  timezone?: string | null
+  locale?: string | null
+  profileCompletedAt?: string | null
+  createdAt?: string | null
 }
 
 interface BackendSessionPayload {
@@ -101,7 +131,7 @@ export type BackendSessionResult =
   | { status: 'requiresTwoFactor'; userId: string }
 
 async function sendOnce<T>(
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body: unknown,
   sessionToken: string | undefined,
@@ -145,7 +175,7 @@ async function sendOnce<T>(
  * where the user can sit on a review screen for minutes, hit this routinely.
  */
 async function request<T>(
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body: unknown,
   sessionToken?: string,
@@ -186,6 +216,11 @@ export async function patchJson<T>(path: string, body: unknown, sessionToken: st
   return request<T>('PATCH', path, body, sessionToken)
 }
 
+/** Authenticated PUT - a full replacement, where the backend exposes PUT rather than PATCH. */
+export async function putJson<T>(path: string, body: unknown, sessionToken: string): Promise<T> {
+  return request<T>('PUT', path, body, sessionToken)
+}
+
 /** Authenticated DELETE - sessionToken is required since every non-auth endpoint needs one. */
 export async function deleteJson<T>(path: string, sessionToken: string): Promise<T> {
   return request<T>('DELETE', path, undefined, sessionToken)
@@ -209,6 +244,93 @@ export async function postJsonAuthedWithTimeout<T>(
   timeoutMs: number,
 ): Promise<T> {
   return request<T>('POST', path, body, sessionToken, timeoutMs)
+}
+
+/** A downloaded file: the bytes plus the filename the server chose for it. */
+export interface BlobDownload {
+  blob: Blob
+  filename: string | null
+}
+
+/**
+ * Authenticated GET that returns bytes rather than JSON.
+ *
+ * Every other function here calls response.json(), so none of them can fetch a
+ * PDF or a .docx - the body would be consumed as text and the parse would
+ * throw. This is the one path that reads the response as a Blob, and it also
+ * reads back Content-Disposition so a download keeps the server's filename
+ * instead of the browser inventing one from the URL.
+ *
+ * Deliberately NOT routed through request(): that helper's whole job is to
+ * parse a JSON envelope and branch on `payload.message`. The 401 recovery is
+ * reimplemented here instead, which is a small duplication for the one caller
+ * shape that cannot share it.
+ *
+ * The timeout defaults far above BACKEND_TIMEOUT_MS because generating a report
+ * runs a dozen queries and lays out a document - the same reasoning as
+ * postJsonAuthedWithTimeout.
+ */
+export async function getBlob(
+  path: string,
+  sessionToken: string,
+  timeoutMs: number = DOWNLOAD_TIMEOUT_MS,
+): Promise<BlobDownload> {
+  const attempt = async (token: string): Promise<BlobDownload> => {
+    const { signal, cancel } = withTimeout(timeoutMs)
+    try {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        signal,
+      })
+
+      if (!response.ok) {
+        // An error response is still JSON, so the message is worth keeping.
+        const message = await response
+          .json()
+          .then((payload: { message?: string }) => payload.message)
+          .catch(() => undefined)
+        throw new ApiError(message || `Download failed (${response.status})`, response.status)
+      }
+
+      return { blob: await response.blob(), filename: filenameFromDisposition(response.headers.get('content-disposition')) }
+    } finally {
+      cancel()
+    }
+  }
+
+  try {
+    return await attempt(sessionToken)
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error
+
+    const freshToken = await refreshSessionOnce()
+    if (!freshToken) throw error
+    return attempt(freshToken)
+  }
+}
+
+/**
+ * Pulls the filename out of a Content-Disposition header.
+ *
+ * Handles the RFC 5987 `filename*=UTF-8''…` form first, since that is the one
+ * that carries non-ASCII names, and falls back to plain `filename="…"`.
+ * Returns null rather than guessing, so the caller can supply its own name.
+ */
+function filenameFromDisposition(header: string | null): string | null {
+  if (!header) return null
+
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header)
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim())
+    } catch {
+      // A malformed percent-escape is not worth failing a download over.
+    }
+  }
+
+  const plain = /filename="?([^";]+)"?/i.exec(header)
+  return plain ? plain[1].trim() : null
 }
 
 function toSessionResult(payload: BackendSessionPayload): BackendSessionResult {
@@ -322,6 +444,26 @@ export interface BackendProfileUpdate {
   name?: string
   avatarUrl?: string | null
   notificationPreferences?: Partial<BackendNotificationPreferences>
+  dateOfBirth?: string | null
+  nationality?: string | null
+  phone?: string | null
+  addressLine1?: string | null
+  addressLine2?: string | null
+  city?: string | null
+  region?: string | null
+  postalCode?: string | null
+  country?: string | null
+  jobTitle?: string | null
+  company?: string | null
+  teamSize?: string | null
+  timezone?: string | null
+  locale?: string | null
+  /**
+   * Send `true` to stamp "the wizard is done" with the server's clock, or
+   * `null` to clear it. The server ignores any timestamp sent here - this flag
+   * is what stops the wizard reappearing, so it is not a client's to backdate.
+   */
+  profileCompletedAt?: true | null
 }
 
 export async function updateBackendProfile(

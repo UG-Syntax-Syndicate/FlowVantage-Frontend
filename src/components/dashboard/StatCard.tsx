@@ -3,7 +3,12 @@ import type { LucideIcon } from 'lucide-react'
 interface StatCardProps {
   icon: LucideIcon
   label: string
-  value: number
+  /**
+   * A string where the figure is already formatted - a money total carries its
+   * currency, and a workspace holding stock in more than one currency has
+   * several, which cannot be summed into a single number.
+   */
+  value: number | string
   variant: 'primary' | 'default'
   shadowClass: string
 }

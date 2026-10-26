@@ -386,6 +386,38 @@ export function useMoveEmailsToFolder() {
   })
 }
 
+/**
+ * Where a send would go from. Cached like any other read, and cheap - the
+ * composer opens far more often than a mailbox is connected or disconnected.
+ */
+export function useEmailSender() {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.emailSender,
+    queryFn: projectsApi.fetchEmailSender,
+    enabled: Boolean(backendSessionToken),
+  })
+}
+
+/**
+ * Sends, rather than filing a draft.
+ *
+ * Invalidates the email list because the server files a copy in `sent`, and
+ * that copy is the only record the user has that the message left.
+ */
+export function useSendEmail() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (input: ComposeEmailInput & { contactId?: string | null; projectId?: string | null }) =>
+      projectsApi.sendEmail(input),
+    onSuccess: (email) => {
+      recordAudit('create', 'email', email.id, { sent: true })
+      queryClient.invalidateQueries({ queryKey: queryKeys.emails })
+    },
+  })
+}
+
 export function useComposeEmail() {
   const queryClient = useQueryClient()
   const recordAudit = useAuditRecorder()

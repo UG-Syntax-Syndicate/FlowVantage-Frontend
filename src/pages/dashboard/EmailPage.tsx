@@ -5,6 +5,7 @@ import {
   Plus,
   Inbox,
   Send,
+  SendHorizonal,
   FileEdit,
   AlertOctagon,
   Trash2,
@@ -35,6 +36,9 @@ const FOLDER_NAV: { value: EmailFolder; label: string; icon: typeof Inbox }[] = 
   { value: 'inbox', label: 'Inbox', icon: Inbox },
   { value: 'pending', label: 'Pending Emails', icon: Send },
   { value: 'drafts', label: 'Drafts', icon: FileEdit },
+  // Arrived with real outbound mail: before sending existed, composing only
+  // ever produced a draft and there was nothing to put here.
+  { value: 'sent', label: 'Sent', icon: SendHorizonal },
   { value: 'spam', label: 'Spamming', icon: AlertOctagon },
   { value: 'trash', label: 'Trash', icon: Trash2 },
 ]
@@ -57,7 +61,7 @@ export function EmailPage() {
   const projectById = new Map(projects.map((p) => [p.id, p]))
 
   const folderCounts = useMemo(() => {
-    const counts: Record<EmailFolder, number> = { inbox: 0, pending: 0, drafts: 0, spam: 0, trash: 0 }
+    const counts: Record<EmailFolder, number> = { inbox: 0, pending: 0, drafts: 0, sent: 0, spam: 0, trash: 0 }
     emails.forEach((e) => {
       counts[e.folder] += 1
     })

@@ -85,6 +85,9 @@ export const queryKeys = {
   taskComments: (taskId: string) => ['taskComments', taskId] as const,
   projectMessages: (projectId: string) => ['projectMessages', projectId] as const,
   unreadMessages: ['unreadMessages'] as const,
+  // The bell feed. A limit is appended as a segment by useNotifications,
+  // so invalidating this bare key covers every page size in play.
+  notifications: ['notifications'] as const,
   whatsappPreferences: ['whatsappPreferences'] as const,
   googleCalendarStatus: ['googleCalendarStatus'] as const,
   integrationConnections: ['integrationConnections'] as const,

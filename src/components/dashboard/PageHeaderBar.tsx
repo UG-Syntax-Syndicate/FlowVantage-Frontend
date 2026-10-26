@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
-import { Bell, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Avatar } from '../common/Avatar'
 import { getUserAvatarUrl } from '../../lib/avatars'
 import { UserMenu } from './UserMenu'
+import { NotificationBell } from '../notifications/NotificationBell'
 
 interface PageHeaderBarProps {
   title: string
@@ -46,14 +47,7 @@ export function PageHeaderBar({
         </label>
 
         {actions}
-        <button
-          type="button"
-          title="Notifications"
-          aria-label="Notifications"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-        >
-          <Bell size={18} strokeWidth={1.9} />
-        </button>
+        <NotificationBell />
         <UserMenu side="bottom" align="end" triggerClassName="rounded-full sm:rounded-xl sm:px-1 sm:py-1 sm:hover:bg-slate-100">
           <Avatar
             photoURL={getUserAvatarUrl(userProfile?.photoURL, userProfile?.id ?? currentUser?.uid ?? currentUser?.email ?? 'user')}

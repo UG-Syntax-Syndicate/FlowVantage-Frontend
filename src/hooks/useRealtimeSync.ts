@@ -18,6 +18,11 @@ import { queryKeys } from '../lib/queryClient'
  * reply is not a conversation. The backend already broadcast all three; nothing
  * on this side was listening.
  *
+ * Notifications are here because the bell is the one surface whose whole
+ * point is immediacy: a notification that appears on the next window focus
+ * is a worse version of email. The backend publishes one event per
+ * notification written, addressed to its recipient only.
+ *
  * Everything else (folders/todos/notes/contacts/documents) still relies on
  * TanStack Query's refetchOnWindowFocus - no server-push cost for data that
  * rarely needs to be instant.
@@ -32,6 +37,7 @@ const QUERY_KEY_BY_RESOURCE_TYPE: Record<RealtimeResourceType, readonly unknown[
   inventory: queryKeys.inventory,
   task_comment: ['taskComments'],
   project_message: ['projectMessages'],
+  notification: queryKeys.notifications,
 }
 
 /** Opens the realtime SSE connection for the signed-in session and keeps React Query fresh from it. */

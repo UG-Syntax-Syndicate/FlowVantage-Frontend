@@ -67,8 +67,18 @@ function Button({
       disabled={disabled || loading}
       {...props}
     >
-      {loading && !asChild && <Loader2 className="animate-spin" />}
-      {children}
+      {/* With asChild, Slot requires exactly one child - and React.Children
+          counts the `false` from a short-circuited expression as one, so
+          pairing the spinner with the child handed Slot two and it threw
+          "Expected a single React element child". Branch instead. */}
+      {asChild ? (
+        children
+      ) : (
+        <>
+          {loading && <Loader2 className="animate-spin" />}
+          {children}
+        </>
+      )}
     </Comp>
   )
 }

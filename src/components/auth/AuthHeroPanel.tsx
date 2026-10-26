@@ -12,15 +12,19 @@ import { LogoBadge } from './LogoBadge'
  * hidden below `lg` and never rendered on a phone at all.
  */
 const SLIDES = [
-  { src: '/auth-slides/slide-1.webp', alt: 'Three colleagues reviewing charts together in a meeting room' },
-  { src: '/auth-slides/slide-2.webp', alt: 'Two teammates discussing work at a monitor in a studio office' },
-  { src: '/auth-slides/slide-3.webp', alt: 'A team running a stand-up around a sprint board' },
-  { src: '/auth-slides/slide-4.webp', alt: 'A woman leaning back from her desk, smiling, work finished' },
-  { src: '/auth-slides/slide-5.webp', alt: 'Three colleagues reading a document together over a desk of blueprints' },
-  { src: '/auth-slides/slide-6.webp', alt: 'A team working through a plan on a whiteboard in a meeting room' },
+  // The team shot leads: it is the one that says what this is for.
+  { src: '/auth-slides/slide-1.webp', alt: 'A team working together at a shared table in a bright office' },
+  { src: '/auth-slides/slide-2.webp', alt: 'A woman talking through a set of charts with her colleagues' },
+  { src: '/auth-slides/slide-3.webp', alt: 'A team reviewing a board together in a meeting room' },
+  { src: '/auth-slides/slide-4.webp', alt: 'Two teammates discussing work at a monitor' },
+  { src: '/auth-slides/slide-5.webp', alt: 'A room of people following a presentation on screen' },
 ]
 
-const ADVANCE_MS = 6000
+/**
+ * How long each slide holds. Long enough to look at, short enough that the
+ * set is seen during a sign-in rather than only by someone who lingers.
+ */
+const ADVANCE_MS = 5000
 
 interface AuthHeroPanelProps {
   mobileVisible?: boolean
@@ -45,13 +49,10 @@ export function AuthHeroPanel({ mobileVisible = false }: AuthHeroPanelProps) {
   }, [])
 
   useEffect(() => {
-    // No auto-advance under reduced motion: a carousel that moves on its own
-    // is exactly the kind of thing that setting asks us to stop doing. The
-    // dots still work, so every slide stays reachable.
-    if (reduceMotion || paused) return
+    if (paused) return
     const timer = setInterval(() => setIndex((current) => (current + 1) % SLIDES.length), ADVANCE_MS)
     return () => clearInterval(timer)
-  }, [reduceMotion, paused])
+  }, [paused])
 
   return (
     <div
@@ -72,7 +73,15 @@ export function AuthHeroPanel({ mobileVisible = false }: AuthHeroPanelProps) {
           initial={reduceMotion ? false : { opacity: 0, scale: 1.04 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ opacity: { duration: 0.9, ease: EASE_PREMIUM }, scale: { duration: 6.5, ease: 'linear' } }}
+          // Under reduced motion it still advances, but cuts rather than
+          // fades and drifts. The setting asks for no *motion*, not for a
+          // feature to disappear - and pausing is still one hover away, which
+          // is the control WCAG actually asks for.
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { opacity: { duration: 0.9, ease: EASE_PREMIUM }, scale: { duration: 6.5, ease: 'linear' } }
+          }
           className="absolute inset-0 h-full w-full object-cover"
           // The first slide is above the fold on every auth page; the rest
           // are fetched as they come round.

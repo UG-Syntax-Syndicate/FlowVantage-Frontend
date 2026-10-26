@@ -21,8 +21,30 @@ import { Pagination, type PageSize } from '../../components/common/Pagination'
 import { ALL_PROJECTS, ProjectFilterSelect } from '../../components/common/ProjectFilterSelect'
 import { useBulkDeleteContacts, useContacts, useDeleteContact } from '../../hooks/useProjectsData'
 import { ConfirmDialog } from '../../components/common/ConfirmDialog'
+import { ApiError } from '../../lib/backendApi'
 import { showToast } from '../../lib/toast'
 import type { Contact } from '../../types/project'
+
+/**
+ * Says what actually went wrong instead of one flat sentence for everything.
+ *
+ * A bulk delete against a deploy that did not yet have the route answered 404
+ * "Route not found", and the UI reported it identically to a permissions
+ * problem or a dropped connection - so the one message that would have
+ * identified the fault in seconds was the one message discarded.
+ */
+function deleteErrorDescription(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) {
+    return 'Check your connection and try again.'
+  }
+  if (error.status === 404) {
+    return 'The server did not recognise this request. It may be running an older version than this app.'
+  }
+  if (error.status === 401 || error.status === 403) {
+    return 'Your session may have expired. Try signing in again.'
+  }
+  return error.message
+}
 
 type SortField = 'company' | 'contactName' | 'phone' | 'email' | 'status'
 type SortDir = 'asc' | 'desc'
@@ -303,8 +325,8 @@ export function ContactsPage() {
             )
             setSelectedIds(new Set())
             setConfirmingBulkDelete(false)
-          } catch {
-            showToast('error', 'Could not delete these contacts')
+          } catch (error) {
+            showToast('error', 'Could not delete these contacts', deleteErrorDescription(error))
           }
         }}
       />
@@ -333,8 +355,8 @@ export function ContactsPage() {
               return next
             })
             setDeletingContact(null)
-          } catch {
-            showToast('error', 'Could not delete this contact')
+          } catch (error) {
+            showToast('error', 'Could not delete this contact', deleteErrorDescription(error))
           }
         }}
       />

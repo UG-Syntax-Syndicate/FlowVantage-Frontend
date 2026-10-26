@@ -299,6 +299,8 @@ interface CalendarEventRow {
   projectId: string | null
   startTime: string
   endTime: string
+  joinUrl: string | null
+  source: string | null
 }
 
 function mapMeeting(row: CalendarEventRow): Meeting {
@@ -309,6 +311,8 @@ function mapMeeting(row: CalendarEventRow): Meeting {
     location: row.location,
     startTime: row.startTime,
     endTime: row.endTime,
+    joinUrl: row.joinUrl ?? null,
+    source: row.source ?? null,
   }
 }
 
@@ -787,6 +791,7 @@ function meetingBody(input: MeetingInput) {
     location: input.location ?? undefined,
     description: input.description ?? undefined,
     projectId: input.projectId ?? null,
+    joinUrl: input.joinUrl ?? null,
   }
 }
 
@@ -906,6 +911,39 @@ export async function composeEmail(input: ComposeEmailInput): Promise<Email> {
   const { data } = await postJsonAuthed<ApiEnvelope<EmailRow>>(
     '/emails',
     { to: input.to, subject: input.subject, snippet: input.snippet },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return mapEmail(data)
+}
+
+/** Which mailbox a send would leave from, so the composer can say so first. */
+export interface EmailSender {
+  via: 'gmail' | 'outlook' | 'smtp' | null
+  name: string | null
+  address: string | null
+  canSend: boolean
+}
+
+export async function fetchEmailSender(): Promise<EmailSender> {
+  const { data } = await getJson<ApiEnvelope<EmailSender>>('/emails/sender', authToken())
+  return data
+}
+
+/**
+ * Sends for real, unlike composeEmail above, which files a draft. Separate
+ * because one of them can fail at a third party and the other cannot.
+ */
+export async function sendEmail(input: ComposeEmailInput & { contactId?: string | null; projectId?: string | null }): Promise<Email> {
+  const { data } = await postJsonAuthed<ApiEnvelope<EmailRow>>(
+    '/emails/send',
+    {
+      to: input.to,
+      subject: input.subject,
+      body: input.snippet,
+      contactId: input.contactId ?? null,
+      projectId: input.projectId ?? null,
+    },
     authToken(),
   )
   emitProjectsChanged()

@@ -9,7 +9,7 @@ import {
   Flag,
   FileDown,
   Clock,
-  Triangle,
+  Timer,
   ImagePlus,
   Loader2,
   Plus,
@@ -61,7 +61,7 @@ import { CreateProjectModal } from '../../components/projects/CreateProjectModal
 import { ConfirmDialog } from '../../components/common/ConfirmDialog'
 import { AvatarStack } from '../../components/dashboard/AvatarStack'
 import { ProjectStatusBadge, PriorityBadge } from '../../components/projects/StatusBadge'
-import { formatShortDate, formatDateTime, formatDuration } from '../../lib/formatDate'
+import { formatShortDate, formatDuration } from '../../lib/formatDate'
 import { convertImageToWebp, validateImageFile } from '../../lib/images'
 import { useDownloadProjectReport } from '../../hooks/useReportingData'
 import { showToast } from '../../lib/toast'
@@ -293,7 +293,27 @@ export function ProjectDetailPage() {
               >
                 <MoreHorizontal size={18} />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
+                {/* The banner these used to sit on is gone, but the cover
+                    image itself is not - ProjectCard still renders it on the
+                    projects list, so there has to be somewhere to set it. */}
+                <DropdownMenuItem
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={updateProjectImage.isPending}
+                >
+                  {updateProjectImage.isPending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <ImagePlus size={14} strokeWidth={2} />
+                  )}
+                  {project.image ? 'Change cover image' : 'Add a cover image'}
+                </DropdownMenuItem>
+                {project.image && (
+                  <DropdownMenuItem onClick={handleRemoveCover} disabled={updateProjectImage.isPending}>
+                    <X size={14} strokeWidth={2} />
+                    Remove cover image
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => setConfirmingDelete(true)}
                   className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
@@ -348,85 +368,6 @@ export function ProjectDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="mt-6 flex flex-col gap-6">
-          {/* Capped: the banner is full-bleed now that the page is tabbed rather
-              than sitting beside a sidebar, and 3:1 of 1440px is half a screen
-              of decoration before the first word of content. */}
-          <div
-            className="relative aspect-[3/1] max-h-[300px] min-h-[180px] overflow-hidden rounded-2xl bg-cover bg-center shadow-[0px_16px_40px_10px_rgba(0,0,0,0.18)]"
-            style={
-              project.image
-                ? { backgroundImage: `url(${project.image})` }
-                : { background: project.coverGradient }
-            }
-          >
-            {canManage && (
-              <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => coverInputRef.current?.click()}
-                  disabled={updateProjectImage.isPending}
-                  aria-label="Change cover image"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-black/45 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm hover:bg-black/60 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {updateProjectImage.isPending ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      Uploading…
-                    </>
-                  ) : (
-                    <>
-                      <ImagePlus size={14} />
-                      Change cover
-                    </>
-                  )}
-                </button>
-                {project.image && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveCover}
-                    disabled={updateProjectImage.isPending}
-                    aria-label="Remove cover image"
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm hover:bg-black/60 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-                <input
-                  ref={coverInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className="hidden"
-                  onChange={handleCoverChange}
-                />
-              </div>
-            )}
-            <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-4 rounded-b-2xl bg-white/30 px-6 py-4 backdrop-blur-md">
-              <div className="-mt-9 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-900 shadow-lg ring-4 ring-white/50">
-                <Triangle size={20} className="fill-primary text-primary" strokeWidth={0} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-lg font-semibold text-slate-900">{project.name}</h2>
-                <p className="truncate text-sm text-slate-600">{project.tagline}</p>
-              </div>
-              <div className="flex flex-wrap gap-6 text-xs sm:gap-8">
-                <div>
-                  <p className="font-medium tracking-wide text-rose-500/80 uppercase">Created</p>
-                  <p className="mt-0.5 font-semibold text-slate-900">{formatDateTime(project.createdAt)}</p>
-                </div>
-                <div>
-                  <p className="font-medium tracking-wide text-rose-500/80 uppercase">Deadline</p>
-                  <p className="mt-0.5 font-semibold text-slate-900">{formatDateTime(project.dueDate)}</p>
-                </div>
-                <div>
-                  <p className="font-medium tracking-wide text-rose-500/80 uppercase">Tracked Time</p>
-                  <p className="mt-0.5 font-semibold text-slate-900">
-                    {formatDuration(project.trackedSeconds).toUpperCase()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
             <div className="flex min-w-0 flex-col gap-6">
               <ProjectOverviewCard
@@ -535,6 +476,16 @@ export function ProjectDetailPage() {
                     <ProjectStatusBadge status={project.status} />
                   </span>
                 </div>
+                {/* Moved here from the banner, which is gone. The number was
+                    only ever shown there, and dropping the banner should not
+                    quietly drop a fact with it. */}
+                <div className="flex items-center gap-3">
+                  <Timer size={16} className="shrink-0 text-slate-400" />
+                  <span className="text-slate-500">Tracked</span>
+                  <span className="ml-auto font-medium text-slate-900">
+                    {formatDuration(project.trackedSeconds)}
+                  </span>
+                </div>
               </div>
 
               <ProjectSourcesPanel projectId={project.id} canManage={canManage} />
@@ -601,6 +552,16 @@ export function ProjectDetailPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Mounted at the page root, not inside a tab: the menu that triggers it
+          is always visible, so the input it clicks has to be too. */}
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        className="hidden"
+        onChange={handleCoverChange}
+      />
 
       {pendingCoverFile && (
         <ImageCropModal

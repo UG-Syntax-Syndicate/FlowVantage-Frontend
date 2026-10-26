@@ -98,6 +98,9 @@ interface InvitationRow {
   status: Invitation['status']
   expires_at: string
   created_at: string
+  // camelCase among snake_case because the server spreads it onto the row
+  // rather than selecting it - see its invitations.service.js createInvite.
+  inviteLink?: string | null
 }
 
 function mapInvitation(row: InvitationRow): Invitation {
@@ -112,6 +115,7 @@ function mapInvitation(row: InvitationRow): Invitation {
     status: row.status,
     expiresAt: row.expires_at,
     createdAt: row.created_at,
+    inviteLink: row.inviteLink ?? null,
   }
 }
 

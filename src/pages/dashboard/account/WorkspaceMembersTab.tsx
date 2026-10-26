@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, Mail, X } from 'lucide-react'
+import { Building2, Copy, Mail, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
@@ -23,14 +23,24 @@ const WORKSPACE_ROLES: WorkspaceRole[] = ['admin', 'member']
 function InviteForm({ workspaceId }: { workspaceId: string }) {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<WorkspaceRole>('member')
+  // Held so the link can be shown when the server could not email it. Without
+  // this the invite was created, the toast said it had been sent, and nothing
+  // ever arrived - the one failure mode a "sent" message must not hide.
+  const [manualLink, setManualLink] = useState<{ email: string; link: string } | null>(null)
   const createInvite = useCreateInvite(workspaceId)
 
   async function handleSubmit() {
     const trimmed = email.trim()
     if (!trimmed) return
     try {
-      await createInvite.mutateAsync({ workspaceId, email: trimmed, workspaceRole: role })
-      showToast('success', 'Invite sent', `${trimmed} can accept it from their email.`)
+      const invite = await createInvite.mutateAsync({ workspaceId, email: trimmed, workspaceRole: role })
+      if (invite.inviteLink) {
+        setManualLink({ email: trimmed, link: invite.inviteLink })
+        showToast('info', 'Invite created', 'Email is not configured, so share the link below.')
+      } else {
+        setManualLink(null)
+        showToast('success', 'Invite sent', `${trimmed} can accept it from their email.`)
+      }
       setEmail('')
     } catch (error) {
       showToast('error', error instanceof Error ? error.message : 'Could not send invite')
@@ -38,6 +48,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
   }
 
   return (
+    <div className="flex flex-col gap-3">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
       <div className="flex-1">
         <Label>Invite by email</Label>
@@ -72,6 +83,35 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
       >
         Send invite
       </Button>
+    </div>
+
+    {manualLink && (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+        <p className="text-xs font-medium text-amber-900">
+          No mail server is configured, so nothing was emailed to {manualLink.email}. Send them this
+          link yourself:
+        </p>
+        <div className="mt-2 flex items-center gap-2">
+          <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-2.5 py-1.5 text-[11px] text-slate-600">
+            {manualLink.link}
+          </code>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void navigator.clipboard
+                .writeText(manualLink.link)
+                .then(() => showToast('success', 'Link copied'))
+                .catch(() => showToast('error', 'Could not copy the link'))
+            }}
+          >
+            <Copy size={13} strokeWidth={2} />
+            Copy
+          </Button>
+        </div>
+      </div>
+    )}
     </div>
   )
 }

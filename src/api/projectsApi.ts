@@ -132,6 +132,8 @@ interface ProjectRow {
   cover_gradient: string | null
   category: string | null
   folder_ids: string[]
+  objectives: string[] | null
+  owner_id: string
   priority: Project['priority']
   tracked_seconds: number
   memberIds: string[]
@@ -154,6 +156,8 @@ function mapProject(row: ProjectRow): Project {
     tags: row.tags || [],
     category: row.category || 'General',
     folderIds: row.folder_ids || [],
+    objectives: row.objectives || [],
+    ownerId: row.owner_id,
     priority: row.priority,
     trackedSeconds: row.tracked_seconds ?? 0,
     memberIds: row.memberIds || [],

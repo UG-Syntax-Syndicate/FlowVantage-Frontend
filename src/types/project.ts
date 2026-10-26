@@ -46,6 +46,10 @@ export const ProjectSchema = z.object({
   tags: z.array(z.string()),
   category: z.string(),
   folderIds: z.array(z.string()),
+  /** What the project is trying to achieve - shown on the overview. */
+  objectives: z.array(z.string()),
+  /** Whoever created it. Distinct from the project_members row with role 'owner'. */
+  ownerId: z.string(),
   priority: PrioritySchema,
   trackedSeconds: z.number(),
   memberIds: z.array(z.string()),
@@ -84,6 +88,7 @@ export const UpdateProjectInputSchema = ProjectSchema.pick({
   category: true,
   priority: true,
   tags: true,
+  objectives: true,
   startDate: true,
   dueDate: true,
   visibility: true,

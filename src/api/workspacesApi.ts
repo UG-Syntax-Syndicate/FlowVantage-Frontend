@@ -24,7 +24,7 @@ interface ApiEnvelope<T> {
   data: T
 }
 
-interface WorkspaceRow {
+export interface WorkspaceRow {
   id: string
   name: string
   is_personal: boolean
@@ -33,7 +33,7 @@ interface WorkspaceRow {
   memberRole?: WorkspaceRole
 }
 
-function mapWorkspace(row: WorkspaceRow): Workspace {
+export function mapWorkspace(row: WorkspaceRow): Workspace {
   return {
     id: row.id,
     name: row.name,

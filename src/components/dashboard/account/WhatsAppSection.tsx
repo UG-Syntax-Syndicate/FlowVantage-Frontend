@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { BadgeCheck, MessageCircle, Phone } from 'lucide-react'
+import { BadgeCheck, MessageCircle, Phone, Unlink } from 'lucide-react'
 import { Button } from '../../ui/button'
 import { Input } from '../../ui/input'
 import { Label } from '../../ui/label'
 import { Switch } from '../../ui/switch'
 import { Skeleton } from '../../ui/skeleton'
 import { Alert } from '../../common/Alert'
+import { ConfirmDialog } from '../../common/ConfirmDialog'
 import { OtpInput } from '../../ui/otp-input'
 import { ResendCountdownRing } from '../../common/ResendCountdownRing'
 import {
   useConfirmWhatsAppVerification,
+  useDisconnectWhatsApp,
   useStartWhatsAppVerification,
   useUpdateWhatsAppPreferences,
   useWhatsAppPreferences,
@@ -41,6 +43,18 @@ export function WhatsAppSection() {
   const startVerification = useStartWhatsAppVerification()
   const confirmVerification = useConfirmWhatsAppVerification()
   const updatePreferences = useUpdateWhatsAppPreferences()
+  const disconnectWhatsApp = useDisconnectWhatsApp()
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false)
+
+  async function handleDisconnect() {
+    try {
+      await disconnectWhatsApp.mutateAsync()
+      setConfirmingDisconnect(false)
+      showToast('success', 'WhatsApp disconnected', 'Your number has been removed.')
+    } catch {
+      showToast('error', 'Could not disconnect WhatsApp')
+    }
+  }
 
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
@@ -293,6 +307,34 @@ export function WhatsAppSection() {
           })}
         </fieldset>
       </div>
+
+      {/* Every other integration can be disconnected; this one could only be
+          switched off, leaving a verified phone number behind indefinitely. */}
+      {preferences.verified && (
+        <div className="border-t border-line pt-4">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setConfirmingDisconnect(true)}
+            className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+          >
+            <Unlink size={14} strokeWidth={2} />
+            Disconnect WhatsApp
+          </Button>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmingDisconnect}
+        title="Disconnect WhatsApp?"
+        description="Your phone number, its verification and your notification choices will be deleted. Reconnecting means verifying the number again."
+        confirmLabel="Disconnect"
+        danger
+        loading={disconnectWhatsApp.isPending}
+        onCancel={() => setConfirmingDisconnect(false)}
+        onConfirm={handleDisconnect}
+      />
 
       {!preferences.groupMessagingAvailable && (
         <Alert variant="info">

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ArrowUpDown, Upload, UserPlus } from 'lucide-react'
+import { ChevronDown, ArrowUpDown, Trash2, Upload, UserPlus, X } from 'lucide-react'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { ContactRow } from '../../components/contacts/ContactRow'
 import { ContactDetailModal } from '../../components/contacts/ContactDetailModal'
@@ -19,10 +19,32 @@ import { Button } from '../../components/ui/button'
 import { TableRowsSkeleton } from '../../components/common/skeletons/TableRowsSkeleton'
 import { Pagination, type PageSize } from '../../components/common/Pagination'
 import { ALL_PROJECTS, ProjectFilterSelect } from '../../components/common/ProjectFilterSelect'
-import { useContacts, useDeleteContact } from '../../hooks/useProjectsData'
+import { useBulkDeleteContacts, useContacts, useDeleteContact } from '../../hooks/useProjectsData'
 import { ConfirmDialog } from '../../components/common/ConfirmDialog'
+import { ApiError } from '../../lib/backendApi'
 import { showToast } from '../../lib/toast'
 import type { Contact } from '../../types/project'
+
+/**
+ * Says what actually went wrong instead of one flat sentence for everything.
+ *
+ * A bulk delete against a deploy that did not yet have the route answered 404
+ * "Route not found", and the UI reported it identically to a permissions
+ * problem or a dropped connection - so the one message that would have
+ * identified the fault in seconds was the one message discarded.
+ */
+function deleteErrorDescription(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) {
+    return 'Check your connection and try again.'
+  }
+  if (error.status === 404) {
+    return 'The server did not recognise this request. It may be running an older version than this app.'
+  }
+  if (error.status === 401 || error.status === 403) {
+    return 'Your session may have expired. Try signing in again.'
+  }
+  return error.message
+}
 
 type SortField = 'company' | 'contactName' | 'phone' | 'email' | 'status'
 type SortDir = 'asc' | 'desc'
@@ -38,6 +60,7 @@ const COLUMNS: { key: SortField; label: string }[] = [
 export function ContactsPage() {
   const { data: contacts = [], isLoading } = useContacts()
   const deleteContact = useDeleteContact()
+  const bulkDeleteContacts = useBulkDeleteContacts()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [nicheFilter, setNicheFilter] = useState<string>('All niches')
@@ -52,6 +75,7 @@ export function ContactsPage() {
   const [editingContact, setEditingContact] = useState<Contact | 'new' | null>(null)
   const [deletingContact, setDeletingContact] = useState<Contact | null>(null)
   const [emailingContact, setEmailingContact] = useState<Contact | null>(null)
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false)
 
   const niches = useMemo(() => ['All niches', ...Array.from(new Set(contacts.map((c) => c.niche))).sort()], [contacts])
 
@@ -163,6 +187,32 @@ export function ContactsPage() {
           <span className="text-xs text-slate-400">{sorted.length} contacts</span>
         </div>
 
+        {/* The checkboxes had no action behind them - selecting rows did
+            nothing at all. This is where a selection becomes useful. */}
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-line bg-accent-50/60 px-5 py-3">
+            <span className="text-sm font-medium text-slate-700">
+              {selectedIds.size} selected
+            </span>
+            <button
+              type="button"
+              onClick={() => setConfirmingBulkDelete(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50"
+            >
+              <Trash2 size={13} strokeWidth={2} />
+              Delete {selectedIds.size === 1 ? 'contact' : `${selectedIds.size} contacts`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+            >
+              <X size={13} strokeWidth={2} />
+              Clear selection
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <Table className="min-w-[860px]">
             <TableHeader>
@@ -254,6 +304,34 @@ export function ContactsPage() {
       )}
 
       <ConfirmDialog
+        open={confirmingBulkDelete}
+        title={`Delete ${selectedIds.size} ${selectedIds.size === 1 ? 'contact' : 'contacts'}?`}
+        description={`${selectedIds.size === 1 ? 'This contact' : 'These contacts'} will be removed from your workspace. This cannot be undone.`}
+        confirmLabel={`Delete ${selectedIds.size === 1 ? 'contact' : 'contacts'}`}
+        danger
+        loading={bulkDeleteContacts.isPending}
+        onCancel={() => setConfirmingBulkDelete(false)}
+        onConfirm={async () => {
+          try {
+            const result = await bulkDeleteContacts.mutateAsync([...selectedIds])
+            // The server skips ids that were not the caller's or had already
+            // gone, so report what actually happened rather than assuming.
+            showToast(
+              'success',
+              `${result.deleted} ${result.deleted === 1 ? 'contact' : 'contacts'} deleted`,
+              result.skipped > 0
+                ? `${result.skipped} could not be deleted — they may have been removed already.`
+                : undefined,
+            )
+            setSelectedIds(new Set())
+            setConfirmingBulkDelete(false)
+          } catch (error) {
+            showToast('error', 'Could not delete these contacts', deleteErrorDescription(error))
+          }
+        }}
+      />
+
+      <ConfirmDialog
         open={Boolean(deletingContact)}
         title="Delete this contact?"
         description={
@@ -277,8 +355,8 @@ export function ContactsPage() {
               return next
             })
             setDeletingContact(null)
-          } catch {
-            showToast('error', 'Could not delete this contact')
+          } catch (error) {
+            showToast('error', 'Could not delete this contact', deleteErrorDescription(error))
           }
         }}
       />

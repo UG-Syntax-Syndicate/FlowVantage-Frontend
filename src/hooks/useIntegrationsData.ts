@@ -75,6 +75,14 @@ export function useProjectNotifications(projectId: string | null) {
   })
 }
 
+export function useDisconnectWhatsApp() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: integrationsApi.disconnectWhatsApp,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.whatsappPreferences }),
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Google Calendar
 // ---------------------------------------------------------------------------

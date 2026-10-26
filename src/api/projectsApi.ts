@@ -1,4 +1,4 @@
-import { getJson, patchJson, deleteJson, postJsonAuthed, postJsonAuthedWithTimeout, fetchBackendMe } from '../lib/backendApi'
+import { getJson, patchJson, deleteJson, postJsonAuthed, postJsonAuthedWithTimeout } from '../lib/backendApi'
 import { readBackendSessionToken } from '../lib/backendSession'
 import { pickAvatar } from '../lib/avatars'
 import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE, pickProjectColorIndex } from '../lib/constants'
@@ -17,7 +17,6 @@ import type {
   Folder,
   Meeting,
   MeetingInput,
-  Member,
   Note,
   NoteInput,
   Project,
@@ -310,16 +309,6 @@ function mapMeeting(row: CalendarEventRow): Meeting {
 }
 
 // ---------------------------------------------------------------------------
-// Members - no team/invite system exists on the backend, so the only real
-// "member" of any project is the signed-in user themself.
-// ---------------------------------------------------------------------------
-
-export async function fetchMembers(): Promise<Member[]> {
-  const me = await fetchBackendMe(authToken())
-  return [{ id: me.uid, name: me.name || me.email, photoURL: me.picture }]
-}
-
-// ---------------------------------------------------------------------------
 // Contacts
 // ---------------------------------------------------------------------------
 
@@ -348,6 +337,30 @@ export async function updateContact(contactId: string, input: ContactInput): Pro
 export async function deleteContact(contactId: string): Promise<void> {
   await deleteJson(`/contacts/${contactId}`, authToken())
   emitProjectsChanged()
+}
+
+export interface BulkDeleteContactsResult {
+  deleted: number
+  /** Ids that were not the caller's to delete, or had already gone. */
+  skipped: number
+}
+
+/**
+ * Deletes several contacts in one request.
+ *
+ * One call rather than N: deleting fifty contacts one at a time means fifty
+ * round trips, fifty audit entries and a partially-applied result if the tab
+ * is closed halfway. The server checks ownership per id and reports how many
+ * it actually removed.
+ */
+export async function bulkDeleteContacts(contactIds: string[]): Promise<BulkDeleteContactsResult> {
+  const { data } = await postJsonAuthed<ApiEnvelope<BulkDeleteContactsResult>>(
+    '/contacts/bulk-delete',
+    { ids: contactIds },
+    authToken(),
+  )
+  emitProjectsChanged()
+  return data
 }
 
 interface BulkImportSkippedRowPayload {

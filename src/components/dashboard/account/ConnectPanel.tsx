@@ -51,6 +51,48 @@ export function ConnectPanel({ connection, icon }: ConnectPanelProps) {
     }
   }
 
+  // Checked before `connected`, because a provider backed by another's sign-in
+  // has no connection row of its own: a Disconnect button here would delete a
+  // row keyed to this provider, find nothing, and report success while
+  // changing nothing. Managing it means managing the Google connection.
+  if (connection.tokenSource) {
+    const sourceName = connection.tokenSource === 'google' ? 'Google' : connection.tokenSource
+    return (
+      <div className="flex flex-col gap-3">
+        <Alert variant={connection.connected ? 'success' : 'info'}>
+          {connection.connected ? (
+            <span className="flex items-center gap-2">
+              <Check size={15} strokeWidth={2.5} className="shrink-0" />
+              Connected through your {sourceName} account
+              {connection.accountLabel ? ` (${connection.accountLabel})` : ''}.
+            </span>
+          ) : (
+            <>
+              {connection.name} is part of your {sourceName} account. Connecting {sourceName} once covers Calendar,
+              Gmail and Drive together.
+            </>
+          )}
+        </Alert>
+
+        {connection.connected && connection.resources && (
+          <ConnectionCapabilities resources={connection.resources} />
+        )}
+
+        <Link
+          to={`/dashboard/account/integrations/${connection.tokenSource}`}
+          className={
+            connection.connected
+              ? 'flex w-fit items-center gap-1.5 rounded-lg border border-line px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50'
+              : 'flex w-fit items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white hover:brightness-95'
+          }
+        >
+          {connection.connected ? `Manage or disconnect ${sourceName}` : `Connect ${sourceName}`}
+          <ArrowRight size={14} strokeWidth={2} />
+        </Link>
+      </div>
+    )
+  }
+
   if (connection.connected) {
     return (
       <div className="flex flex-col gap-4">
@@ -93,24 +135,6 @@ export function ConnectPanel({ connection, icon }: ConnectPanelProps) {
   // Gmail and Drive do not have their own sign-in: one Google authorisation
   // covers them. Rather than a second Connect button that starts the same
   // flow, point at the Google page so it is clear there is one connection.
-  if (connection.tokenSource) {
-    return (
-      <div className="flex flex-col gap-3">
-        <Alert variant="info">
-          {connection.name} is part of your Google account. Connecting Google once covers Calendar, Gmail and Drive
-          together.
-        </Alert>
-        <Link
-          to={`/dashboard/account/integrations/${connection.tokenSource}`}
-          className="flex w-fit items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white hover:brightness-95"
-        >
-          Connect Google
-          <ArrowRight size={14} strokeWidth={2} />
-        </Link>
-      </div>
-    )
-  }
-
   if (!connection.configured) {
     // Not a dead end: show exactly how to create the credentials, and the
     // redirect URI this server expects.

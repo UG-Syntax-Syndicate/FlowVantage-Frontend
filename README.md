@@ -14,7 +14,7 @@ The dashboard modules are **not** placeholders — they read and write the `Flow
 | Projects | ✅ `CreateProjectModal` | ✅ list, folders, detail page | ✅ `EditProjectModal`, plus inline status and cover image | ✅ from the project's ⋯ menu (confirm by typing the name) |
 | Tasks | ✅ `CreateTaskModal` | ✅ list, board, gantt, calendar | ✅ same modal in edit mode, plus inline status | ✅ from the task detail modal |
 | Todos | ✅ inline in `TodosPanel` | ✅ project panel and calendar | ✅ rename + done toggle | ✅ from the todo detail modal |
-| Contacts | ✅ `AddContactModal`, plus CSV/AI bulk import | ✅ table, detail modal | ✅ same modal in edit mode | ✅ from the row or the detail modal |
+| Contacts | ✅ `AddContactModal`, plus CSV/AI bulk import | ✅ table, detail modal | ✅ same modal in edit mode | ✅ from the row or the detail modal, or several at once by selecting them |
 | Notes | ✅ `NoteFormModal` with a Markdown editor | ✅ cards, view modal (rendered Markdown) | ✅ same modal, plus pin toggle | ✅ from the view modal |
 | Calendar events | ✅ "Add event" on the Calendar page | ✅ month/week/day views, event sheet | ✅ from the event sheet | ✅ from the event sheet |
 
@@ -36,6 +36,8 @@ Connecting works one of two ways, decided by the vendor:
 - **Paste credentials** (Yuki, PerfectView) — neither offers a sign-in for third-party apps, so each takes the API credentials it does issue. They are encrypted before storage and never shown again.
 
 WhatsApp and Google Calendar keep their own pages with their own settings (phone verification, sync-now) because both have more state than "connected or not".
+
+Every integration can be disconnected from its own page. Gmail and Drive are backed by the Google connection, so theirs points at Google rather than offering a button that would appear to work and revoke nothing. Disconnecting Google unlinks Calendar with it.
 
 When a provider has no credentials on the server, its page does not dead-end: it shows how to create them in that vendor's console, and the exact redirect URI to register — read from the server, so it matches what the API will actually send. The backend's `docs/integrations-setup.md` covers the same ground outside the app. Yuki and PerfectView need nothing from the server, since users supply their own credentials.
 

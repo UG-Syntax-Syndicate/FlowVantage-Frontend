@@ -68,6 +68,8 @@ export const queryKeys = {
   notes: ['notes'] as const,
   meetings: ['meetings'] as const,
   emails: ['emails'] as const,
+  // Which mailbox a send would leave from; see api/projectsApi fetchEmailSender.
+  emailSender: ['emailSender'] as const,
   documents: ['documents'] as const,
   contacts: ['contacts'] as const,
   chatMessages: ['chatMessages'] as const,
@@ -94,6 +96,11 @@ export const queryKeys = {
   integrationConnection: (provider: string) => ['integrationConnections', provider] as const,
   projectWhatsappGroup: (projectId: string) => ['projectWhatsappGroup', projectId] as const,
   projectNotifications: (projectId: string) => ['projectNotifications', projectId] as const,
+  // Which third-party sources feed a project, and how the pulls are going.
+  projectSourceLinks: (projectId: string) => ['projectSourceLinks', projectId] as const,
+  syncSkips: ['syncSkips'] as const,
+  syncState: ['syncState'] as const,
+  webhookEndpoints: ['webhookEndpoints'] as const,
   workspaces: ['workspaces'] as const,
   workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
   pendingInvites: (workspaceId: string) => ['workspaces', workspaceId, 'invites'] as const,

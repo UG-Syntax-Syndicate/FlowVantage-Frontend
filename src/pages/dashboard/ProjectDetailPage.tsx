@@ -47,6 +47,7 @@ import { ProjectTaskWidget } from '../../components/projects/ProjectTaskWidget'
 import { ProjectOverviewCard } from '../../components/projects/ProjectOverviewCard'
 import { ProjectTeamTable } from '../../components/projects/ProjectTeamTable'
 import { ProjectTimelinePanel } from '../../components/projects/ProjectTimelinePanel'
+import { ProjectSourcesPanel } from '../../components/projects/ProjectSourcesPanel'
 import { TodosPanel } from '../../components/projects/TodosPanel'
 import { NotesPanel } from '../../components/projects/NotesPanel'
 import { EmailsPanel } from '../../components/projects/EmailsPanel'
@@ -535,6 +536,8 @@ export function ProjectDetailPage() {
                   </span>
                 </div>
               </div>
+
+              <ProjectSourcesPanel projectId={project.id} canManage={canManage} />
 
               <TodosPanel projectId={project.id} onViewAll={handleTodosViewAll} />
               <NotesPanel projectId={project.id} />

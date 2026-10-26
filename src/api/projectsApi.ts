@@ -1,4 +1,4 @@
-import { getJson, patchJson, deleteJson, postJsonAuthed, postJsonAuthedWithTimeout, fetchBackendMe } from '../lib/backendApi'
+import { getJson, patchJson, deleteJson, postJsonAuthed, postJsonAuthedWithTimeout } from '../lib/backendApi'
 import { readBackendSessionToken } from '../lib/backendSession'
 import { pickAvatar } from '../lib/avatars'
 import { GRADIENT_PALETTE, PROJECT_COLOR_PALETTE, pickProjectColorIndex } from '../lib/constants'
@@ -17,7 +17,6 @@ import type {
   Folder,
   Meeting,
   MeetingInput,
-  Member,
   Note,
   NoteInput,
   Project,
@@ -307,16 +306,6 @@ function mapMeeting(row: CalendarEventRow): Meeting {
     startTime: row.startTime,
     endTime: row.endTime,
   }
-}
-
-// ---------------------------------------------------------------------------
-// Members - no team/invite system exists on the backend, so the only real
-// "member" of any project is the signed-in user themself.
-// ---------------------------------------------------------------------------
-
-export async function fetchMembers(): Promise<Member[]> {
-  const me = await fetchBackendMe(authToken())
-  return [{ id: me.uid, name: me.name || me.email, photoURL: me.picture }]
 }
 
 // ---------------------------------------------------------------------------

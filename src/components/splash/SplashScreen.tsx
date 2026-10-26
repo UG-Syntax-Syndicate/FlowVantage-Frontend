@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
 
-const HOLD_MS = 1500
+// Long enough for the intro to finish and no longer: the word animation starts
+// at 350ms and runs for 400ms (see the splash-* keyframes in index.css), so
+// everything has played by 750ms. The previous 1500ms spent the second half of
+// it holding a finished picture in front of a dashboard that was already
+// loading underneath - dead time the user reads as the app being slow.
+const HOLD_MS = 800
 const REDUCED_HOLD_MS = 200
 
 interface SplashScreenProps {

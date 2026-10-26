@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../lib/queryClient'
 import * as projectsApi from '../api/projectsApi'
@@ -19,6 +19,7 @@ import type {
   CreateTodoInput,
   EmailFolder,
   MeetingInput,
+  Member,
   NoteInput,
   Project,
   ProjectStatus,
@@ -85,13 +86,31 @@ export function useTasks() {
   })
 }
 
+/**
+ * The only "member" the backend knows about is the signed-in user, and
+ * AuthProvider has already fetched them - projectsApi.fetchMembers was a
+ * second GET /auth/me issued in the same burst as the first, for data the app
+ * was holding. Derived from the profile instead, so the dashboard opens one
+ * fewer request while it is already waiting on several.
+ *
+ * Kept as a hook with the same name and return shape so callers are unchanged,
+ * and still gated on the session token so it stays empty until there is one.
+ */
 export function useMembers() {
-  const { backendSessionToken } = useAuth()
-  return useQuery({
-    queryKey: queryKeys.members,
-    queryFn: projectsApi.fetchMembers,
-    enabled: Boolean(backendSessionToken),
-  })
+  const { backendSessionToken, userProfile } = useAuth()
+
+  const data = useMemo<Member[]>(() => {
+    if (!backendSessionToken || !userProfile) return []
+    return [
+      {
+        id: userProfile.id,
+        name: userProfile.name || userProfile.email,
+        photoURL: userProfile.photoURL,
+      },
+    ]
+  }, [backendSessionToken, userProfile])
+
+  return { data, isLoading: Boolean(backendSessionToken) && !userProfile }
 }
 
 export function useContacts() {

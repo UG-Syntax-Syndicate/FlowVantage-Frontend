@@ -123,11 +123,23 @@ interface BackendSessionPayload {
   user?: BackendSessionUser
   requiresTwoFactor?: boolean
   userId?: string
+  workspaces?: unknown[]
 }
 
-/** Result of exchanging (or completing) a session: either a real session, or a pending 2FA challenge. */
+/**
+ * Result of exchanging (or completing) a session: either a real session, or a
+ * pending 2FA challenge.
+ *
+ * `workspaces` rides along with the session because nothing else can be
+ * requested until this call returns, and nothing useful can be requested until
+ * the active workspace is known - every list query is keyed by it. Left
+ * unmapped here on purpose: this module is the transport and knows nothing
+ * about workspace shapes, so the caller maps it with the same mapper
+ * GET /workspaces uses. Older backends simply omit it and the caller falls
+ * back to fetching.
+ */
 export type BackendSessionResult =
-  | { status: 'ok'; sessionToken: string; user: BackendSessionUser }
+  | { status: 'ok'; sessionToken: string; user: BackendSessionUser; workspaces?: unknown[] }
   | { status: 'requiresTwoFactor'; userId: string }
 
 async function sendOnce<T>(
@@ -345,7 +357,12 @@ function toSessionResult(payload: BackendSessionPayload): BackendSessionResult {
     throw new Error('Backend session exchange returned no session token')
   }
 
-  return { status: 'ok', sessionToken: payload.sessionToken, user: payload.user }
+  return {
+    status: 'ok',
+    sessionToken: payload.sessionToken,
+    user: payload.user,
+    workspaces: Array.isArray(payload.workspaces) ? payload.workspaces : undefined,
+  }
 }
 
 /**

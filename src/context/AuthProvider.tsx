@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { getRedirectResult, onAuthStateChanged, signOut, type User } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { logAuditEvent } from '../lib/auditLog'
@@ -19,6 +20,8 @@ import { clearAllClientSession } from '../lib/sessionCleanup'
 import { identifyUser, reportError } from '../lib/observability'
 import { isIdleExpired, markActivityNow } from '../lib/sessionExpiry'
 import { publishAuthEvent, subscribeAuthEvent } from '../lib/authBroadcast'
+import { mapWorkspace, type WorkspaceRow } from '../api/workspacesApi'
+import { queryKeys } from '../lib/queryClient'
 import { AuthContext, type TwoFactorChallenge } from './AuthContext'
 import type { UserProfile } from '../types/user'
 import { DEFAULT_NOTIFICATION_PREFERENCES } from '../lib/constants'
@@ -65,6 +68,7 @@ function mapBackendUserToProfile(user: BackendSessionUser): UserProfile {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [authResolved, setAuthResolved] = useState(false)
@@ -297,6 +301,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        // Seed the workspace list the exchange already returned, before the
+        // token is published. useWorkspaces then resolves from cache instead
+        // of starting a second round trip that everything else waits behind:
+        // WorkspaceProvider needs the list to pick an active workspace, and
+        // every project/task/contact/note query is gated on that id. Without
+        // this the dashboard sat through two full round trips before it could
+        // ask for any data at all.
+        //
+        // Guarded, not assumed: a backend that predates this still omits the
+        // field, and useWorkspaces just fetches as before.
+        if (result.workspaces) {
+          queryClient.setQueryData(
+            queryKeys.workspaces,
+            (result.workspaces as WorkspaceRow[]).map(mapWorkspace),
+          )
+        }
+
         storeBackendSessionToken(result.sessionToken)
         setBackendSessionToken(result.sessionToken)
         setTwoFactorChallenge(null)
@@ -323,7 +344,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [currentUser])
+  }, [currentUser, queryClient])
 
   const resolveTwoFactorChallenge = useCallback((sessionToken: string) => {
     markActivityNow()

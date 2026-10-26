@@ -1,7 +1,13 @@
 import { API_BASE_URL } from './backendApi'
 
 /** Kept narrow on purpose — see src/hooks/useRealtimeSync.ts for why. */
-export type RealtimeResourceType = 'project' | 'task' | 'inventory' | 'task_comment' | 'project_message'
+export type RealtimeResourceType =
+  | 'project'
+  | 'task'
+  | 'inventory'
+  | 'task_comment'
+  | 'project_message'
+  | 'notification'
 
 export interface RealtimeChangeEvent {
   resourceType: RealtimeResourceType

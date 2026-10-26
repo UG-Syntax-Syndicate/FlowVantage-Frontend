@@ -10,7 +10,6 @@ import type { CalendarMeetingEvent, CalendarTaskEvent } from '../../types/calend
 import type { TaskStatus } from '../../types/project'
 import { TASK_STATUS_ORDER } from '../../types/statusMeta'
 import { formatShortDate, formatTime } from '../../lib/formatDate'
-import { showToast } from '../../lib/toast'
 
 interface EventDetailSheetProps {
   event: CalendarTaskEvent | CalendarMeetingEvent | null
@@ -170,6 +169,14 @@ export function EventDetailSheet({
                   {event.meeting.location ?? 'No location set'}
                 </div>
 
+                {/* Says the event is a copy of one that lives elsewhere, so
+                    an edit here is not expected to travel back. */}
+                {event.meeting.source && (
+                  <p className="text-xs text-slate-400">
+                    Synced from <span className="capitalize">{event.meeting.source.replace(/_/g, ' ')}</span>
+                  </p>
+                )}
+
                 {event.projectName && (
                   <button
                     type="button"
@@ -184,14 +191,27 @@ export function EventDetailSheet({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => showToast('info', "Meeting rooms aren't wired up yet")}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-white hover:brightness-95"
-                >
-                  <Video size={16} strokeWidth={2} />
-                  Join meeting
-                </button>
+                {/* A real link now, where there is one. Meetings pulled in
+                    from Zoom, Outlook or Google carry theirs; one created
+                    here has whatever was pasted into the form. rel is set
+                    because target="_blank" otherwise hands the opened tab a
+                    window.opener it can navigate. */}
+                {event.meeting.joinUrl ? (
+                  <a
+                    href={event.meeting.joinUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-white hover:brightness-95"
+                  >
+                    <Video size={16} strokeWidth={2} />
+                    Join meeting
+                  </a>
+                ) : (
+                  <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-center text-sm text-slate-500">
+                    No meeting link on this event.
+                    {onEditMeeting && ' Add one when you edit it.'}
+                  </div>
+                )}
 
                 {(onEditMeeting || onDeleteMeeting) && (
                   <div className="flex items-center gap-2 border-t border-line pt-4">

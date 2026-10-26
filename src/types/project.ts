@@ -46,6 +46,10 @@ export const ProjectSchema = z.object({
   tags: z.array(z.string()),
   category: z.string(),
   folderIds: z.array(z.string()),
+  /** What the project is trying to achieve - shown on the overview. */
+  objectives: z.array(z.string()),
+  /** Whoever created it. Distinct from the project_members row with role 'owner'. */
+  ownerId: z.string(),
   priority: PrioritySchema,
   trackedSeconds: z.number(),
   memberIds: z.array(z.string()),
@@ -84,6 +88,7 @@ export const UpdateProjectInputSchema = ProjectSchema.pick({
   category: true,
   priority: true,
   tags: true,
+  objectives: true,
   startDate: true,
   dueDate: true,
   visibility: true,
@@ -178,7 +183,9 @@ export const NoteInputSchema = NoteSchema.pick({ title: true, body: true, color:
 })
 export type NoteInput = z.infer<typeof NoteInputSchema>
 
-export const EmailFolderSchema = z.enum(['inbox', 'pending', 'drafts', 'spam', 'trash'])
+// 'sent' arrived with real outbound mail; before that, composing only ever
+// produced a draft, so nothing could be in a Sent folder.
+export const EmailFolderSchema = z.enum(['inbox', 'pending', 'drafts', 'sent', 'spam', 'trash'])
 export type EmailFolder = z.infer<typeof EmailFolderSchema>
 
 export const EmailSchema = z.object({
@@ -306,6 +313,10 @@ export const MeetingSchema = z.object({
   location: z.string().nullable(),
   startTime: z.string(),
   endTime: z.string(),
+  /** A conferencing link, so the meeting can be joined from here. */
+  joinUrl: z.string().nullable(),
+  /** Which provider it was pulled from; null means it was created here. */
+  source: z.string().nullable(),
 })
 export type Meeting = z.infer<typeof MeetingSchema>
 
@@ -324,6 +335,18 @@ export const MeetingInputSchema = z
     location: z.string().max(200, 'Location is too long').nullable().optional(),
     description: z.string().max(2000, 'Description is too long').nullable().optional(),
     projectId: z.string().nullable().optional(),
+    /**
+     * Validated as a URL rather than free text, because it is rendered as an
+     * href - and the server rejects anything that is not http(s) for the
+     * same reason. Empty is allowed and means "no link".
+     */
+    joinUrl: z
+      .string()
+      .trim()
+      .url('That does not look like a link')
+      .nullable()
+      .optional()
+      .or(z.literal('')),
   })
   .refine((input) => new Date(input.endTime) >= new Date(input.startTime), {
     message: 'The event cannot end before it starts',

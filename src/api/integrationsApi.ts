@@ -1,4 +1,4 @@
-import { getJson, patchJson, postJsonAuthed, putJson } from '../lib/backendApi'
+import { deleteJson, getJson, patchJson, postJsonAuthed, putJson } from '../lib/backendApi'
 import { readBackendSessionToken } from '../lib/backendSession'
 import type {
   IntegrationConnection,
@@ -333,4 +333,134 @@ export async function disconnectWhatsApp(): Promise<WhatsAppPreferences> {
     authToken(),
   )
   return data
+}
+
+// ---------------------------------------------------------------------------
+// Project links and sync
+//
+// The rule these configure: data from a third party is only imported when it
+// resolves to a project, either because a source was linked to one here or
+// because a participant is a contact or member on exactly one project.
+// Everything else is recorded as a skip, which is what fetchSyncSkips reads.
+// ---------------------------------------------------------------------------
+
+export interface ProjectSourceLink {
+  id: string
+  project_id: string
+  provider: string
+  source_kind: string
+  source_id: string
+  source_label: string | null
+  created_at: string
+}
+
+export interface SyncSkip {
+  id: string
+  provider: string
+  external_id: string | null
+  resource: string
+  reason: string
+  detail: string | null
+  summary: string | null
+  created_at: string
+}
+
+export interface SyncSummary {
+  provider: string
+  imported: number
+  skipped: number
+  duplicates: number
+  projects: string[]
+  errors?: { resource: string; message: string }[]
+}
+
+export interface SyncStateRow {
+  provider: string
+  resource: string
+  cursor: string | null
+  last_synced_at: string | null
+  last_error: string | null
+}
+
+export interface WebhookSubscription {
+  provider: string
+  resource: string
+  external_subscription_id: string | null
+  expires_at: string | null
+  last_error: string | null
+}
+
+export interface WebhookEndpoint {
+  provider: string
+  configured: boolean
+  url: string
+  secretEnvVar: string
+}
+
+export async function fetchProjectLinks(projectId: string): Promise<ProjectSourceLink[]> {
+  const { data } = await getJson<ApiEnvelope<ProjectSourceLink[]>>(
+    `/integrations/projects/${projectId}/links`,
+    authToken(),
+  )
+  return data
+}
+
+export async function createProjectLink(
+  projectId: string,
+  input: { provider: string; sourceKind: string; sourceId: string; sourceLabel?: string | null },
+): Promise<ProjectSourceLink> {
+  const { data } = await postJsonAuthed<ApiEnvelope<ProjectSourceLink>>(
+    `/integrations/projects/${projectId}/links`,
+    input,
+    authToken(),
+  )
+  return data
+}
+
+export async function deleteProjectLink(projectId: string, linkId: string): Promise<void> {
+  await deleteJson(`/integrations/projects/${projectId}/links/${linkId}`, authToken())
+}
+
+export async function runProviderSync(provider: string): Promise<SyncSummary> {
+  const { data } = await postJsonAuthed<ApiEnvelope<SyncSummary>>(
+    `/integrations/connections/${provider}/sync`,
+    {},
+    authToken(),
+  )
+  return data
+}
+
+export async function fetchSyncSkips(limit = 50): Promise<{ skips: SyncSkip[]; retentionDays: number }> {
+  const response = await getJson<ApiEnvelope<SyncSkip[]> & { retentionDays: number }>(
+    `/integrations/sync/skips?limit=${limit}`,
+    authToken(),
+  )
+  return { skips: response.data, retentionDays: response.retentionDays }
+}
+
+export async function fetchSyncState(): Promise<{ state: SyncStateRow[]; subscriptions: WebhookSubscription[] }> {
+  const { data } = await getJson<ApiEnvelope<{ state: SyncStateRow[]; subscriptions: WebhookSubscription[] }>>(
+    '/integrations/sync',
+    authToken(),
+  )
+  return data
+}
+
+export async function fetchWebhookEndpoints(): Promise<WebhookEndpoint[]> {
+  const { data } = await getJson<ApiEnvelope<WebhookEndpoint[]>>('/integrations/webhook-endpoints', authToken())
+  return data
+}
+
+/** Gmail and Outlook only; the others are registered in the vendor's console. */
+export async function subscribeToProvider(provider: string): Promise<WebhookSubscription> {
+  const { data } = await postJsonAuthed<ApiEnvelope<WebhookSubscription>>(
+    `/integrations/connections/${provider}/subscription`,
+    {},
+    authToken(),
+  )
+  return data
+}
+
+export async function unsubscribeFromProvider(provider: string): Promise<void> {
+  await deleteJson(`/integrations/connections/${provider}/subscription`, authToken())
 }

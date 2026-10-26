@@ -293,6 +293,10 @@ export function ContactsPage() {
         <ComposeMailModal
           defaultTo={emailingContact.email}
           contactName={emailingContact.contactName}
+          // Passed so the sent copy is filed against the contact and their
+          // project, rather than only landing in a personal Sent folder.
+          contactId={emailingContact.id}
+          projectId={emailingContact.projectId ?? null}
           onClose={() => setEmailingContact(null)}
         />
       )}

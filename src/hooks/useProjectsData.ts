@@ -5,6 +5,7 @@ import * as projectsApi from '../api/projectsApi'
 import * as aiApi from '../api/aiApi'
 import { useAuth } from './useAuth'
 import { useWorkspace } from './useWorkspace'
+import { useWorkspaceMembers } from './useWorkspacesData'
 import { logRecordChange } from '../lib/auditLog'
 import { celebrate } from '../lib/celebrate'
 import { showToast } from '../lib/toast'
@@ -87,30 +88,47 @@ export function useTasks() {
 }
 
 /**
- * The only "member" the backend knows about is the signed-in user, and
- * AuthProvider has already fetched them - projectsApi.fetchMembers was a
- * second GET /auth/me issued in the same burst as the first, for data the app
- * was holding. Derived from the profile instead, so the dashboard opens one
- * fewer request while it is already waiting on several.
+ * Everyone in the active workspace, as the lightweight `Member` shape the
+ * task/calendar/report views use to resolve an assignee id into a name and a
+ * face.
  *
- * Kept as a hook with the same name and return shape so callers are unchanged,
- * and still gated on the session token so it stays empty until there is one.
+ * This used to be the signed-in user and nobody else - first as a second
+ * GET /auth/me, then derived from the profile - which meant every task
+ * assigned to a colleague rendered with no avatar and no name anywhere in the
+ * app. GET /workspaces/:id/members is the list that actually answers "who
+ * could this be assigned to", and it is already fetched and cached for the
+ * members screen, so this usually costs nothing.
+ *
+ * The caller's own profile is folded in as a fallback: the list is empty
+ * until it loads, and a personal workspace still has to resolve to the one
+ * person in it.
  */
 export function useMembers() {
   const { backendSessionToken, userProfile } = useAuth()
+  const { activeWorkspaceId } = useWorkspace()
+  const { data: workspaceMembers, isLoading } = useWorkspaceMembers(activeWorkspaceId ?? undefined)
 
   const data = useMemo<Member[]>(() => {
-    if (!backendSessionToken || !userProfile) return []
-    return [
-      {
+    if (!backendSessionToken) return []
+
+    const members = (workspaceMembers ?? []).map((member) => ({
+      id: member.userId,
+      name: member.name || member.email,
+      photoURL: member.photoURL,
+    }))
+
+    if (userProfile && !members.some((member) => member.id === userProfile.id)) {
+      members.unshift({
         id: userProfile.id,
         name: userProfile.name || userProfile.email,
         photoURL: userProfile.photoURL,
-      },
-    ]
-  }, [backendSessionToken, userProfile])
+      })
+    }
 
-  return { data, isLoading: Boolean(backendSessionToken) && !userProfile }
+    return members
+  }, [backendSessionToken, userProfile, workspaceMembers])
+
+  return { data, isLoading: Boolean(backendSessionToken) && isLoading && !userProfile }
 }
 
 export function useContacts() {
@@ -363,6 +381,38 @@ export function useMoveEmailsToFolder() {
     mutationFn: ({ emailIds, folder }: { emailIds: string[]; folder: EmailFolder }) =>
       projectsApi.moveEmailsToFolder(emailIds, folder),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.emails })
+    },
+  })
+}
+
+/**
+ * Where a send would go from. Cached like any other read, and cheap - the
+ * composer opens far more often than a mailbox is connected or disconnected.
+ */
+export function useEmailSender() {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.emailSender,
+    queryFn: projectsApi.fetchEmailSender,
+    enabled: Boolean(backendSessionToken),
+  })
+}
+
+/**
+ * Sends, rather than filing a draft.
+ *
+ * Invalidates the email list because the server files a copy in `sent`, and
+ * that copy is the only record the user has that the message left.
+ */
+export function useSendEmail() {
+  const queryClient = useQueryClient()
+  const recordAudit = useAuditRecorder()
+  return useMutation({
+    mutationFn: (input: ComposeEmailInput & { contactId?: string | null; projectId?: string | null }) =>
+      projectsApi.sendEmail(input),
+    onSuccess: (email) => {
+      recordAudit('create', 'email', email.id, { sent: true })
       queryClient.invalidateQueries({ queryKey: queryKeys.emails })
     },
   })

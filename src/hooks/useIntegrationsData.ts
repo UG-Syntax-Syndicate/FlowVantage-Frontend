@@ -222,3 +222,110 @@ export function useWriteProviderData<T>(provider: string, resource: string) {
     },
   })
 }
+
+// ---------------------------------------------------------------------------
+// Project source links, and the sync they drive
+// ---------------------------------------------------------------------------
+
+export function useProjectSourceLinks(projectId: string | undefined) {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.projectSourceLinks(projectId ?? ''),
+    queryFn: () => integrationsApi.fetchProjectLinks(projectId as string),
+    enabled: Boolean(backendSessionToken) && Boolean(projectId),
+  })
+}
+
+export function useCreateProjectLink(projectId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      provider: string
+      sourceKind: string
+      sourceId: string
+      sourceLabel?: string | null
+    }) => integrationsApi.createProjectLink(projectId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projectSourceLinks(projectId) })
+    },
+  })
+}
+
+export function useDeleteProjectLink(projectId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (linkId: string) => integrationsApi.deleteProjectLink(projectId, linkId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.projectSourceLinks(projectId) })
+    },
+  })
+}
+
+/**
+ * Pulls now.
+ *
+ * Invalidates broadly on purpose: a pull can write emails, calendar events,
+ * notes and contacts in one run, and which of those it touched is not known
+ * until it returns.
+ */
+export function useRunProviderSync() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (provider: string) => integrationsApi.runProviderSync(provider),
+    onSuccess: () => {
+      for (const key of [
+        queryKeys.emails,
+        queryKeys.meetings,
+        queryKeys.notes,
+        queryKeys.contacts,
+        queryKeys.syncSkips,
+        queryKeys.syncState,
+      ]) {
+        queryClient.invalidateQueries({ queryKey: key })
+      }
+    },
+  })
+}
+
+export function useSyncSkips(limit = 50) {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: [...queryKeys.syncSkips, limit],
+    queryFn: () => integrationsApi.fetchSyncSkips(limit),
+    enabled: Boolean(backendSessionToken),
+  })
+}
+
+export function useSyncState() {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.syncState,
+    queryFn: integrationsApi.fetchSyncState,
+    enabled: Boolean(backendSessionToken),
+  })
+}
+
+export function useWebhookEndpoints() {
+  const { backendSessionToken } = useAuth()
+  return useQuery({
+    queryKey: queryKeys.webhookEndpoints,
+    queryFn: integrationsApi.fetchWebhookEndpoints,
+    enabled: Boolean(backendSessionToken),
+  })
+}
+
+export function useSubscribeToProvider() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (provider: string) => integrationsApi.subscribeToProvider(provider),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.syncState }),
+  })
+}
+
+export function useUnsubscribeFromProvider() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (provider: string) => integrationsApi.unsubscribeFromProvider(provider),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.syncState }),
+  })
+}

@@ -51,6 +51,13 @@ export const InvitationSchema = z.object({
   status: InvitationStatusSchema,
   expiresAt: z.string(),
   createdAt: z.string(),
+  /**
+   * Only present on the response to *creating* an invite, and only when the
+   * server has no SMTP configured - in that case it hands the link back
+   * rather than letting the email go nowhere. The UI has to show it, or the
+   * invite is unreachable with nothing saying so.
+   */
+  inviteLink: z.string().nullable().optional(),
 })
 export type Invitation = z.infer<typeof InvitationSchema>
 

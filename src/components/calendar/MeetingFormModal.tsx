@@ -74,6 +74,7 @@ export function MeetingFormModal({ meeting, defaultProjectId, onClose }: Meeting
       startTime: defaultStart,
       endTime: defaultEnd,
       location: meeting?.location ?? '',
+      joinUrl: meeting?.joinUrl ?? '',
       description: '',
       projectId: meeting?.projectId ?? defaultProjectId ?? null,
     },
@@ -109,6 +110,7 @@ export function MeetingFormModal({ meeting, defaultProjectId, onClose }: Meeting
     const input: MeetingInput = {
       ...values,
       location: values.location?.trim() ? values.location.trim() : null,
+      joinUrl: values.joinUrl?.trim() ? values.joinUrl.trim() : null,
       description: values.description?.trim() ? values.description.trim() : null,
     }
     try {
@@ -158,7 +160,20 @@ export function MeetingFormModal({ meeting, defaultProjectId, onClose }: Meeting
 
           <div>
             <Label>Location</Label>
-            <Input {...register('location')} className="mt-1" placeholder="Room, address, or meeting link" />
+            <Input {...register('location')} className="mt-1" placeholder="Room or address" />
+          </div>
+
+          <div>
+            <Label>Meeting link</Label>
+            <Input
+              {...register('joinUrl')}
+              type="url"
+              className="mt-1"
+              placeholder="https://zoom.us/j/… or a Meet/Teams link"
+            />
+            {/* Its own field rather than part of Location, because this one
+                becomes the Join button. */}
+            {errors.joinUrl && <p className="mt-1 text-xs text-rose-600">{errors.joinUrl.message}</p>}
           </div>
 
           <div>

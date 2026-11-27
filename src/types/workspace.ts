@@ -58,6 +58,11 @@ export const InvitationSchema = z.object({
    * invite is unreachable with nothing saying so.
    */
   inviteLink: z.string().nullable().optional(),
+  /** Whether the invitation email went out; null when unknown (listed invites). */
+  emailSent: z.boolean().nullable().optional(),
+  emailError: z.string().nullable().optional(),
+  /** The invitee already has an account and was told in the app. */
+  notifiedInApp: z.boolean().optional(),
 })
 export type Invitation = z.infer<typeof InvitationSchema>
 

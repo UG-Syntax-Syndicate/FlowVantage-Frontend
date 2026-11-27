@@ -101,6 +101,9 @@ interface InvitationRow {
   // camelCase among snake_case because the server spreads it onto the row
   // rather than selecting it - see its invitations.service.js createInvite.
   inviteLink?: string | null
+  emailSent?: boolean
+  emailError?: string | null
+  notifiedInApp?: boolean
 }
 
 function mapInvitation(row: InvitationRow): Invitation {
@@ -116,6 +119,9 @@ function mapInvitation(row: InvitationRow): Invitation {
     expiresAt: row.expires_at,
     createdAt: row.created_at,
     inviteLink: row.inviteLink ?? null,
+    emailSent: row.emailSent ?? null,
+    emailError: row.emailError ?? null,
+    notifiedInApp: row.notifiedInApp ?? false,
   }
 }
 
@@ -190,6 +196,21 @@ export async function createInvite(input: CreateInviteInput): Promise<Invitation
 
 export async function revokeInvite(invitationId: string): Promise<void> {
   await postJsonAuthed(`/invitations/${invitationId}/revoke`, {}, authToken())
+}
+
+/** What an invite link is for; public, so it works before signing in. */
+export interface InvitePreview {
+  email: string
+  status: 'pending' | 'accepted' | 'revoked' | 'expired'
+  expiresAt: string
+  workspaceName: string | null
+  projectName: string | null
+  inviterName: string | null
+}
+
+export async function fetchInvitePreview(token: string): Promise<InvitePreview> {
+  const { data } = await getJson<ApiEnvelope<InvitePreview>>(`/invitations/${encodeURIComponent(token)}/preview`, '')
+  return data
 }
 
 export async function acceptInvite(token: string): Promise<Invitation> {

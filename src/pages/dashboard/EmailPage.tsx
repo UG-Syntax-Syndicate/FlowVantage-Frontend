@@ -26,6 +26,7 @@ import {
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { MailRow } from '../../components/email/MailRow'
 import { ComposeMailModal } from '../../components/email/ComposeMailModal'
+import { EmailReader } from '../../components/email/EmailReader'
 import { MailboxNotice } from '../../components/email/MailboxNotice'
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import type { Email, EmailFolder } from '../../types/project'
@@ -57,6 +58,14 @@ export function EmailPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [composeOpen, setComposeOpen] = useState(false)
+  const [openEmailId, setOpenEmailId] = useState<string | null>(null)
+  // Read from the live list, so starring or filing in the reader shows at once.
+  const openEmail = openEmailId ? (emails.find((e) => e.id === openEmailId) ?? null) : null
+
+  function openReader(email: Email) {
+    setOpenEmailId(email.id)
+    if (!email.read) markRead.mutate([email.id])
+  }
 
   const projectById = new Map(projects.map((p) => [p.id, p]))
 
@@ -278,6 +287,7 @@ export function EmailPage() {
                   selected={selectedIds.has(email.id)}
                   onToggleSelect={() => toggleSelect(email.id)}
                   onToggleStar={() => toggleStar.mutate(email.id)}
+                  onOpen={() => openReader(email)}
                 />
               ))}
             {!isLoading && filteredEmails.length === 0 && (
@@ -292,6 +302,13 @@ export function EmailPage() {
       </div>
 
       {composeOpen && <ComposeMailModal onClose={() => setComposeOpen(false)} />}
+
+      <EmailReader
+        email={openEmail}
+        project={openEmail?.projectId ? projectById.get(openEmail.projectId) : undefined}
+        onClose={() => setOpenEmailId(null)}
+        onToggleStar={(id) => toggleStar.mutate(id)}
+      />
     </div>
   )
 }

@@ -14,13 +14,34 @@ export const API_BASE_URL = import.meta.env.VITE_BACKEND_API_BASE_URL || '/api/v
 export const REALTIME_BASE_URL = import.meta.env.VITE_REALTIME_BASE_URL || API_BASE_URL
 
 /**
+ * Whether the API shares this page's origin, which the cookie needs.
+ *
+ * When VITE_BACKEND_API_BASE_URL points straight at the API host (say
+ * https://<service>.onrender.com), the cookie it sets is third-party: the
+ * browser stores it but never sends it on the app's fetches (SameSite=Lax,
+ * and onrender.com is a public suffix), so every request after sign-in 401s.
+ * In that setup the session falls back to a Bearer token.
+ */
+export function isSameOriginApi(baseUrl: string = API_BASE_URL): boolean {
+  if (typeof window === 'undefined') return true
+  try {
+    return new URL(baseUrl, window.location.href).origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
+const USE_COOKIE_SESSION = isSameOriginApi()
+
+/**
  * Headers that carry the session. A cookie session needs none (the browser
- * attaches it); a Bearer token from before the cookie is sent as before. The
- * transport header asks the backend to answer a sign-in with a cookie.
+ * attaches it); a Bearer token is sent as before. The transport header asks
+ * the backend to answer a sign-in with a cookie, and is sent only when the
+ * cookie can actually come back to the API.
  */
 function sessionHeaders(sessionToken: string | null | undefined): Record<string, string> {
   return {
-    'X-Session-Transport': 'cookie',
+    ...(USE_COOKIE_SESSION ? { 'X-Session-Transport': 'cookie' } : {}),
     ...(sessionToken && sessionToken !== COOKIE_SESSION ? { Authorization: `Bearer ${sessionToken}` } : {}),
   }
 }

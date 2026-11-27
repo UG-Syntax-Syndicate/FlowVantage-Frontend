@@ -279,32 +279,6 @@ export function useDeleteProjectLink(projectId: string) {
   })
 }
 
-/**
- * Pulls now.
- *
- * Invalidates broadly on purpose: a pull can write emails, calendar events,
- * notes and contacts in one run, and which of those it touched is not known
- * until it returns.
- */
-export function useRunProviderSync() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (provider: string) => integrationsApi.runProviderSync(provider),
-    onSuccess: () => {
-      for (const key of [
-        queryKeys.emails,
-        queryKeys.meetings,
-        queryKeys.notes,
-        queryKeys.contacts,
-        queryKeys.syncSkips,
-        queryKeys.syncState,
-      ]) {
-        queryClient.invalidateQueries({ queryKey: key })
-      }
-    },
-  })
-}
-
 export function useSyncSkips(limit = 50) {
   const { backendSessionToken } = useAuth()
   return useQuery({

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link2, Plug, Plus, RefreshCw, Trash2, TriangleAlert } from 'lucide-react'
+import { ExternalLink, Inbox, Link2, Plug, Plus, RefreshCw, Trash2, TriangleAlert } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -12,9 +13,9 @@ import {
   useCreateProjectLink,
   useDeleteProjectLink,
   useProjectSourceLinks,
-  useRunProviderSync,
   useSyncSkips,
 } from '../../hooks/useIntegrationsData'
+import { useInbox, useRequestSync } from '../../features/integrations/hooks'
 
 /**
  * Which kind of thing can be linked, per provider.
@@ -75,10 +76,12 @@ const PROVIDER_NAMES: Record<string, string> = {
   slack: 'Slack',
   zoom: 'Zoom',
   dropbox: 'Dropbox',
+  google_drive: 'Drive',
+  perfectview: 'PerfectView',
+  yuki: 'Yuki',
 }
 
 /** Providers that have something to pull on demand. */
-const PULLABLE = new Set(['gmail', 'outlook', 'zoom', 'perfectview'])
 
 function AddSourceDialog({ projectId, onClose }: { projectId: string; onClose: () => void }) {
   const { data: connections = [] } = useConnections()
@@ -206,20 +209,20 @@ export function ProjectSourcesPanel({ projectId, canManage }: ProjectSourcesPane
   const { data: links = [], isLoading } = useProjectSourceLinks(projectId)
   const { data: skipsResult } = useSyncSkips(20)
   const deleteLink = useDeleteProjectLink(projectId)
-  const runSync = useRunProviderSync()
+  const runSync = useRequestSync()
+  const { data: connections = [] } = useConnections()
+  const synced = useInbox({ kind: 'all', filed: 'any', projectId })
   const [adding, setAdding] = useState(false)
 
   const skips = skipsResult?.skips ?? []
-  const providers = [...new Set(links.map((link) => link.provider))].filter((provider) => PULLABLE.has(provider))
+  const syncable = new Set(connections.filter((connection) => connection.sync?.length > 0).map((connection) => connection.id))
+  const providers = [...new Set(links.map((link) => link.provider))].filter((provider) => syncable.has(provider))
+  const syncedItems = synced.data?.pages[0]?.items ?? []
 
   async function sync(provider: string) {
     try {
-      const summary = await runSync.mutateAsync(provider)
-      showToast(
-        'success',
-        `${summary.imported} imported`,
-        `${summary.skipped} skipped, ${summary.duplicates} already here.`,
-      )
+      await runSync.mutateAsync(provider)
+      showToast('success', `${PROVIDER_NAMES[provider] ?? provider} sync started`, 'New items appear as they arrive.')
     } catch (error) {
       showToast('error', error instanceof Error ? error.message : 'Could not sync that provider')
     }
@@ -288,7 +291,7 @@ export function ProjectSourcesPanel({ projectId, canManage }: ProjectSourcesPane
 
       {providers.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
-          <span className="text-xs text-slate-400">Pull now:</span>
+          <span className="text-xs text-slate-400">Sync now:</span>
           {providers.map((provider) => (
             <Button
               key={provider}
@@ -306,13 +309,44 @@ export function ProjectSourcesPanel({ projectId, canManage }: ProjectSourcesPane
         </div>
       )}
 
+      <div className="flex flex-col gap-2 border-t border-line pt-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-medium text-slate-700">Synced into this project</h3>
+          <Link to="/dashboard/inbox" className="flex items-center gap-1 text-xs font-medium text-accent-600 hover:underline">
+            <Inbox size={12} strokeWidth={2} />
+            File more from the inbox
+          </Link>
+        </div>
+        {syncedItems.length === 0 ? (
+          <p className="text-xs text-slate-400">
+            Nothing from a connected app is filed here yet. Items that match a linked source or a project contact
+            arrive automatically; the rest wait in the inbox.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {syncedItems.slice(0, 8).map((item) => (
+              <li key={`${item.kind}:${item.id}`} className="flex items-center gap-2 text-sm">
+                <span className="w-14 shrink-0 text-[11px] uppercase tracking-wide text-slate-400">{item.kind}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-700">{item.title}</span>
+                {item.url && (
+                  <a href={item.url} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-slate-600" aria-label={`Open ${item.title}`}>
+                    <ExternalLink size={12} />
+                  </a>
+                )}
+                <span className="shrink-0 text-xs text-slate-400">{PROVIDER_NAMES[item.provider] ?? item.provider}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {skips.length > 0 && (
         <details className="border-t border-line pt-4">
           <summary className="cursor-pointer text-sm font-medium text-slate-700">
-            Recently not imported ({skips.length})
+            Could not be stored ({skips.length})
           </summary>
           <p className="mt-2 text-xs text-slate-400">
-            Items a connected provider offered that could not be attributed to any project. Kept for{' '}
+            Items a connected app offered that failed to save, with the reason. Kept for{' '}
             {skipsResult?.retentionDays ?? 30} days.
           </p>
           <ul className="mt-3 flex flex-col gap-2">

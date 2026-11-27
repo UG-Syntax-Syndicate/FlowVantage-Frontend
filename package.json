@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "preview": "vite preview",
     "emulators": "firebase emulators:start --only auth",
+    "test:e2e": "playwright test",
     "gen:api": "npx --yes openapi-typescript@7.13.0 ${OPENAPI_SOURCE:-../FlowVantage-Backend/openapi.json} -o src/types/api.gen.ts"
   },
   "dependencies": {
@@ -44,6 +45,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@sentry/vite-plugin": "^5.4.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",

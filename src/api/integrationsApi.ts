@@ -365,15 +365,6 @@ export interface SyncSkip {
   created_at: string
 }
 
-export interface SyncSummary {
-  provider: string
-  imported: number
-  skipped: number
-  duplicates: number
-  projects: string[]
-  errors?: { resource: string; message: string }[]
-}
-
 export interface SyncStateRow {
   provider: string
   resource: string
@@ -419,15 +410,6 @@ export async function createProjectLink(
 
 export async function deleteProjectLink(projectId: string, linkId: string): Promise<void> {
   await deleteJson(`/integrations/projects/${projectId}/links/${linkId}`, authToken())
-}
-
-export async function runProviderSync(provider: string): Promise<SyncSummary> {
-  const { data } = await postJsonAuthed<ApiEnvelope<SyncSummary>>(
-    `/integrations/connections/${provider}/sync`,
-    {},
-    authToken(),
-  )
-  return data
 }
 
 export async function fetchSyncSkips(limit = 50): Promise<{ skips: SyncSkip[]; retentionDays: number }> {

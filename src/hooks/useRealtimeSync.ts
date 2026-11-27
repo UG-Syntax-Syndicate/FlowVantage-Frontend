@@ -38,6 +38,15 @@ const QUERY_KEY_BY_RESOURCE_TYPE: Record<RealtimeResourceType, readonly unknown[
   task_comment: ['taskComments'],
   project_message: ['projectMessages'],
   notification: queryKeys.notifications,
+  // A sync job imported something, or items were filed: the inbox and the
+  // connection's progress both move.
+  integration: ['integrationInbox'],
+  calendar_event: queryKeys.meetings,
+}
+
+/** Extra keys some events also refresh: a sync adds rows to Email and Calendar too. */
+const ALSO_INVALIDATES: Partial<Record<RealtimeResourceType, ReadonlyArray<readonly unknown[]>>> = {
+  integration: [queryKeys.integrationConnections, queryKeys.emails, queryKeys.meetings, queryKeys.contacts],
 }
 
 /** Opens the realtime SSE connection for the signed-in session and keeps React Query fresh from it. */
@@ -51,6 +60,9 @@ export function useRealtimeSync(): void {
     return connectRealtimeEvents(backendSessionToken, (event) => {
       const queryKey = QUERY_KEY_BY_RESOURCE_TYPE[event.resourceType]
       if (queryKey) queryClient.invalidateQueries({ queryKey })
+      for (const extra of ALSO_INVALIDATES[event.resourceType] ?? []) {
+        queryClient.invalidateQueries({ queryKey: extra })
+      }
     })
   }, [backendSessionToken, queryClient])
 }

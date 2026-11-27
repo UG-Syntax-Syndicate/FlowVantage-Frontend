@@ -20,7 +20,7 @@ function TimeBlock({ value, label }: { value: number; label: string }) {
 export function ProjectCountdownSlider({ projects }: ProjectCountdownSliderProps) {
   const { index, direction, goBy, goTo } = useCarousel(projects.length)
   const project = projects[index]
-  const countdown = useCountdown(project?.dueDate ?? new Date().toISOString())
+  const countdown = useCountdown(project?.dueDate ?? null)
 
   if (!project) {
     return (

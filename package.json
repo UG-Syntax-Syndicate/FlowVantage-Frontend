@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "emulators": "firebase emulators:start --only auth"
+    "emulators": "firebase emulators:start --only auth",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
@@ -43,6 +44,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@sentry/vite-plugin": "^5.4.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",

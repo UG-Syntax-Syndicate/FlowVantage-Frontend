@@ -22,6 +22,14 @@ Notes support rich text: the editor writes Markdown (bold, italics, bulleted and
 
 Search (`/dashboard/search`) covers projects, tasks, contacts and notes. Projects, tasks and contacts are matched against the already-cached workspace data; notes go through the backend's `GET /notes/search`, so a note's body and tags are searched too, not just what its card shows.
 
+## Smoke test
+
+`npm run test:e2e` drives a real browser through sign-in, creating a project
+and adding a task (`e2e/smoke.spec.ts`). It starts the Firebase Auth emulator
+(needs Java) and Vite itself, uses a demo Firebase project, and replaces the
+API with an in-memory fake (`e2e/fake-api.ts`), so it needs no backend or
+secrets. It fails on any console error. First run: `npx playwright install chromium`.
+
 ## Integrations
 
 Settings → Integrations is a grid of tiles. Clicking one opens that integration's own page, where connecting is a single button — no expanding panels, and no inline configuration that makes one integration look different from the rest.

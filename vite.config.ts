@@ -1,5 +1,7 @@
+/// <reference types="vitest/config" />
 import path from 'path'
 import { defineConfig } from 'vite'
+import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
@@ -29,6 +31,10 @@ export default defineConfig({
     // Previously off entirely (Vite's default), which would have made every
     // reported stack trace unreadable.
     sourcemap: 'hidden',
+  },
+  test: {
+    // e2e/ is Playwright's (npm run test:e2e), not Vitest's.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
   resolve: {
     alias: {

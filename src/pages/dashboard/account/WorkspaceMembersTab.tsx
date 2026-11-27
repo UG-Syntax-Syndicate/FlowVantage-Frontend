@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, Copy, Mail, X } from 'lucide-react'
+import { Building2, Mail, X } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
@@ -16,7 +16,8 @@ import {
   useUpdateWorkspaceMemberRole,
   useWorkspaceMembers,
 } from '../../../hooks/useWorkspacesData'
-import type { WorkspaceRole } from '../../../types/workspace'
+import type { Invitation, WorkspaceRole } from '../../../types/workspace'
+import { InviteLinkNotice } from '../../../components/invitations/InviteLinkNotice'
 
 const WORKSPACE_ROLES: WorkspaceRole[] = ['admin', 'member']
 
@@ -26,7 +27,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
   // Held so the link can be shown when the server could not email it. Without
   // this the invite was created, the toast said it had been sent, and nothing
   // ever arrived - the one failure mode a "sent" message must not hide.
-  const [manualLink, setManualLink] = useState<{ email: string; link: string } | null>(null)
+  const [lastInvite, setLastInvite] = useState<Invitation | null>(null)
   const createInvite = useCreateInvite(workspaceId)
 
   async function handleSubmit() {
@@ -34,13 +35,9 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
     if (!trimmed) return
     try {
       const invite = await createInvite.mutateAsync({ workspaceId, email: trimmed, workspaceRole: role })
-      if (invite.inviteLink) {
-        setManualLink({ email: trimmed, link: invite.inviteLink })
-        showToast('info', 'Invite created', 'Email is not configured, so share the link below.')
-      } else {
-        setManualLink(null)
-        showToast('success', 'Invite sent', `${trimmed} can accept it from their email.`)
-      }
+      setLastInvite(invite)
+      if (invite.emailSent) showToast('success', 'Invite sent', `${trimmed} will get an email with a link to join.`)
+      else showToast('info', 'Invite created', 'The email could not be sent, so share the link below.')
       setEmail('')
     } catch (error) {
       showToast('error', error instanceof Error ? error.message : 'Could not send invite')
@@ -85,33 +82,7 @@ function InviteForm({ workspaceId }: { workspaceId: string }) {
       </Button>
     </div>
 
-    {manualLink && (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-        <p className="text-xs font-medium text-amber-900">
-          No mail server is configured, so nothing was emailed to {manualLink.email}. Send them this
-          link yourself:
-        </p>
-        <div className="mt-2 flex items-center gap-2">
-          <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-2.5 py-1.5 text-[11px] text-slate-600">
-            {manualLink.link}
-          </code>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void navigator.clipboard
-                .writeText(manualLink.link)
-                .then(() => showToast('success', 'Link copied'))
-                .catch(() => showToast('error', 'Could not copy the link'))
-            }}
-          >
-            <Copy size={13} strokeWidth={2} />
-            Copy
-          </Button>
-        </div>
-      </div>
-    )}
+    {lastInvite && <InviteLinkNotice invite={lastInvite} />}
     </div>
   )
 }

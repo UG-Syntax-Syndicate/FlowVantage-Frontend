@@ -1,8 +1,10 @@
-import { Outlet } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useSessionTimeout } from '../../hooks/useSessionTimeout'
 import { useRealtimeSync } from '../../hooks/useRealtimeSync'
+import { readPendingInvite } from '../../lib/pendingInvite'
 import { Sidebar } from './Sidebar'
 import { EmailVerificationGateModal } from './EmailVerificationGateModal'
 import { TwoFactorChallengeModal } from './TwoFactorChallengeModal'
@@ -29,10 +31,20 @@ function MobileHeader() {
   )
 }
 
+/** Back to an invite opened before signing up; see lib/pendingInvite.ts. */
+function useResumePendingInvite() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    const token = readPendingInvite()
+    if (token) navigate(`/invite/${encodeURIComponent(token)}`, { replace: true })
+  }, [navigate])
+}
+
 export function DashboardLayout() {
   const { phase, secondsRemaining, stayActive } = useSessionTimeout()
   const { twoFactorChallenge, sessionExpired } = useAuth()
   useRealtimeSync()
+  useResumePendingInvite()
 
   let gateModal: React.ReactNode = <EmailVerificationGateModal />
   if (sessionExpired) {

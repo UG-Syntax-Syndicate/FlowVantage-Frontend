@@ -200,6 +200,10 @@ export const EmailSchema = z.object({
   receivedAt: z.string(),
   starred: z.boolean(),
   read: z.boolean(),
+  /** The sender's address, shown beside the name in the reader. */
+  senderEmail: z.string().optional(),
+  /** 'gmail' | 'outlook' for synced mail; null for mail written here. */
+  source: z.string().nullable().optional(),
 })
 export type Email = z.infer<typeof EmailSchema>
 

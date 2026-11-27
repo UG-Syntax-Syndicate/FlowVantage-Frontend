@@ -10,19 +10,32 @@ interface MailRowProps {
   selected: boolean
   onToggleSelect: () => void
   onToggleStar: () => void
+  /** Opens the message in the reader. */
+  onOpen?: () => void
 }
 
-export function MailRow({ email, project, selected, onToggleSelect, onToggleStar }: MailRowProps) {
+export function MailRow({ email, project, selected, onToggleSelect, onToggleStar, onOpen }: MailRowProps) {
   return (
     <div
+      role={onOpen ? 'button' : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (onOpen && (event.key === 'Enter' || event.key === ' ') && event.target === event.currentTarget) {
+          event.preventDefault()
+          onOpen()
+        }
+      }}
       className={`flex items-center gap-3 border-b border-line/70 px-4 py-3 last:border-b-0 hover:bg-slate-50/70 ${
-        selected ? 'bg-accent-50/50' : ''
-      }`}
+        onOpen ? 'cursor-pointer focus-visible:bg-slate-50 focus-visible:outline-none' : ''
+      } ${selected ? 'bg-accent-50/50' : ''}`}
     >
       <input
         type="checkbox"
         checked={selected}
         onChange={onToggleSelect}
+        onClick={(event) => event.stopPropagation()}
+        aria-label={`Select email from ${email.senderName}`}
         className="h-4 w-4 shrink-0 rounded border-slate-300 text-primary focus:ring-primary/40"
       />
 
@@ -48,7 +61,10 @@ export function MailRow({ email, project, selected, onToggleSelect, onToggleStar
 
       <button
         type="button"
-        onClick={onToggleStar}
+        onClick={(event) => {
+          event.stopPropagation()
+          onToggleStar()
+        }}
         aria-label={email.starred ? 'Unstar email' : 'Star email'}
         className="shrink-0 text-slate-300 hover:text-amber-400"
       >

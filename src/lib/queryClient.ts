@@ -68,7 +68,7 @@ export const queryKeys = {
   notes: ['notes'] as const,
   meetings: ['meetings'] as const,
   emails: ['emails'] as const,
-  // Which mailbox a send would leave from; see api/projectsApi fetchEmailSender.
+  // Which mailbox a send would leave from; see features/email/api.ts fetchEmailSender.
   emailSender: ['emailSender'] as const,
   documents: ['documents'] as const,
   contacts: ['contacts'] as const,

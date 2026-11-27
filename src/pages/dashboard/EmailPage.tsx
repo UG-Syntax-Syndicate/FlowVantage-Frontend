@@ -16,13 +16,8 @@ import {
   Folder as FolderIcon,
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
-import {
-  useEmails,
-  useMarkEmailsRead,
-  useMoveEmailsToFolder,
-  useProjects,
-  useToggleEmailStar,
-} from '../../hooks/useProjectsData'
+import { useEmails, useMarkEmailsRead, useMoveEmailsToFolder, useToggleEmailStar } from '../../features/email/hooks'
+import { useProjects } from '../../features/projects/hooks'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { MailRow } from '../../components/email/MailRow'
 import { ComposeMailModal } from '../../components/email/ComposeMailModal'

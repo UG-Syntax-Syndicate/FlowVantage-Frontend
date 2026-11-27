@@ -7,7 +7,7 @@ import { AvatarGroup, AvatarGroupCount } from '../ui/avatar'
 import { memberColorClass } from '../../lib/memberColor'
 import { formatShortDate } from '../../lib/formatDate'
 import { showToast } from '../../lib/toast'
-import { useUpdateProject } from '../../hooks/useProjectsData'
+import { useUpdateProject } from '../../features/projects/hooks'
 import type { Project } from '../../types/project'
 import type { ProjectMember } from '../../types/workspace'
 

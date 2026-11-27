@@ -4,7 +4,7 @@ import type { Todo } from '../../types/project'
 import { formatDateTime } from '../../lib/formatDate'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Input } from '../ui/input'
-import { useDeleteTodo, useUpdateTodo } from '../../hooks/useProjectsData'
+import { useDeleteTodo, useUpdateTodo } from '../../features/todos/hooks'
 import { ConfirmDialog } from '../common/ConfirmDialog'
 import { showToast } from '../../lib/toast'
 

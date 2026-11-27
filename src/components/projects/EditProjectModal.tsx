@@ -10,7 +10,7 @@ import {
   type ProjectVisibility,
   type UpdateProjectInput,
 } from '../../types/project'
-import { useUpdateProject } from '../../hooks/useProjectsData'
+import { useUpdateProject } from '../../features/projects/hooks'
 import { useWorkspace } from '../../hooks/useWorkspace'
 import { PRIORITY_META, PROJECT_STATUS_META } from '../../types/statusMeta'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog'

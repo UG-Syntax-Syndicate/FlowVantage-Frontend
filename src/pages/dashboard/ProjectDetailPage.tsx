@@ -24,17 +24,10 @@ import {
   MessageCircle,
   MoreHorizontal,
 } from 'lucide-react'
-import {
-  useAttachProjectToFolder,
-  useDeleteProject,
-  useDetachProjectFromFolder,
-  useFolders,
-  useMeetings,
-  useMembers,
-  useProjects,
-  useTodos,
-  useUpdateProjectImage,
-} from '../../hooks/useProjectsData'
+import { useAttachProjectToFolder, useDetachProjectFromFolder, useFolders } from '../../features/folders/hooks'
+import { useDeleteProject, useMembers, useProjects, useUpdateProjectImage } from '../../features/projects/hooks'
+import { useMeetings } from '../../features/calendar/hooks'
+import { useTodos } from '../../features/todos/hooks'
 import { useProjectMembers } from '../../hooks/useWorkspacesData'
 import { useWorkspaceRole } from '../../hooks/useWorkspace'
 import { useAuth } from '../../hooks/useAuth'

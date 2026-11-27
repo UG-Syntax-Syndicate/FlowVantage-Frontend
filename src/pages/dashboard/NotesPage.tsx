@@ -11,7 +11,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu'
-import { useDeleteNote, useNotes, useProjects, useToggleNotePinned } from '../../hooks/useProjectsData'
+import { useDeleteNote, useNotes, useToggleNotePinned } from '../../features/notes/hooks'
+import { useProjects } from '../../features/projects/hooks'
 import { showToast } from '../../lib/toast'
 import { CardGridSkeleton } from '../../components/common/skeletons/CardGridSkeleton'
 import type { Note } from '../../types/project'

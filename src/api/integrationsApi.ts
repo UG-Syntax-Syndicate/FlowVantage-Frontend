@@ -200,16 +200,22 @@ export interface GoogleCalendarStatus {
   configured: boolean
   /** How to configure it, when it is not configured. Same shape as the catalogue's. */
   setup: IntegrationSetup | null
+  /** When Google was last read successfully. */
+  lastSyncedAt: string | null
+  /** Why the last pull failed, when it did. */
+  lastError: string | null
 }
 
 export async function fetchGoogleCalendarStatus(): Promise<GoogleCalendarStatus> {
-  const { connected, configured, setup } = await getJson<{
+  const { connected, configured, setup, lastSyncedAt, lastError } = await getJson<{
     success: boolean
     connected: boolean
     configured: boolean
     setup: IntegrationSetup | null
+    lastSyncedAt?: string | null
+    lastError?: string | null
   }>('/calendar/google/status', authToken())
-  return { connected, configured, setup: setup ?? null }
+  return { connected, configured, setup: setup ?? null, lastSyncedAt: lastSyncedAt ?? null, lastError: lastError ?? null }
 }
 
 /**

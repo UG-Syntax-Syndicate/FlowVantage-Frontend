@@ -1,4 +1,29 @@
-export const API_BASE_URL = import.meta.env.VITE_BACKEND_API_BASE_URL || 'http://localhost:3000/api/v1'
+import { COOKIE_SESSION } from './backendSession'
+
+/**
+ * Same-origin by default: Vercel rewrites /api/* to the API in production and
+ * Vite proxies it in development, so the session cookie is first-party.
+ */
+export const API_BASE_URL = import.meta.env.VITE_BACKEND_API_BASE_URL || '/api/v1'
+
+/**
+ * Where EventSource connects. The realtime stream is long-lived, so it goes
+ * straight to the API rather than through the frontend's rewrite; it
+ * authenticates with a short-lived ticket instead of the cookie.
+ */
+export const REALTIME_BASE_URL = import.meta.env.VITE_REALTIME_BASE_URL || API_BASE_URL
+
+/**
+ * Headers that carry the session. A cookie session needs none (the browser
+ * attaches it); a Bearer token from before the cookie is sent as before. The
+ * transport header asks the backend to answer a sign-in with a cookie.
+ */
+function sessionHeaders(sessionToken: string | null | undefined): Record<string, string> {
+  return {
+    'X-Session-Transport': 'cookie',
+    ...(sessionToken && sessionToken !== COOKIE_SESSION ? { Authorization: `Bearer ${sessionToken}` } : {}),
+  }
+}
 
 const BACKEND_TIMEOUT_MS = 5000
 
@@ -120,6 +145,8 @@ export interface BackendSessionUser {
 interface BackendSessionPayload {
   success: boolean
   sessionToken?: string
+  /** 'cookie' when the backend set the session as an httpOnly cookie instead of returning it. */
+  sessionTransport?: 'cookie'
   user?: BackendSessionUser
   requiresTwoFactor?: boolean
   userId?: string
@@ -155,9 +182,10 @@ async function sendOnce<T>(
       method,
       headers: {
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        ...sessionHeaders(sessionToken),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      credentials: 'include',
       signal,
     })
 
@@ -216,6 +244,12 @@ async function request<T>(
 
 async function postJson<T>(path: string, body: unknown, sessionToken?: string): Promise<T> {
   return request<T>('POST', path, body, sessionToken)
+}
+
+/** A one-minute ticket for opening the realtime stream (see realtimeEvents.ts). */
+export async function fetchRealtimeTicket(sessionToken: string): Promise<string> {
+  const { data } = await request<{ data: { ticket: string } }>('POST', '/realtime/ticket', {}, sessionToken)
+  return data.ticket
 }
 
 /** Authenticated GET - sessionToken is required since every non-auth endpoint needs one. */
@@ -292,7 +326,8 @@ export async function getBlob(
     try {
       const response = await fetch(`${API_BASE_URL}${path}`, {
         method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: sessionHeaders(token),
+        credentials: 'include',
         signal,
       })
 
@@ -353,13 +388,14 @@ function toSessionResult(payload: BackendSessionPayload): BackendSessionResult {
     return { status: 'requiresTwoFactor', userId: payload.userId }
   }
 
-  if (typeof payload.sessionToken !== 'string' || payload.sessionToken.length === 0 || !payload.user) {
+  const sessionToken = payload.sessionTransport === 'cookie' ? COOKIE_SESSION : payload.sessionToken
+  if (typeof sessionToken !== 'string' || sessionToken.length === 0 || !payload.user) {
     throw new Error('Backend session exchange returned no session token')
   }
 
   return {
     status: 'ok',
-    sessionToken: payload.sessionToken,
+    sessionToken,
     user: payload.user,
     workspaces: Array.isArray(payload.workspaces) ? payload.workspaces : undefined,
   }
@@ -416,7 +452,8 @@ export async function logoutBackendSession(sessionToken: string): Promise<void> 
   try {
     await fetch(`${API_BASE_URL}/auth/logout`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${sessionToken}` },
+      headers: sessionHeaders(sessionToken),
+      credentials: 'include',
       signal,
     })
   } finally {

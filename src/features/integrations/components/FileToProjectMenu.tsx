@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu'
-import { useProjects } from '../../../hooks/useProjectsData'
+import { useProjects } from '../../projects/hooks'
 
 interface FileToProjectMenuProps {
   trigger: ReactNode

@@ -69,8 +69,8 @@ export function GoogleCalendarSection() {
         applied === 0 ? 'Already up to date' : `${applied} event${applied === 1 ? '' : 's'} synced`,
         fullResync ? 'Google asked for a full resync, so everything was re-read.' : undefined,
       )
-    } catch {
-      showToast('error', 'Could not sync with Google Calendar')
+    } catch (error) {
+      showToast('error', 'Could not sync with Google Calendar', error instanceof Error ? error.message : undefined)
     }
   }
 
@@ -114,7 +114,17 @@ export function GoogleCalendarSection() {
         />
       ) : connected ? (
         <>
-          <Alert variant="success">Connected. New and edited events sync to your Google Calendar automatically.</Alert>
+          {status?.lastError ? (
+            <Alert variant="error">
+              The last import from Google failed: {status.lastError}
+            </Alert>
+          ) : (
+            <Alert variant="success">
+              Connected. Events from Google are imported every few minutes, and events you create here are pushed to
+              Google.
+              {status?.lastSyncedAt ? ` Last imported ${new Date(status.lastSyncedAt).toLocaleString()}.` : ' The first import is on its way.'}
+            </Alert>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={handleSync} disabled={sync.isPending}>
               <RefreshCw size={14} strokeWidth={2} className={sync.isPending ? 'animate-spin' : undefined} />

@@ -1,7 +1,8 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ChevronRight, FolderOpen, Loader2, Upload } from 'lucide-react'
-import { useDeleteDocument, useDocuments, useProjects, useUploadDocument } from '../../hooks/useProjectsData'
+import { useDeleteDocument, useDocuments, useUploadDocument } from '../../features/documents/hooks'
+import { useProjects } from '../../features/projects/hooks'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'
 import { DocumentPreviewModal } from '../../components/projects/DocumentPreviewModal'
 import {

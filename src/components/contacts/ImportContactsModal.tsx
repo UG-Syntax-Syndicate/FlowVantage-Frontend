@@ -18,8 +18,8 @@ import {
   type ParsedContact,
 } from '../../lib/contactImport'
 import { getStoredAiProvider, setStoredAiProvider, suggestCsvHeaderMapping, type AiProvider } from '../../api/aiApi'
-import { useBulkImportContacts } from '../../hooks/useProjectsData'
-import { useProjects } from '../../hooks/useProjectsData'
+import { useBulkImportContacts } from '../../features/contacts/hooks'
+import { useProjects } from '../../features/projects/hooks'
 import { useWorkspace } from '../../hooks/useWorkspace'
 import { ImportProgressRing } from './ImportProgressRing'
 import type { BulkImportContactsResult, ContactInput, ContactVisibility } from '../../types/project'

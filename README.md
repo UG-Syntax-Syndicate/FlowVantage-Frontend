@@ -30,6 +30,21 @@ and adding a task (`e2e/smoke.spec.ts`). It starts the Firebase Auth emulator
 API with an in-memory fake (`e2e/fake-api.ts`), so it needs no backend or
 secrets. It fails on any console error. First run: `npx playwright install chromium`.
 
+## API types
+
+Request and response types for endpoints the backend defines in zod are
+generated, not written by hand: `src/types/api.gen.ts` comes from the
+backend's committed `openapi.json`.
+
+```bash
+npm run gen:api                                   # from ../FlowVantage-Backend/openapi.json
+OPENAPI_SOURCE=https://<api-host>/api-docs.json npm run gen:api   # or from a running API
+```
+
+Regenerate and commit after pulling a backend change to a schema; a mismatch
+then shows up as a type error instead of a runtime bug. Refer to generated
+types through `components['schemas'][...]` (see `src/features/integrations/types.ts`).
+
 ## Integrations
 
 Settings → Integrations is a grid of tiles. Clicking one opens that integration's own page, where connecting is a single button — no expanding panels, and no inline configuration that makes one integration look different from the rest.

@@ -1,6 +1,9 @@
 import { getJson, postJsonAuthed, putJson } from '../../lib/backendApi'
 import { readBackendSessionToken } from '../../lib/backendSession'
-import type { InboxFilters, InboxItem, InboxKind, InboxPage } from './types'
+import type { components } from '../../types/api.gen'
+import type { FileItemsRequest, InboxFilters, InboxPage } from './types'
+
+type Schemas = components['schemas']
 
 /** Client for the synced-data side of /api/v1/integrations. */
 
@@ -16,23 +19,19 @@ export async function fetchInbox(filters: InboxFilters, cursor?: string): Promis
   if (filters.projectId) params.set('projectId', filters.projectId)
   if (cursor) params.set('cursor', cursor)
 
-  const response = await getJson<{
-    data: InboxItem[]
-    nextCursor: string | null
-    unfiled: Record<InboxKind, number>
-  }>(`/integrations/inbox?${params}`, authToken())
+  const response = await getJson<Schemas['InboxResponse']>(`/integrations/inbox?${params}`, authToken())
 
   return { items: response.data, nextCursor: response.nextCursor, unfiled: response.unfiled }
 }
 
 /** Files items into a project; projectId null returns them to the inbox. */
 export async function fileItems(
-  items: Array<Pick<InboxItem, 'kind' | 'id'>>,
-  projectId: string | null,
+  items: FileItemsRequest['items'],
+  projectId: FileItemsRequest['projectId'],
 ): Promise<{ filed: number }> {
-  const { data } = await postJsonAuthed<{ data: { filed: number } }>(
+  const { data } = await postJsonAuthed<Schemas['FileItemsResponse']>(
     '/integrations/items/file',
-    { items, projectId },
+    { items, projectId } satisfies FileItemsRequest,
     authToken(),
   )
   return data

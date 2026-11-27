@@ -9,7 +9,6 @@ import {
   Package,
   BarChart3,
   Search,
-  Inbox,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -28,7 +27,6 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard/projects', label: 'Projects', icon: FolderKanban, tourId: 'nav-projects' },
   { to: '/dashboard/contacts', label: 'Contacts', icon: Users, tourId: 'nav-contacts' },
   { to: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays, tourId: 'nav-calendar' },
-  { to: '/dashboard/inbox', label: 'Inbox', icon: Inbox, tourId: 'nav-inbox' },
   { to: '/dashboard/email', label: 'Email', icon: Mail, tourId: 'nav-email' },
   { to: '/dashboard/notes', label: 'Notes', icon: StickyNote, tourId: 'nav-notes' },
   { to: '/dashboard/ai-assistant', label: 'Venon AI', icon: Sparkles, tourId: 'nav-ai' },

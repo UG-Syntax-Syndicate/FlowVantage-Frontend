@@ -25,6 +25,16 @@ export default defineConfig({
       sourcemaps: { filesToDeleteAfterUpload: ['dist/**/*.map'] },
     }),
   ],
+  server: {
+    // Same-origin API in development too, so the session cookie behaves as
+    // it does behind Vercel's /api rewrite in production.
+    proxy: {
+      '/api': {
+        target: process.env.VITE_DEV_API_PROXY_TARGET || 'http://localhost:3000',
+        changeOrigin: false,
+      },
+    },
+  },
   build: {
     // 'hidden' emits the maps for upload but omits the sourceMappingURL
     // comment, so browsers never fetch them and the source is not exposed.

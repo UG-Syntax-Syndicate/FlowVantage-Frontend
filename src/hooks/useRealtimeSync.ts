@@ -47,6 +47,8 @@ const QUERY_KEY_BY_RESOURCE_TYPE: Record<RealtimeResourceType, readonly unknown[
 /** Extra keys some events also refresh: a sync adds rows to Email and Calendar too. */
 const ALSO_INVALIDATES: Partial<Record<RealtimeResourceType, ReadonlyArray<readonly unknown[]>>> = {
   integration: [queryKeys.integrationConnections, queryKeys.emails, queryKeys.meetings, queryKeys.contacts],
+  // A Google Calendar pull also moves its "last imported" status.
+  calendar_event: [queryKeys.googleCalendarStatus],
 }
 
 /** Opens the realtime SSE connection for the signed-in session and keeps React Query fresh from it. */

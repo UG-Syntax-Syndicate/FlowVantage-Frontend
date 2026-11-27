@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ExternalLink, Inbox, Link2, Plug, Plus, RefreshCw, Trash2, TriangleAlert } from 'lucide-react'
+import { ExternalLink, Link2, Mail, Plug, Plus, RefreshCw, Trash2, TriangleAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -312,15 +312,15 @@ export function ProjectSourcesPanel({ projectId, canManage }: ProjectSourcesPane
       <div className="flex flex-col gap-2 border-t border-line pt-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-medium text-slate-700">Synced into this project</h3>
-          <Link to="/dashboard/inbox" className="flex items-center gap-1 text-xs font-medium text-accent-600 hover:underline">
-            <Inbox size={12} strokeWidth={2} />
-            File more from the inbox
+          <Link to="/dashboard/email" className="flex items-center gap-1 text-xs font-medium text-accent-600 hover:underline">
+            <Mail size={12} strokeWidth={2} />
+            File more from Email
           </Link>
         </div>
         {syncedItems.length === 0 ? (
           <p className="text-xs text-slate-400">
             Nothing from a connected app is filed here yet. Items that match a linked source or a project contact
-            arrive automatically; the rest wait in the inbox.
+            arrive automatically; you can file the rest from Email.
           </p>
         ) : (
           <ul className="flex flex-col gap-1">

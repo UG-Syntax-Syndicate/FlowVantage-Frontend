@@ -15,6 +15,7 @@ interface EmailRow {
   sent_at: string
   starred: boolean
   read: boolean
+  source?: string | null
 }
 
 function excerptFromEmailBody(body: string): string {
@@ -35,6 +36,8 @@ function mapEmail(row: EmailRow): Email {
     receivedAt: row.sent_at,
     starred: row.starred,
     read: row.read,
+    senderEmail: row.sender_email,
+    source: row.source ?? null,
   }
 }
 

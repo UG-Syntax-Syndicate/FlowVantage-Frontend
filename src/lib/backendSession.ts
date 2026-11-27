@@ -1,6 +1,17 @@
 export const BACKEND_SESSION_STORAGE_KEY = 'flowvantage.backendSessionToken'
 
 /**
+ * Stored in place of a token when the session lives in the backend's httpOnly
+ * cookie. Not a secret: it only records that a session exists, so the rest of
+ * the app (which gates its queries on "is there a session") works unchanged
+ * while the real credential stays out of reach of page scripts.
+ *
+ * A value other than this is a Bearer token from before the cookie, which
+ * keeps working until that user next signs in.
+ */
+export const COOKIE_SESSION = 'cookie-session'
+
+/**
  * Keeps the backend JWT in one well-defined browser-storage location.
  * Firebase manages its own authentication persistence separately.
  */

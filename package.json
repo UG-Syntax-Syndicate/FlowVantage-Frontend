@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "emulators": "firebase emulators:start --only auth"
+    "emulators": "firebase emulators:start --only auth",
+    "gen:api": "npx --yes openapi-typescript@7.13.0 ${OPENAPI_SOURCE:-../FlowVantage-Backend/openapi.json} -o src/types/api.gen.ts"
   },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",

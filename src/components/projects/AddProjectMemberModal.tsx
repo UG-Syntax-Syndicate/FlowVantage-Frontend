@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Copy, Mail, UserPlus } from 'lucide-react'
+import { Mail, UserPlus } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Avatar } from '../common/Avatar'
 import { showToast } from '../../lib/toast'
 import { useAddProjectMember, useCreateInvite, useWorkspaceMembers } from '../../hooks/useWorkspacesData'
-import type { ProjectMember, ProjectRole } from '../../types/workspace'
+import type { Invitation, ProjectMember, ProjectRole } from '../../types/workspace'
+import { InviteLinkNotice } from '../invitations/InviteLinkNotice'
 
 const PROJECT_ROLES: ProjectRole[] = ['contributor', 'viewer', 'owner']
 
@@ -46,7 +47,7 @@ export function AddProjectMemberModal({
   const [role, setRole] = useState<ProjectRole>('contributor')
   const [email, setEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<ProjectRole>('contributor')
-  const [manualLink, setManualLink] = useState<string | null>(null)
+  const [lastInvite, setLastInvite] = useState<Invitation | null>(null)
 
   const available = useMemo(() => {
     const onProject = new Set(currentMembers.map((member) => member.userId))
@@ -75,15 +76,11 @@ export function AddProjectMemberModal({
         workspaceRole: 'member',
         projectRole: inviteRole,
       })
-      if (invite.inviteLink) {
-        // No SMTP configured, so the server handed the link back instead of
-        // sending it. Saying "invite sent" here would be a lie.
-        setManualLink(invite.inviteLink)
-        showToast('info', 'Invite created', 'Email is not configured, so share the link below.')
-      } else {
-        showToast('success', 'Invite sent', `${trimmed} will get an email with a link to join.`)
-        onClose()
-      }
+      // Stays open to show the link either way: an email can be filtered or
+      // fail to send, and the link is the fallback that always works.
+      setLastInvite(invite)
+      if (invite.emailSent) showToast('success', 'Invite sent', `${trimmed} will get an email with a link to join.`)
+      else showToast('info', 'Invite created', 'The email could not be sent, so share the link below.')
       setEmail('')
     } catch (error) {
       showToast('error', error instanceof Error ? error.message : 'Could not send the invite')
@@ -220,32 +217,7 @@ export function AddProjectMemberModal({
               accept. The invitation expires after seven days.
             </p>
 
-            {manualLink && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-xs font-medium text-amber-900">
-                  No mail server is configured, so nothing was emailed. Send them this link yourself:
-                </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-2.5 py-1.5 text-[11px] text-slate-600">
-                    {manualLink}
-                  </code>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      void navigator.clipboard
-                        .writeText(manualLink)
-                        .then(() => showToast('success', 'Link copied'))
-                        .catch(() => showToast('error', 'Could not copy the link'))
-                    }}
-                  >
-                    <Copy size={13} strokeWidth={2} />
-                    Copy
-                  </Button>
-                </div>
-              </div>
-            )}
+            {lastInvite && <InviteLinkNotice invite={lastInvite} />}
           </TabsContent>
         </Tabs>
       </DialogContent>

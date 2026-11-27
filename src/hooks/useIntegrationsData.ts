@@ -129,6 +129,8 @@ export function useSyncGoogleCalendar() {
   return useMutation({
     mutationFn: integrationsApi.syncGoogleCalendar,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.meetings }),
+    // Success or failure, the status now carries the latest outcome.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.googleCalendarStatus }),
   })
 }
 

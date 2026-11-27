@@ -74,8 +74,8 @@ export function ConnectionSyncStatus({ connection, onReconnect }: ConnectionSync
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-slate-900">Sync</h3>
         <div className="flex items-center gap-2">
-          <Link to="/dashboard/inbox" className="text-xs font-medium text-accent-600 hover:underline">
-            Open inbox
+          <Link to="/dashboard/email" className="text-xs font-medium text-accent-600 hover:underline">
+            Open mail
           </Link>
           <Button
             type="button"

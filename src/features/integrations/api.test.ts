@@ -8,8 +8,14 @@ import { fetchInbox, fileItems, requestSync } from './api'
  */
 
 vi.mock('../../lib/backendSession', () => ({
+  COOKIE_SESSION: 'cookie-session',
   readBackendSessionToken: () => 'session-token',
 }))
+
+/** API URLs are same-origin (/api/v1/...) now, so parse against a base. */
+function urlOf(call: unknown[]): URL {
+  return new URL(String(call[0]), 'http://localhost')
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return { ok: status >= 200 && status < 300, status, json: async () => body } as Response
@@ -39,7 +45,7 @@ describe('integrations inbox api', () => {
 
     const page = await fetchInbox({ kind: 'email', filed: 'false', provider: 'gmail' })
 
-    const url = new URL(String(fetchMock.mock.calls[0][0]))
+    const url = urlOf(fetchMock.mock.calls[0])
     expect(url.pathname).toMatch(/\/integrations\/inbox$/)
     expect(Object.fromEntries(url.searchParams)).toEqual({
       kind: 'email',
@@ -58,7 +64,7 @@ describe('integrations inbox api', () => {
 
     await fetchInbox({ kind: 'all', filed: 'any' }, 'cursor-2')
 
-    const url = new URL(String(fetchMock.mock.calls[0][0]))
+    const url = urlOf(fetchMock.mock.calls[0])
     expect(url.searchParams.get('cursor')).toBe('cursor-2')
     expect(url.searchParams.get('filed')).toBe('any')
   })

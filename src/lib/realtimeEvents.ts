@@ -8,6 +8,8 @@ export type RealtimeResourceType =
   | 'task_comment'
   | 'project_message'
   | 'notification'
+  | 'integration'
+  | 'calendar_event'
 
 export interface RealtimeChangeEvent {
   resourceType: RealtimeResourceType

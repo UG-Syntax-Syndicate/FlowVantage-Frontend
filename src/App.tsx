@@ -32,6 +32,7 @@ const ProjectDocumentsPage = lazy(() =>
 const ContactsPage = lazy(() => import('./pages/dashboard/ContactsPage').then((m) => ({ default: m.ContactsPage })))
 const CalendarPage = lazy(() => import('./pages/dashboard/CalendarPage').then((m) => ({ default: m.CalendarPage })))
 const NotesPage = lazy(() => import('./pages/dashboard/NotesPage').then((m) => ({ default: m.NotesPage })))
+const InboxPage = lazy(() => import('./pages/dashboard/InboxPage').then((m) => ({ default: m.InboxPage })))
 const GlobalSearchPage = lazy(() =>
   import('./pages/dashboard/GlobalSearchPage').then((m) => ({ default: m.GlobalSearchPage })),
 )
@@ -184,6 +185,14 @@ function App() {
             element={
               <Suspense fallback={<RouteFallback />}>
                 <NotesPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="inbox"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <InboxPage />
               </Suspense>
             }
           />

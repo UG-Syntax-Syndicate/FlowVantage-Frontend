@@ -145,4 +145,18 @@ export interface IntegrationConnection {
    * which share a single Google authorisation. Null when it owns its own.
    */
   tokenSource: string | null
+  /** 'needs_reauth' once the sync finds the grant revoked or expired. Null when not connected. */
+  status: 'active' | 'needs_reauth' | null
+  lastError: string | null
+  /** Per synced resource: import progress, from the backend's sync engine. */
+  sync: IntegrationResourceSync[]
+}
+
+export interface IntegrationResourceSync {
+  resource: string
+  /** 'pending' until the first page arrives; 'backfill' while importing history. */
+  phase: 'pending' | 'backfill' | 'incremental'
+  itemsSynced: number
+  lastSuccessAt: string | null
+  lastError: string | null
 }

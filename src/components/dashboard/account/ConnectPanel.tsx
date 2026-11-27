@@ -11,6 +11,7 @@ import { useDisconnectConnection, useStartConnection } from '../../../hooks/useI
 import type { IntegrationConnection } from '../../../types/integrations'
 import type { IntegrationIconName } from './IntegrationIcon'
 import { showToast } from '../../../lib/toast'
+import { ConnectionSyncStatus } from '../../../features/integrations/components/ConnectionSyncStatus'
 
 interface ConnectPanelProps {
   connection: IntegrationConnection
@@ -78,6 +79,8 @@ export function ConnectPanel({ connection, icon }: ConnectPanelProps) {
           <ConnectionCapabilities resources={connection.resources} />
         )}
 
+        <ConnectionSyncStatus connection={connection} />
+
         <Link
           to={`/dashboard/account/integrations/${connection.tokenSource}`}
           className={
@@ -105,7 +108,24 @@ export function ConnectPanel({ connection, icon }: ConnectPanelProps) {
 
         {connection.resources && <ConnectionCapabilities resources={connection.resources} />}
 
-        <div>
+        <ConnectionSyncStatus
+          connection={connection}
+          onReconnect={connection.kind === 'oauth' ? handleConnect : () => setCredentialModalOpen(true)}
+        />
+
+        <div className="flex flex-wrap gap-2">
+          {/* Signing in again renews an expired grant and picks up any
+              permission added since the first connection (Drive file
+              listing, Outlook calendars). */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={connection.kind === 'oauth' ? handleConnect : () => setCredentialModalOpen(true)}
+            disabled={startConnection.isPending}
+          >
+            {connection.kind === 'oauth' ? 'Reconnect' : 'Update credentials'}
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -117,6 +137,14 @@ export function ConnectPanel({ connection, icon }: ConnectPanelProps) {
             Disconnect
           </Button>
         </div>
+
+        {credentialModalOpen && (
+          <CredentialConnectModal
+            connection={connection}
+            icon={icon}
+            onClose={() => setCredentialModalOpen(false)}
+          />
+        )}
 
         <ConfirmDialog
           open={confirmingDisconnect}

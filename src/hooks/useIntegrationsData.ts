@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '../lib/queryClient'
 import * as integrationsApi from '../api/integrationsApi'
 import { useAuth } from './useAuth'
-import type { WhatsAppEvent } from '../types/integrations'
+import type { IntegrationConnection, WhatsAppEvent } from '../types/integrations'
 
 /**
  * WhatsApp preferences are per user, not per workspace: a phone number belongs
@@ -136,12 +136,29 @@ export function useSyncGoogleCalendar() {
 // Third-party connections
 // ---------------------------------------------------------------------------
 
+/**
+ * True while a first import is still running, so the status can be polled
+ * until it settles instead of the user refreshing to watch the count move.
+ */
+function isImporting(connections: IntegrationConnection[] | IntegrationConnection | undefined): boolean {
+  const list = Array.isArray(connections) ? connections : connections ? [connections] : []
+  return list.some(
+    (connection) =>
+      connection.connected &&
+      connection.status === 'active' &&
+      connection.sync.some((resource) => resource.phase !== 'incremental' && !resource.lastError),
+  )
+}
+
+const IMPORT_POLL_MS = 5000
+
 export function useConnections() {
   const { backendSessionToken } = useAuth()
   return useQuery({
     queryKey: queryKeys.integrationConnections,
     queryFn: integrationsApi.fetchConnections,
     enabled: Boolean(backendSessionToken),
+    refetchInterval: (query) => (isImporting(query.state.data) ? IMPORT_POLL_MS : false),
   })
 }
 
@@ -151,6 +168,7 @@ export function useConnection(provider: string) {
     queryKey: queryKeys.integrationConnection(provider),
     queryFn: () => integrationsApi.fetchConnection(provider),
     enabled: Boolean(backendSessionToken) && Boolean(provider),
+    refetchInterval: (query) => (isImporting(query.state.data) ? IMPORT_POLL_MS : false),
   })
 }
 

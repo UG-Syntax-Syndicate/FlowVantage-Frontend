@@ -1,3 +1,5 @@
+import type { components } from './api.gen'
+
 /**
  * Types for /api/v1/integrations.
  *
@@ -116,47 +118,9 @@ export interface IntegrationSetup {
   scopes: string[]
 }
 
-export interface IntegrationConnection {
-  id: string
-  name: string
-  kind: IntegrationKind
-  category: string
-  /**
-   * Whether this *server* can complete a connection at all — i.e. whether the
-   * vendor credentials are present in its environment. False means the Connect
-   * button would 503, so the UI explains instead of offering it.
-   */
-  configured: boolean
-  /** Whether this *user* has connected it. */
-  connected: boolean
-  accountLabel: string | null
-  connectedAt: string | null
-  credentialFields: IntegrationCredentialField[] | null
-  /**
-   * What this provider can read and write once connected, keyed by resource
-   * name (`messages`, `files`, `contacts`…). Comes from the backend's adapter
-   * registry so the UI never keeps a second copy of it.
-   */
-  resources: Record<string, IntegrationResourceSupport> | null
-  /** Present for OAuth providers; null for credential-based ones. */
-  setup: IntegrationSetup | null
-  /**
-   * The provider whose sign-in backs this one — 'google' for Gmail and Drive,
-   * which share a single Google authorisation. Null when it owns its own.
-   */
-  tokenSource: string | null
-  /** 'needs_reauth' once the sync finds the grant revoked or expired. Null when not connected. */
-  status: 'active' | 'needs_reauth' | null
-  lastError: string | null
-  /** Per synced resource: import progress, from the backend's sync engine. */
-  sync: IntegrationResourceSync[]
-}
-
-export interface IntegrationResourceSync {
-  resource: string
-  /** 'pending' until the first page arrives; 'backfill' while importing history. */
-  phase: 'pending' | 'backfill' | 'incremental'
-  itemsSynced: number
-  lastSuccessAt: string | null
-  lastError: string | null
-}
+/**
+ * A provider and this user's connection to it, with per-resource sync
+ * progress. Generated from the backend's zod schema (`npm run gen:api`).
+ */
+export type IntegrationConnection = components['schemas']['IntegrationConnection']
+export type IntegrationResourceSync = components['schemas']['IntegrationResourceSync']

@@ -1,4 +1,5 @@
-import { API_BASE_URL } from './backendApi'
+import { REALTIME_BASE_URL, fetchRealtimeTicket } from './backendApi'
+import { COOKIE_SESSION } from './backendSession'
 
 /** Kept narrow on purpose — see src/hooks/useRealtimeSync.ts for why. */
 export type RealtimeResourceType =
@@ -31,9 +32,9 @@ const RECONNECT_MAX_DELAY_MS = 30_000
 /**
  * Opens the backend's SSE stream (see FlowVantage-Backend's
  * src/modules/realtime) and calls `onChange` for each event it pushes.
- * EventSource can't set an Authorization header, so the session token is
- * passed as a query param instead - the backend's requireSession middleware
- * accepts that as a fallback for this one route.
+ * EventSource can't set an Authorization header, so it authenticates with a
+ * short-lived ticket in the URL (or, for a pre-cookie Bearer session, the
+ * token itself) - the backend accepts these on this one route.
  *
  * Reconnects with exponential backoff on drop/error, since EventSource's own
  * auto-reconnect doesn't back off and would hammer a backend that's down.
@@ -45,10 +46,39 @@ export function connectRealtimeEvents(sessionToken: string, onChange: (event: Re
   let reconnectDelay = RECONNECT_BASE_DELAY_MS
   let stopped = false
 
-  function connect() {
+  /**
+   * The stream URL. A cookie session cannot hand its token to EventSource (the
+   * point of the cookie is that scripts cannot read it), so it fetches a
+   * one-minute ticket first, freshly for every (re)connect. An older Bearer
+   * session still passes its token, as before.
+   */
+  async function streamUrl(): Promise<string> {
+    if (sessionToken === COOKIE_SESSION) {
+      const ticket = await fetchRealtimeTicket(sessionToken)
+      return `${REALTIME_BASE_URL}/realtime/stream?ticket=${encodeURIComponent(ticket)}`
+    }
+    return `${REALTIME_BASE_URL}/realtime/stream?token=${encodeURIComponent(sessionToken)}`
+  }
+
+  function scheduleReconnect() {
+    if (stopped) return
+    reconnectTimer = window.setTimeout(connect, reconnectDelay)
+    reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_DELAY_MS)
+  }
+
+  async function connect() {
     if (stopped) return
 
-    source = new EventSource(`${API_BASE_URL}/realtime/stream?token=${encodeURIComponent(sessionToken)}`)
+    let url: string
+    try {
+      url = await streamUrl()
+    } catch {
+      scheduleReconnect()
+      return
+    }
+    if (stopped) return
+
+    source = new EventSource(url)
 
     source.onopen = () => {
       reconnectDelay = RECONNECT_BASE_DELAY_MS
@@ -65,13 +95,11 @@ export function connectRealtimeEvents(sessionToken: string, onChange: (event: Re
 
     source.onerror = () => {
       source?.close()
-      if (stopped) return
-      reconnectTimer = window.setTimeout(connect, reconnectDelay)
-      reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_DELAY_MS)
+      scheduleReconnect()
     }
   }
 
-  connect()
+  void connect()
 
   return () => {
     stopped = true

@@ -6,7 +6,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu'
-import { useProjects } from '../../hooks/useProjectsData'
+import { useProjects } from '../../features/projects/hooks'
 
 /** The sentinel for "no project filter". A real project id can never be this, since ids are UUIDs. */
 export const ALL_PROJECTS = 'all-projects'

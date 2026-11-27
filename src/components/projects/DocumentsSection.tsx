@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { FolderOpen, Loader2, Upload } from 'lucide-react'
-import { useDeleteDocument, useDocuments, useUploadDocument } from '../../hooks/useProjectsData'
+import { useDeleteDocument, useDocuments, useUploadDocument } from '../../features/documents/hooks'
 import { DocumentPreviewModal } from './DocumentPreviewModal'
 import {
   DOCUMENT_ACCEPTED_TYPES,

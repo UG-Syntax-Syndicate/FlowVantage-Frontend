@@ -15,7 +15,7 @@ import {
   type RecordableMovementKind,
 } from '../../types/inventory'
 import { useInventoryLocations, useRecordMovement } from '../../hooks/useInventoryData'
-import { useProjects } from '../../hooks/useProjectsData'
+import { useProjects } from '../../features/projects/hooks'
 import { showToast } from '../../lib/toast'
 
 interface RecordMovementModalProps {

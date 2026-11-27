@@ -6,7 +6,7 @@ import type { ChatMessage } from '../types/project'
  * (see navItems.ts/Sidebar.tsx). Every other seed array that used to live
  * here (projects, tasks, todos, folders, members, notes, contacts, meetings,
  * documents, email) has been replaced by real backend calls in
- * src/api/projectsApi.ts.
+ * src/features/<feature>/api.ts.
  */
 
 function addDays(base: Date, days: number): string {

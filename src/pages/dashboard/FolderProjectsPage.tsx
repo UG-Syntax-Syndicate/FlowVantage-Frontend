@@ -1,6 +1,7 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
-import { useFolders, useProjects } from '../../hooks/useProjectsData'
+import { useFolders } from '../../features/folders/hooks'
+import { useProjects } from '../../features/projects/hooks'
 import { ProjectCard } from '../../components/projects/ProjectCard'
 import { FOLDER_ICONS } from '../../lib/folderIcons'
 import { PageHeaderBar } from '../../components/dashboard/PageHeaderBar'

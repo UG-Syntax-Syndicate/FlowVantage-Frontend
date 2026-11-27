@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { useMembers, useProjects, useTasks } from './useProjectsData'
+import { useMembers, useProjects } from '../features/projects/hooks'
+import { useTasks } from '../features/tasks/hooks'
 import type { Member, Task } from '../types/project'
 
 export interface EnrichedTask extends Task {

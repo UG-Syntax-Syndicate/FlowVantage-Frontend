@@ -49,6 +49,10 @@ const ALSO_INVALIDATES: Partial<Record<RealtimeResourceType, ReadonlyArray<reado
   integration: [queryKeys.integrationConnections, queryKeys.emails, queryKeys.meetings, queryKeys.contacts],
   // A Google Calendar pull also moves its "last imported" status.
   calendar_event: [queryKeys.googleCalendarStatus],
+  // A teammate's message moves your unread badge, not just the thread.
+  project_message: [queryKeys.unreadMessages],
+  // Removed from a project, or it was deleted: the bell has news too.
+  project: [queryKeys.notifications],
 }
 
 /** Opens the realtime SSE connection for the signed-in session and keeps React Query fresh from it. */

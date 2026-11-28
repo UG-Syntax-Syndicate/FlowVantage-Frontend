@@ -23,6 +23,7 @@ import {
   Package,
   MessageCircle,
   MoreHorizontal,
+  Settings,
 } from 'lucide-react'
 import { useAttachProjectToFolder, useDetachProjectFromFolder, useFolders } from '../../features/folders/hooks'
 import { useDeleteProject, useMembers, useProjects, useUpdateProjectImage } from '../../features/projects/hooks'
@@ -48,6 +49,7 @@ import { DocumentsSection } from '../../components/projects/DocumentsSection'
 import { ProjectInventoryPanel } from '../../components/projects/ProjectInventoryPanel'
 import { ProjectWhatsAppPanel } from '../../components/projects/ProjectWhatsAppPanel'
 import { ProjectMessagesPanel } from '../../components/collaboration/ProjectMessagesPanel'
+import { ProjectSettingsPanel } from '../../components/projects/ProjectSettingsPanel'
 import { ImageCropModal } from '../../components/projects/ImageCropModal'
 import { EditProjectModal } from '../../components/projects/EditProjectModal'
 import { CreateProjectModal } from '../../components/projects/CreateProjectModal'
@@ -67,7 +69,7 @@ import { Skeleton } from '../../components/ui/skeleton'
  * answer to "what is this project"; everything after it is a place you go to
  * do one specific thing.
  */
-const TABS = ['overview', 'timeline', 'team', 'documents', 'chat', 'materials'] as const
+const TABS = ['overview', 'timeline', 'team', 'documents', 'chat', 'materials', 'settings'] as const
 type TabValue = (typeof TABS)[number]
 
 function isTabValue(value: string | null): value is TabValue {
@@ -307,6 +309,10 @@ export function ProjectDetailPage() {
                     Remove cover image
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem onClick={() => handleTabChange('settings')}>
+                  <Settings size={14} strokeWidth={2} />
+                  Project settings
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setConfirmingDelete(true)}
                   className="text-rose-600 focus:bg-rose-50 focus:text-rose-700"
@@ -357,6 +363,10 @@ export function ProjectDetailPage() {
           <TabsTrigger value="materials">
             <Package size={14} strokeWidth={2} />
             Materials
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings size={14} strokeWidth={2} />
+            Settings
           </TabsTrigger>
         </TabsList>
 
@@ -525,7 +535,7 @@ export function ProjectDetailPage() {
 
         <TabsContent value="chat" className="mt-6 flex flex-col gap-6">
           <div className="rounded-2xl border border-line bg-white p-5 shadow-[0px_10px_32px_4px_rgba(152,150,163,0.12)]">
-            <ProjectMessagesPanel projectId={project.id} />
+            <ProjectMessagesPanel projectId={project.id} canManage={canManage} />
           </div>
           {/* The WhatsApp group sits with the in-app thread rather than in a
               tab of its own: both answer "where does this project talk", and
@@ -543,6 +553,18 @@ export function ProjectDetailPage() {
           <div className="rounded-2xl border border-line bg-white p-5 shadow-[0px_10px_32px_4px_rgba(152,150,163,0.12)]">
             <ProjectInventoryPanel projectId={project.id} />
           </div>
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-6">
+          <ProjectSettingsPanel
+            project={project}
+            tasks={projectTasks}
+            canManage={canManage}
+            currentUserId={userProfile?.id}
+            isMember={projectMembers.some((member) => member.userId === userProfile?.id)}
+            onEdit={() => setEditing(true)}
+            onDelete={() => setConfirmingDelete(true)}
+          />
         </TabsContent>
       </Tabs>
 
@@ -582,8 +604,8 @@ export function ProjectDetailPage() {
             showToast('success', 'Project deleted')
             // This page is about to render a project that no longer exists.
             navigate('/dashboard/projects')
-          } catch {
-            showToast('error', 'Could not delete this project')
+          } catch (error) {
+            showToast('error', error instanceof Error ? error.message : 'Could not delete this project')
           }
         }}
       />

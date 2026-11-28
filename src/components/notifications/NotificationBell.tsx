@@ -4,9 +4,16 @@ import {
   Bell,
   BellOff,
   CheckCheck,
+  CheckCircle2,
+  Clock,
+  FileText,
   FolderKanban,
+  Mail,
   MessageSquare,
+  ShieldCheck,
   SquareCheckBig,
+  Trash2,
+  UserMinus,
   UserPlus,
   X,
 } from 'lucide-react'
@@ -35,6 +42,15 @@ const ICON_BY_TYPE: Record<string, typeof Bell> = {
   'project.member_added': UserPlus,
   'project.status_changed': FolderKanban,
   'invitation.accepted': UserPlus,
+  'invitation.received': Mail,
+  'project.member_joined': UserPlus,
+  'project.member_left': UserMinus,
+  'project.member_removed': UserMinus,
+  'project.member_role_changed': ShieldCheck,
+  'project.deleted': Trash2,
+  'task.completed': CheckCircle2,
+  'task.due_soon': Clock,
+  'document.added': FileText,
 }
 
 function NotificationIcon({ notification }: { notification: Notification }) {

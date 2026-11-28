@@ -89,16 +89,24 @@ export function useRemoveProjectMember(projectId: string) {
   return useMutation({
     mutationFn: (userId: string) => workspacesApi.removeProjectMember(projectId, userId),
     onSuccess: () => {
+      // The whole projects tree: the roster, and the project list itself -
+      // someone who just left should stop seeing the project.
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects })
       queryClient.invalidateQueries({ queryKey: queryKeys.projectMembers(projectId) })
     },
   })
 }
 
-export function usePendingInvites(workspaceId: string | undefined) {
+/**
+ * Pending invites. With a projectId, only that project's: the project team
+ * list used to show every invite in the workspace, and a project owner who
+ * is not a workspace admin may only list their own project's.
+ */
+export function usePendingInvites(workspaceId: string | undefined, projectId?: string) {
   const { backendSessionToken } = useAuth()
   return useQuery({
-    queryKey: queryKeys.pendingInvites(workspaceId ?? ''),
-    queryFn: () => workspacesApi.fetchPendingInvites(workspaceId as string),
+    queryKey: queryKeys.pendingInvites(workspaceId ?? '', projectId),
+    queryFn: () => workspacesApi.fetchPendingInvites(workspaceId as string, projectId),
     enabled: Boolean(backendSessionToken) && Boolean(workspaceId),
   })
 }

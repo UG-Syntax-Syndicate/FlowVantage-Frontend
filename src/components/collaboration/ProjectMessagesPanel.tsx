@@ -20,6 +20,8 @@ import { MAX_MESSAGE_LENGTH, type ProjectMessage } from '../../types/collaborati
 
 interface ProjectMessagesPanelProps {
   projectId: string
+  /** Whether the viewer manages the project, which lets them moderate. */
+  canManage?: boolean
 }
 
 /**
@@ -33,9 +35,9 @@ interface ProjectMessagesPanelProps {
  * reads badly when a message vanishes and leaves the replies around it
  * referring to nothing.
  */
-export function ProjectMessagesPanel({ projectId }: ProjectMessagesPanelProps) {
+export function ProjectMessagesPanel({ projectId, canManage = false }: ProjectMessagesPanelProps) {
   const { currentUser, userProfile } = useAuth()
-  const { data: messages = [], isLoading } = useProjectMessages(projectId)
+  const { data: messages = [], isLoading, error: loadError } = useProjectMessages(projectId)
   const { data: projectMembers = [] } = useProjectMembers(projectId)
   const postMessage = usePostProjectMessage(projectId)
   const updateMessage = useUpdateProjectMessage(projectId)
@@ -50,9 +52,9 @@ export function ProjectMessagesPanel({ projectId }: ProjectMessagesPanelProps) {
   markReadRef.current = markRead.mutate
 
   const myId = currentUser?.uid ?? null
-  // Owner only: project roles are owner | contributor | viewer, so the
-  // service's 'admin' branch can never match.
-  const canModerate = projectMembers.find((member) => member.userId === myId)?.role === 'owner'
+  // Matches the server: anyone who manages the project (its creator, an
+  // owner on it, or a workspace owner/admin) may remove others' messages.
+  const canModerate = canManage || projectMembers.find((member) => member.userId === myId)?.role === 'owner'
 
   // Opening the panel is reading the thread. Through a ref so a new mutate
   // identity on each render cannot re-fire this.
@@ -112,6 +114,10 @@ export function ProjectMessagesPanel({ projectId }: ProjectMessagesPanelProps) {
           <Skeleton className="h-14 w-full rounded-xl" />
           <Skeleton className="h-14 w-full rounded-xl" />
         </div>
+      ) : loadError ? (
+        <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {loadError instanceof Error ? loadError.message : 'Could not load this conversation'}
+        </p>
       ) : (
         <ol ref={scrollRef} className="flex max-h-96 min-h-32 flex-col gap-3 overflow-y-auto pr-1">
           {messages.length === 0 && (

@@ -181,9 +181,11 @@ export async function removeProjectMember(projectId: string, userId: string): Pr
 // Invitations
 // ---------------------------------------------------------------------------
 
-export async function fetchPendingInvites(workspaceId: string): Promise<Invitation[]> {
+/** A workspace's pending invites, or with projectId just that project's. */
+export async function fetchPendingInvites(workspaceId: string, projectId?: string): Promise<Invitation[]> {
+  const projectQuery = projectId ? `&projectId=${encodeURIComponent(projectId)}` : ''
   const { data } = await getJson<ApiEnvelope<InvitationRow[]>>(
-    `/invitations?workspaceId=${encodeURIComponent(workspaceId)}`,
+    `/invitations?workspaceId=${encodeURIComponent(workspaceId)}${projectQuery}`,
     authToken(),
   )
   return data.map(mapInvitation)

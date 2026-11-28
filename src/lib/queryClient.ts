@@ -103,6 +103,11 @@ export const queryKeys = {
   webhookEndpoints: ['webhookEndpoints'] as const,
   workspaces: ['workspaces'] as const,
   workspaceMembers: (workspaceId: string) => ['workspaces', workspaceId, 'members'] as const,
-  pendingInvites: (workspaceId: string) => ['workspaces', workspaceId, 'invites'] as const,
+  // A project's invites sit under its workspace's key, so invalidating the
+  // workspace's list refreshes every project's too.
+  pendingInvites: (workspaceId: string, projectId?: string) =>
+    projectId
+      ? (['workspaces', workspaceId, 'invites', projectId] as const)
+      : (['workspaces', workspaceId, 'invites'] as const),
   projectMembers: (projectId: string) => ['projects', projectId, 'members'] as const,
 }

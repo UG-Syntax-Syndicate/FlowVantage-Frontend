@@ -103,7 +103,7 @@ export function ProjectTeamTable({
   showInvites = false,
 }: ProjectTeamTableProps) {
   const { data: members = [], isLoading } = useProjectMembers(projectId)
-  const { data: invites = [] } = usePendingInvites(showInvites && canManage ? workspaceId : undefined)
+  const { data: invites = [] } = usePendingInvites(showInvites && canManage ? workspaceId : undefined, projectId)
   const updateRole = useUpdateProjectMemberRole(projectId)
   const removeMember = useRemoveProjectMember(projectId)
   const revokeInvite = useRevokeInvite(workspaceId)

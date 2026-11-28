@@ -27,3 +27,21 @@ describe('isSameOriginApi', () => {
     expect(isSameOriginApi('https://flowvantage-backend.onrender.com/api/v1')).toBe(false)
   })
 })
+
+describe('wakeBackend', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('pings the API health route without credentials and swallows failures', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', fetchMock)
+    const { wakeBackend } = await import('./backendApi')
+
+    expect(() => wakeBackend()).not.toThrow()
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toMatch(/\/health$/)
+    expect(init.credentials).toBeUndefined()
+    await Promise.resolve()
+  })
+})

@@ -12,10 +12,14 @@ import { SplashScreen } from './components/splash/SplashScreen'
 import { queryClient } from './lib/queryClient'
 import { AppErrorBoundary } from './components/common/AppErrorBoundary'
 import { initObservability } from './lib/observability'
+import { wakeBackend } from './lib/backendApi'
 
 // Before anything renders, so a failure during the first paint is still
 // reported. No-ops when VITE_SENTRY_DSN is unset.
 initObservability()
+
+// Starts a sleeping API booting while the user is still signing in.
+wakeBackend()
 
 function Root() {
   const [showSplash, setShowSplash] = useState(true)

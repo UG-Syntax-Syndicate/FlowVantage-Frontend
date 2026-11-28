@@ -580,3 +580,20 @@ export async function confirmTwoFactorSetup(sessionToken: string, token: string)
 export async function disableTwoFactor(sessionToken: string, token: string): Promise<void> {
   await postJson('/auth/2fa/disable', { token }, sessionToken)
 }
+
+/**
+ * Fire-and-forget request that wakes the API as soon as the app loads.
+ *
+ * The API runs on a host that sleeps after idling, and the first request
+ * then waits 30-60s while it boots. Without this, that first request was the
+ * sign-in exchange, so the wait landed after login, in front of the
+ * dashboard. Sent on page load, the boot overlaps with the user typing their
+ * credentials (or Firebase restoring their sign-in). The answer is ignored:
+ * any request wakes the host, so even an error has done its job.
+ */
+export function wakeBackend(): void {
+  if (typeof fetch !== 'function') return
+  fetch(`${API_BASE_URL}/health`, { method: 'GET', cache: 'no-store', keepalive: true }).catch(() => {
+    // Unreachable now just means the real requests will report it.
+  })
+}
